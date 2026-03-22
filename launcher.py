@@ -1620,55 +1620,107 @@ def grok_login_cuenta():
     grok_state["log_lines"].append(f"  🌐 [{folder_name}] Abriendo Chrome — inicia sesión en grok.com y cierra la ventana.")
 
     def _do_login():
+        import json as _json, time as _t, shutil as _sh
         try:
             from playwright.sync_api import sync_playwright
-            import json as _json, time as _t
-            profile_dir = str(GROK_DIR / "chrome_profiles" / folder_name)
-            FPath(profile_dir).mkdir(parents=True, exist_ok=True)
+        except ImportError:
+            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
+            return
+
+        # Perfil temporal limpio igual que el script de referencia
+        temp_profile = GROK_DIR / "chrome_profiles" / f"_tmp_{folder_name}"
+        if temp_profile.exists():
+            try: _sh.rmtree(str(temp_profile))
+            except Exception: pass
+        temp_profile.mkdir(parents=True, exist_ok=True)
+
+        grok_state["log_lines"].append(
+            f"  🌐 [{folder_name}] Abriendo Chrome — inicia sesión en grok.com y espera a que se guarde la sesión automáticamente."
+        )
+
+        try:
             with sync_playwright() as pw:
                 ctx = pw.chromium.launch_persistent_context(
-                    profile_dir, headless=False,
-                    args=["--disable-blink-features=AutomationControlled", "--no-first-run"],
-                    no_viewport=True
+                    str(temp_profile),
+                    headless=False,
+                    args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+                    viewport={"width": 1280, "height": 900},
                 )
                 page = ctx.pages[0] if ctx.pages else ctx.new_page()
                 try:
-                    page.goto("https://grok.com", timeout=20000)
+                    page.goto("https://grok.com/imagine", timeout=60000)
+                    page.wait_for_load_state("networkidle", timeout=30000)
                 except Exception:
                     pass
 
                 grok_state["log_lines"].append(
-                    f"  🌐 [{folder_name}] Inicia sesión en grok.com y CIERRA la ventana del navegador cuando termines."
+                    f"  ⏳ [{folder_name}] Loguéate en el browser. Las cookies se guardarán solas al detectar sesión activa..."
                 )
 
-                # Esperar a que el usuario cierre el browser manualmente
-                # El browser permanece abierto hasta que el usuario lo cierre
-                try:
-                    ctx.wait_for_event("close", timeout=600000)  # 10 minutos max
-                except Exception:
-                    pass
+                # Esperar cookie "sso" igual que el script de referencia
+                saved = False
+                deadline = _t.time() + 600  # 10 minutos max
+                while _t.time() < deadline:
+                    _t.sleep(3)
+                    try:
+                        cookies_raw = ctx.cookies("https://grok.com")
+                    except Exception:
+                        break
+                    ck_dict = {c["name"]: c["value"] for c in cookies_raw}
+                    # Detectar sesión activa igual que el script: buscar cookie "sso"
+                    if ck_dict.get("sso"):
+                        clist = [
+                            {
+                                "name":     c["name"],
+                                "value":    c["value"],
+                                "domain":   ".grok.com",
+                                "path":     "/",
+                                "httpOnly": False,
+                                "secure":   True,
+                            }
+                            for c in cookies_raw
+                        ]
+                        (folder / "cookies_auto.json").write_text(
+                            _json.dumps(clist, indent=2)
+                        )
+                        grok_state["log_lines"].append(
+                            f"  ✅ [{folder_name}] Sesión guardada ({len(clist)} cookies): {list(ck_dict.keys())[:5]}"
+                        )
+                        saved = True
+                        _t.sleep(1)
+                        try: ctx.close()
+                        except Exception: pass
+                        break
 
-                # Guardar cookies al cerrar
-                try:
-                    cookies = ctx.cookies("https://grok.com")
-                except Exception:
-                    cookies = []
+                if not saved:
+                    # Guardar lo que haya si el usuario cerró manualmente
+                    try:
+                        cookies_raw = ctx.cookies("https://grok.com")
+                    except Exception:
+                        cookies_raw = []
+                    if cookies_raw:
+                        clist = [
+                            {"name": c["name"], "value": c["value"],
+                             "domain": ".grok.com", "path": "/",
+                             "httpOnly": False, "secure": True}
+                            for c in cookies_raw
+                        ]
+                        (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
+                        grok_state["log_lines"].append(
+                            f"  ⚠️  [{folder_name}] Guardadas {len(clist)} cookies (sin confirmar sesión 'sso')."
+                        )
+                    else:
+                        grok_state["log_lines"].append(
+                            f"  ⚠️  [{folder_name}] Sin cookies — sesión no guardada."
+                        )
+                # Limpiar perfil temporal
+                try: _sh.rmtree(str(temp_profile))
+                except Exception: pass
 
-                if len(cookies) >= 2:
-                    (folder / "cookies_auto.json").write_text(
-                        _json.dumps([{"name": c["name"], "value": c["value"]} for c in cookies], indent=2)
-                    )
-                    grok_state["log_lines"].append(
-                        f"  ✅ [{folder_name}] Sesión guardada ({len(cookies)} cookies)."
-                    )
-                else:
-                    grok_state["log_lines"].append(
-                        f"  ⚠️  [{folder_name}] Browser cerrado sin cookies de sesión."
-                    )
-        except ImportError:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado. Ejecuta: playwright install chromium")
         except Exception as e:
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
+            try: _sh.rmtree(str(temp_profile))
+            except Exception: pass
 
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"ok": True, "message": f"Chrome abierto para {folder_name}"})
