@@ -407,7 +407,7 @@ _PLAYWRIGHT_OK      = True   # siempre True: no usamos Playwright
 os.makedirs(_WHISK_DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(_WHISK_COOKIES_DIR,  exist_ok=True)
 
-# Crear carpetas de Grok y cuentas por defecto al inicio
+# Crear carpetas Grok y cuentas por defecto
 for _grok_sub in ["accounts", "downloads", "chrome_profiles"]:
     (GROK_DIR / _grok_sub).mkdir(parents=True, exist_ok=True)
 for _acc in ["cuenta1", "cuenta2", "cuenta3", "cuenta4", "cuenta5"]:
@@ -1622,6 +1622,7 @@ def grok_login_cuenta():
     def _do_login():
         try:
             from playwright.sync_api import sync_playwright
+            import json as _json, time as _t
             profile_dir = str(GROK_DIR / "chrome_profiles" / folder_name)
             FPath(profile_dir).mkdir(parents=True, exist_ok=True)
             with sync_playwright() as pw:
@@ -1631,33 +1632,41 @@ def grok_login_cuenta():
                     no_viewport=True
                 )
                 page = ctx.pages[0] if ctx.pages else ctx.new_page()
-                try: page.goto("https://grok.com", timeout=15000)
-                except Exception: pass
-                saved = False
-                import time as _t
-                deadline = _t.time() + 300
-                while _t.time() < deadline:
-                    try:
-                        cookies = ctx.cookies("https://grok.com")
-                    except Exception:
-                        break
-                    has_auth = any(c.get("name","").startswith("x-") for c in cookies)
-                    if has_auth and len(cookies) >= 3:
-                        import json as _json
-                        (folder / "cookies_auto.json").write_text(
-                            _json.dumps([{"name":c["name"],"value":c["value"]} for c in cookies], indent=2)
-                        )
-                        grok_state["log_lines"].append(f"  ✅ [{folder_name}] Sesión guardada ({len(cookies)} cookies).")
-                        saved = True
-                        _t.sleep(1)
-                        try: ctx.close()
-                        except Exception: pass
-                        break
-                    _t.sleep(2)
-                if not saved:
-                    grok_state["log_lines"].append(f"  ⚠️  [{folder_name}] Browser cerrado sin guardar sesión.")
+                try:
+                    page.goto("https://grok.com", timeout=20000)
+                except Exception:
+                    pass
+
+                grok_state["log_lines"].append(
+                    f"  🌐 [{folder_name}] Inicia sesión en grok.com y CIERRA la ventana del navegador cuando termines."
+                )
+
+                # Esperar a que el usuario cierre el browser manualmente
+                # El browser permanece abierto hasta que el usuario lo cierre
+                try:
+                    ctx.wait_for_event("close", timeout=600000)  # 10 minutos max
+                except Exception:
+                    pass
+
+                # Guardar cookies al cerrar
+                try:
+                    cookies = ctx.cookies("https://grok.com")
+                except Exception:
+                    cookies = []
+
+                if len(cookies) >= 2:
+                    (folder / "cookies_auto.json").write_text(
+                        _json.dumps([{"name": c["name"], "value": c["value"]} for c in cookies], indent=2)
+                    )
+                    grok_state["log_lines"].append(
+                        f"  ✅ [{folder_name}] Sesión guardada ({len(cookies)} cookies)."
+                    )
+                else:
+                    grok_state["log_lines"].append(
+                        f"  ⚠️  [{folder_name}] Browser cerrado sin cookies de sesión."
+                    )
         except ImportError:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
+            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado. Ejecuta: playwright install chromium")
         except Exception as e:
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
 
