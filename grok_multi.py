@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """
-grok_multi.py — Multi-cuenta Grok Animator (v4 — anti-ratelimit)
+grok_multi.py — Multi-cuenta Grok Animator (v4 — anti rate-limit)
 Las imágenes se procesan ordenadas por FECHA DE CREACIÓN (más antigua primero).
+El nombre del video de salida incluye el índice de orden: 001_imagen.mp4, 002_...
 
 Uso:
-  python3 grok_multi.py /fotos --slots 2 --prompt "Cinematic slow zoom"
-  python3 grok_multi.py /fotos --slots 2 --login   ← primer uso
-
-Con 5 cuentas y --slots 2 se procesan 10 imágenes en paralelo.
-ACCOUNT_MIN_SPACING garantiza que ninguna cuenta reciba dos requests
-seguidos en menos de N segundos, evitando el rate limit proactivamente.
+python3 grok_multi.py /fotos --slots 3 --prompt "Cinematic slow zoom"
+python3 grok_multi.py /fotos --slots 3 --login ← primer uso
 """
 import sys, json, time, uuid, base64, logging, argparse, mimetypes, requests, random, threading
 from pathlib import Path
+from queue import Queue, Empty
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logging.basicConfig(
@@ -20,13 +19,14 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler(), logging.FileHandler("grok_multi.log")]
 )
+
 log = logging.getLogger(__name__)
 
-GROK_BASE   = "https://grok.com"
-UPLOAD_URL  = f"{GROK_BASE}/rest/app-chat/upload-file"
-CONV_URL    = f"{GROK_BASE}/rest/app-chat/conversations/new"
-ASSET_BASE  = "https://assets.grok.com"
-BASE_DIR    = Path(__file__).parent.resolve()
+GROK_BASE  = "https://grok.com"
+UPLOAD_URL = f"{GROK_BASE}/rest/app-chat/upload-file"
+CONV_URL   = f"{GROK_BASE}/rest/app-chat/conversations/new"
+ASSET_BASE = "https://assets.grok.com"
+BASE_DIR   = Path(__file__).parent.resolve()
 ACCOUNTS_DIR  = BASE_DIR / "accounts"
 DOWNLOADS_DIR = BASE_DIR / "downloads"
 DOWNLOADS_DIR.mkdir(exist_ok=True)
@@ -34,10 +34,13 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 SLOTS_MAX = 12
 
-# ── Excepciones ───────────────────────────────────────────────────────────────
+# ── OPTIMIZACIÓN: máximo de reintentos de generación por imagen ───────────────
+MAX_GEN_ATTEMPTS = 3
+
+# ── Excepciones propias ────────────────────────────────────────────────────────
 
 class GrokRateLimit(Exception):
-    """429 / 503 o error de cuota en el SSE."""
+    """El servidor devolvio 429 / 503 o un error de cuota en el SSE."""
     def __init__(self, msg="", retry_after: float = 65.0):
         super().__init__(msg)
         self.retry_after = retry_after
@@ -45,7 +48,7 @@ class GrokRateLimit(Exception):
 class GrokAuthError(Exception):
     """Cookie expirada o cuenta sin acceso."""
 
-# ── Ordenar por fecha de creación ─────────────────────────────────────────────
+# ── Ordenar por fecha de creacion ─────────────────────────────────────────────
 
 def _creation_time(path: Path) -> float:
     st = path.stat()
@@ -64,9 +67,10 @@ def get_images(source: str, filter_file: str = ""):
         log.error("No se encontraron imagenes."); sys.exit(1)
 
     if filter_file and Path(filter_file).exists():
-        allowed = set(json.loads(Path(filter_file).read_text()))
+        import json as _json
+        allowed = set(_json.loads(Path(filter_file).read_text()))
         imgs_filtered = [f for f in imgs if f.name in allowed]
-        log.info(f"  Filtrando: {len(imgs_filtered)}/{len(imgs)} imagenes")
+        log.info(f"  Filtrando: {len(imgs_filtered)}/{len(imgs)} imagenes de esta sesion")
         if imgs_filtered:
             imgs = imgs_filtered
 
@@ -82,7 +86,7 @@ def get_images(source: str, filter_file: str = ""):
 def _rid(): return str(uuid.uuid4())
 
 def _hdrs(ref=f"{GROK_BASE}/imagine", session_meta=None):
-    meta = session_meta or {}
+    meta        = session_meta or {}
     trace_id    = uuid.uuid4().hex
     span_id     = uuid.uuid4().hex[:16]
     sample_rand = round(random.uniform(0.1, 0.99), 17)
@@ -129,38 +133,37 @@ def _deep(obj, d=0):
         return obj
     if isinstance(obj, dict):
         for v in obj.values():
-            f = _deep(v, d + 1)
+            f = _deep(v, d+1)
             if f: return f
     if isinstance(obj, list):
         for i in obj:
-            f = _deep(i, d + 1)
+            f = _deep(i, d+1)
             if f: return f
     return None
 
-# ── GrokPool — rotación inteligente de cuentas ───────────────────────────────
+# ── GrokPool — rotacion inteligente de cuentas ────────────────────────────────
 
 class GrokPool:
     """
-    Gestiona N clientes Grok con protección proactiva contra rate limit.
+    Gestiona N clientes Grok.
 
-    NUEVO en v4:
-    - ACCOUNT_MIN_SPACING: pausa mínima entre requests del MISMO account,
-      evita el rate limit antes de que ocurra.
-    - mark_ratelimited pausa TODOS los slots de la cuenta (no solo 1).
-    - get_client prioriza cuentas con mayor tiempo desde su último request.
+    - Rate-limit (429/503/cuota SSE) -> cooldown por slot, rota a otro.
+    - Auth expirada -> cooldown temporal (re-evaluacion automatica).
+      Si la cookie fue renovada externamente vuelve a funcionar sola.
+      Cada fallo consecutivo duplica el cooldown (5min->10->20->30 max).
+    - Todos en cooldown -> espera silenciosa (log cada 10 s con countdown).
+    - _in_use rastrea slots individuales: mismo slot nunca se asigna dos veces.
     """
-    DEAD_COOLDOWN      = 5 * 60   # 5 min base antes de re-intentar cuenta muerta
-    ACCOUNT_MIN_SPACING = 12.0    # segundos mínimos entre requests del mismo account
+    DEAD_COOLDOWN = 5 * 60  # 5 min base antes de re-intentar cuenta muerta
 
     def __init__(self, clients: list):
-        self._clients     = list(clients)
-        self._lock        = threading.Lock()
-        self._cond        = threading.Condition(self._lock)
-        self._cooldown    = {c.label: 0.0 for c in clients}
-        self._in_use      = set()
-        self._dead_until  = {}   # label -> timestamp
-        self._fail_count  = {}   # account_name -> fallos auth consecutivos
-        self._last_req_ts = {}   # account_name -> timestamp último request iniciado
+        self._clients      = list(clients)
+        self._lock         = threading.Lock()
+        self._cond         = threading.Condition(self._lock)
+        self._cooldown     = {c.label: 0.0 for c in clients}
+        self._in_use       = set()
+        self._dead_until   = {}   # label -> timestamp (temporal, no permanente)
+        self._fail_count   = {}   # account_name -> fallos auth consecutivos
         self._last_sat_log = 0.0
 
     def _is_dead(self, c) -> bool:
@@ -170,12 +173,9 @@ class GrokPool:
         now = time.time()
         result = []
         for c in self._clients:
-            if c.label in self._in_use:                                  continue
-            if now < self._dead_until.get(c.label, 0.0):                continue
-            if self._cooldown.get(c.label, 0.0) > now:                  continue
-            # ── NUEVO: spacing mínimo por cuenta ─────────────────────
-            elapsed = now - self._last_req_ts.get(c.account_name, 0.0)
-            if elapsed < self.ACCOUNT_MIN_SPACING:                       continue
+            if c.label in self._in_use: continue
+            if now < self._dead_until.get(c.label, 0.0): continue
+            if self._cooldown.get(c.label, 0.0) > now: continue
             result.append(c)
         return result
 
@@ -184,11 +184,8 @@ class GrokPool:
         candidates = []
         for c in self._clients:
             if c.label in self._in_use: continue
-            t = max(
-                self._cooldown.get(c.label, 0.0),
-                self._dead_until.get(c.label, 0.0),
-                self._last_req_ts.get(c.account_name, 0.0) + self.ACCOUNT_MIN_SPACING
-            )
+            t = max(self._cooldown.get(c.label, 0.0),
+                    self._dead_until.get(c.label, 0.0))
             if t > now: candidates.append(t)
         return min(candidates) if candidates else now + 1.0
 
@@ -198,13 +195,13 @@ class GrokPool:
                 if cancel_ev.is_set(): return None
                 free = self._free_now()
                 if free:
-                    # Priorizar la cuenta con mayor tiempo sin usar
-                    free.sort(key=lambda c: self._last_req_ts.get(c.account_name, 0.0))
-                    chosen = self._clients[0]  # placeholder
+                    free.sort(key=lambda c: sum(
+                        1 for l in self._in_use if l.startswith(c.account_name)
+                    ))
                     chosen = free[0]
                     self._in_use.add(chosen.label)
-                    self._last_req_ts[chosen.account_name] = time.time()
-                    # Reactivar slots de la cuenta si salieron de dead_until
+                    # Si este slot estaba en periodo de re-evaluacion (dead_until expirado),
+                    # reactivar TODOS los slots de la misma cuenta inmediatamente
                     if self._dead_until.get(chosen.label, 0.0) > 0:
                         acc = chosen.account_name
                         reactivated = 0
@@ -216,18 +213,13 @@ class GrokPool:
                         if reactivated > 1:
                             log.info(f"  [{acc}] Re-evaluando — {reactivated} slots reactivados")
                     return chosen
-
                 now  = time.time()
                 wait = max(0.3, self._next_free_ts() - now)
                 if now - self._last_sat_log >= 10:
                     n_busy = len(self._in_use)
-                    n_cd   = sum(1 for c in self._clients if self._cooldown.get(c.label, 0.0) > now)
+                    n_cd   = sum(1 for c in self._clients
+                                 if self._cooldown.get(c.label, 0.0) > now)
                     n_dead = sum(1 for c in self._clients if self._is_dead(c))
-                    n_spac = sum(
-                        1 for c in self._clients
-                        if c.label not in self._in_use
-                        and (now - self._last_req_ts.get(c.account_name, 0.0)) < self.ACCOUNT_MIN_SPACING
-                    )
                     revivals, seen = [], set()
                     for c in self._clients:
                         if self._is_dead(c) and c.account_name not in seen:
@@ -236,14 +228,20 @@ class GrokPool:
                             seen.add(c.account_name)
                     rev = (" re-eval:" + ",".join(revivals)) if revivals else ""
                     log.info(f"  Esperando slot "
-                             f"(ocupados={n_busy} cooldown={n_cd} spacing={n_spac} pausadas={n_dead}{rev})...")
+                             f"(ocupados={n_busy} cooldown={n_cd} pausadas={n_dead}{rev})...")
                     self._last_sat_log = now
                 self._cond.wait(timeout=min(wait, 3.0))
 
     def release(self, client):
-        """Libera el slot tras generación exitosa."""
+        """Libera el slot con micro-cooldown para evitar martillar la misma cuenta."""
         with self._cond:
             self._in_use.discard(client.label)
+            # OPTIMIZACIÓN: micro-pausa de 1.5 s entre generaciones del mismo slot
+            self._cooldown[client.label] = max(
+                self._cooldown.get(client.label, 0.0),
+                time.time() + 1.5
+            )
+            # Si habia estado "muerto" y ahora funciono, resetear completamente
             if self._dead_until.get(client.label, 0.0) > 0:
                 self._dead_until[client.label] = 0.0
                 self._fail_count[client.account_name] = 0
@@ -253,26 +251,16 @@ class GrokPool:
     def mark_ok(self, client):
         with self._cond:
             self._in_use.discard(client.label)
-            self._cooldown[client.label]    = 0.0
-            self._dead_until[client.label]  = 0.0
+            self._cooldown[client.label]          = 0.0
+            self._dead_until[client.label]        = 0.0
             self._fail_count[client.account_name] = 0
             self._cond.notify_all()
 
     def mark_ratelimited(self, client, cooldown: float = 65.0):
-        """
-        NUEVO v4: pausa TODOS los slots del mismo account, no solo uno.
-        Evita que los slots hermanos sigan disparando y también reciban 429.
-        """
         with self._cond:
-            acc   = client.account_name
-            until = time.time() + cooldown
-            count = 0
-            for c in self._clients:
-                if c.account_name == acc:
-                    self._in_use.discard(c.label)
-                    self._cooldown[c.label] = until
-                    count += 1
-            log.warning(f"  [{acc}] Rate-limit — {count} slot(s) pausados {cooldown:.0f}s")
+            self._in_use.discard(client.label)
+            self._cooldown[client.label] = time.time() + cooldown
+            log.warning(f"  [{client.label}] Rate-limit — pausa {cooldown:.0f}s")
             self._cond.notify_all()
 
     def mark_dead(self, client):
@@ -295,7 +283,9 @@ class GrokPool:
             self._cond.notify_all()
 
     def any_alive(self) -> bool:
+        """Siempre True mientras exista algun slot con re-evaluacion pendiente."""
         with self._lock:
+            # Con dead_until temporal siempre hay esperanza
             return len(self._clients) > 0
 
 # ── Cliente ───────────────────────────────────────────────────────────────────
@@ -338,7 +328,7 @@ class GrokAccountClient:
                     return None, None
                 data = r.json()
                 fid  = (data.get("fileMetadataId") or data.get("fileId") or
-                        data.get("id") or data.get("attachmentId"))
+                        data.get("id")             or data.get("attachmentId"))
                 furi = data.get("fileUri", "")
                 uid  = self.session.cookies.get("x-userid", "x")
                 aurl = (f"{ASSET_BASE}/{furi}" if furi else
@@ -403,6 +393,7 @@ class GrokAccountClient:
                         if "video" in mt or ru.endswith((".mp4", ".webm")):
                             video_url = u; break
         except requests.exceptions.ReadTimeout:
+            # Stream se corto a mitad — usar lo que tengamos hasta ahora
             log.warning(f"[{self.label}] SSE ReadTimeout — usando datos parciales "
                         f"(vid={video_id} url={video_url})")
         except (GrokRateLimit, GrokAuthError):
@@ -436,10 +427,16 @@ class GrokAccountClient:
         log.error(f"[{self.label}] Poll timeout."); return None
 
     def animate(self, image_path: Path):
+        # Verificacion rapida: si ya estamos marcados como muertos no intentar nada
+        # (el pool no deberia asignarnos, pero por seguridad)
         fid, aurl = self._upload(image_path)
         if not fid: return None
         payload = self._build_payload(fid, aurl)
         log.info(f"[{self.label}] [2/3] Generando video...")
+
+        # La imagen ya esta subida — reintentar solo el SSE si hay timeout,
+        # sin volver a subir. timeout=(connect_s, read_s): 15s para conectar,
+        # 300s entre chunks del stream (suficiente para pausas del modelo).
         for attempt in range(4):
             try:
                 hdrs = {**_hdrs(session_meta=self.session_meta), "content-type": "application/json"}
@@ -457,22 +454,82 @@ class GrokAccountClient:
                     log.error(f"[{self.label}] Conv {r.status_code}: {r.text[:200]}"); return None
                 log.info(f"[{self.label}] [3/3] Leyendo SSE...")
                 return self._parse_sse(r)
+
             except (GrokRateLimit, GrokAuthError): raise
             except requests.exceptions.ReadTimeout:
                 wait = 10 * (attempt + 1)
-                log.warning(f"[{self.label}] SSE timeout intento {attempt+1} — reintentando en {wait}s "
+                log.warning(f"[{self.label}] SSE timeout intento {attempt+1} — reintentando SSE en {wait}s "
                             f"(imagen ya subida, no se re-sube)...")
                 time.sleep(wait)
             except Exception as e:
                 wait = 5 * (attempt + 1)
                 log.warning(f"[{self.label}] Animate intento {attempt+1}: {str(e)[:120]} — {wait}s...")
                 time.sleep(wait)
-        log.error(f"[{self.label}] Animate: 4 intentos SSE fallidos")
+
+        log.error(f"[{self.label}] Animate: 4 intentos SSE fallidos — imagen: {payload.get('message','')[:60]}")
         return None
+
+    def download(self, url: str, dest: Path, max_404: int = 4) -> bool:
+        """
+        Backoff adaptativo para 404 de CDN.
+        Si supera max_404 intentos consecutivos de 404, la URL se considera
+        muerta (cuota agotada / video no renderizado) y retorna False para
+        que el worker regenere la imagen con otra cuenta.
+        """
+        hdrs = _hdrs(session_meta=self.session_meta)
+        hdrs["referer"] = "https://grok.com/"
+        log.info(f"[{self.label}] Descargando -> {dest.name}")
+        backoff_404 = [3, 5, 8, 12, 15, 20]
+        deadline    = time.time() + 300   # OPTIMIZACIÓN: 300 s en vez de 600
+        attempt     = 0
+        consec_404  = 0
+        while time.time() < deadline:
+            attempt += 1
+            try:
+                with self.session.get(url, stream=True, timeout=180, headers=hdrs) as r:
+                    if r.status_code == 404:
+                        consec_404 += 1
+                        # Despues de max_404 intentos la URL es definitivamente muerta
+                        if consec_404 >= max_404:
+                            log.warning(f"[{self.label}] URL muerta tras {consec_404} "
+                                        f"404s consecutivos — se regenerara la imagen")
+                            return False
+                        wait = backoff_404[min(consec_404 - 1, len(backoff_404) - 1)]
+                        log.info(f"[{self.label}] CDN 404 intento {attempt} ({consec_404}/{max_404}) — {wait}s...")
+                        time.sleep(wait); continue
+                    if r.status_code == 429: raise GrokRateLimit("Download 429", retry_after=65.0)
+                    if r.status_code in (401, 403): raise GrokAuthError(f"Download auth {r.status_code}")
+                    r.raise_for_status()
+                    consec_404 = 0
+                    with open(dest, "wb") as f:
+                        for chunk in r.iter_content(65536): f.write(chunk)
+                    size = dest.stat().st_size
+                    if size < 10_000:
+                        dest.unlink(missing_ok=True)
+                        log.warning(f"[{self.label}] Archivo muy pequeño ({size}B) — reintentando...")
+                        time.sleep(10); continue
+                    log.info(f"[{self.label}] {dest.name} ({size//1024} KB) intento {attempt}")
+                    return True
+            except (GrokRateLimit, GrokAuthError): raise
+            except requests.exceptions.HTTPError as e:
+                code = e.response.status_code if e.response else "?"
+                log.warning(f"[{self.label}] HTTP {code} intento {attempt}")
+                time.sleep(20)
+            except Exception as e:
+                log.warning(f"[{self.label}] DL err {attempt}: {e}")
+                time.sleep(15)
+        log.error(f"[{self.label}] Timeout descarga: {url}")
+        (BASE_DIR / "pending_downloads.txt").open("a").write(url + "\n")
+        return False
 
 # ── Login via Playwright ──────────────────────────────────────────────────────
 
 def _login_account(folder):
+    """
+    Login manual con perfil temporal limpio.
+    Sin flags anti-bot — browser completamente normal.
+    El usuario inicia sesion y presiona ENTER para capturar las cookies.
+    """
     import shutil
     from playwright.sync_api import sync_playwright
 
@@ -492,7 +549,7 @@ def _login_account(folder):
         ctx = pw.chromium.launch_persistent_context(
             str(temp_profile),
             headless=False,
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+            args=["--no-sandbox"],
             viewport={"width": 1280, "height": 900},
         )
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
@@ -539,7 +596,7 @@ def _login_account(folder):
                  for c in raw]
         (folder / "cookies_auto.json").write_text(json.dumps(clist, indent=2))
         (folder / "session_meta.json").write_text(json.dumps(captured, indent=2))
-        print(f"  ✅ Cookies guardadas: {[c['name'] for c in raw]}")
+        print(f"  Cookies guardadas: {[c['name'] for c in raw]}")
         ctx.close()
         result = True
 
@@ -582,15 +639,98 @@ def _sleep(secs: float, cancel_ev: threading.Event):
         if cancel_ev.is_set(): return
         time.sleep(min(1.0, deadline - time.time()))
 
-# ── Descarga standalone ───────────────────────────────────────────────────────
+# ── Pipeline 1: Generación (upload + SSE) ────────────────────────────────────
+# Cada slot se libera en cuanto obtiene la URL, SIN esperar la descarga.
+# Las descargas van a una cola separada para no bloquear la generación.
+
+def _worker(idx: int, img: Path, total: int,
+            pool: GrokPool, output_dir: Path,
+            success_count: list, lock: threading.Lock,
+            cancel_ev: threading.Event):
+    """
+    Un hilo por imagen. Dos fases separadas:
+    Fase 1 — GENERACIÓN: pide slot al pool, upload + SSE, libera slot
+              INMEDIATAMENTE al obtener la URL.
+    Fase 2 — DESCARGA: sin slot, corre en el mismo hilo mientras otros
+              hilos ya están generando sus propias imágenes.
+    Así los slots siempre están libres para generar y las descargas nunca
+    bloquean la generación.
+    """
+    dest    = output_dir / f"{img.stem}.mp4"
+    attempt = 0
+
+    if dest.exists() and dest.stat().st_size > 10_000:
+        log.info(f"  [{idx:03d}/{total}] Ya existe — skip")
+        with lock: success_count[0] += 1
+        return
+
+    while not cancel_ev.is_set():
+        attempt += 1
+
+        # OPTIMIZACIÓN: cortar si se superan MAX_GEN_ATTEMPTS
+        if attempt > MAX_GEN_ATTEMPTS:
+            log.error(f"  [{idx:03d}/{total}] Fallo definitivo tras {MAX_GEN_ATTEMPTS} intentos — {img.name}")
+            return
+
+        # ── Fase 1: GENERACIÓN (necesita slot) ───────────────────────────────
+        client = pool.get_client(cancel_ev)
+        if client is None:
+            return  # cancelado
+
+        log.info(f"[{client.label}] [{idx:03d}/{total}] intento {attempt}: {img.name}")
+        url = None
+        try:
+            url = client.animate(img)
+            # Liberar slot ANTES de descargar — el slot ya no es necesario
+            pool.release(client)
+
+        except GrokRateLimit as e:
+            pool.mark_ratelimited(client, e.retry_after)
+            attempt -= 1  # no contar el rate-limit como intento fallido
+            continue
+        except GrokAuthError:
+            pool.mark_dead(client)
+            if not pool.any_alive():
+                log.error("  Sin slots disponibles. Verifica --login.")
+                cancel_ev.set()
+            continue
+        except Exception as e:
+            pool.release(client)
+            wait = min(10 * attempt, 40)
+            log.error(f"[{client.label}] [{idx:03d}] Gen error: {str(e)[:120]} — {wait}s")
+            _sleep(wait, cancel_ev)
+            continue
+
+        if not url:
+            wait = min(10 * attempt, 40)
+            log.warning(f"[{client.label}] [{idx:03d}] Sin URL — {wait}s")
+            _sleep(wait, cancel_ev)
+            continue
+
+        # Capturar cookies ANTES de liberar el slot — las necesita la descarga
+        dl_session = requests.Session()
+        for name, value in client.cookies_dict.items():
+            dl_session.cookies.set(name, value, domain=".grok.com")
+        dl_session.cookies.set("_ga", "GA1.1.1", domain=".grok.com")  # evita redirect
+
+        # ── Fase 2: DESCARGA (sin slot, otros hilos generan en paralelo) ─────
+        ok = _download_url(url, dest, label=f"{client.label}", session=dl_session)
+        if ok:
+            with lock:
+                success_count[0] += 1
+            log.info(f"  [{idx:03d}] OK — {success_count[0]}/{total} completados")
+            return
+        # URL muerta → volver a generar (con cualquier cuenta disponible)
+        log.warning(f"  [{idx:03d}] URL muerta — regenerando")
 
 def _download_url(url: str, dest: Path, label: str,
                   session: requests.Session = None,
-                  max_404: int = 10) -> bool:
+                  max_404: int = 4) -> bool:       # OPTIMIZACIÓN: max_404 = 4
+    """Descarga standalone con session autenticada."""
     hdrs = _hdrs()
     hdrs["referer"] = "https://grok.com/"
     backoff_404 = [3, 5, 8, 12, 15, 20]
-    deadline    = time.time() + 600
+    deadline    = time.time() + 300              # OPTIMIZACIÓN: 300 s en vez de 600
     consec_404  = 0
     local_att   = 0
     sess        = session or requests.Session()
@@ -632,89 +772,20 @@ def _download_url(url: str, dest: Path, label: str,
     (BASE_DIR / "pending_downloads.txt").open("a").write(url + "\n")
     return False
 
-# ── Worker ────────────────────────────────────────────────────────────────────
-
-def _worker(idx: int, img: Path, total: int,
-            pool: GrokPool, output_dir: Path,
-            success_count: list, lock: threading.Lock,
-            cancel_ev: threading.Event):
-    """
-    Dos fases:
-      Fase 1 — GENERACIÓN: ocupa slot, upload + SSE, libera slot al obtener URL.
-      Fase 2 — DESCARGA:   sin slot, el slot ya está libre para la siguiente imagen.
-    """
-    dest    = output_dir / f"{img.stem}.mp4"
-    attempt = 0
-
-    if dest.exists() and dest.stat().st_size > 10_000:
-        log.info(f"  [{idx:03d}/{total}] Ya existe — skip")
-        with lock: success_count[0] += 1
-        return
-
-    while not cancel_ev.is_set():
-        attempt += 1
-
-        # ── Fase 1: GENERACIÓN ───────────────────────────────────────
-        client = pool.get_client(cancel_ev)
-        if client is None:
-            return
-
-        log.info(f"[{client.label}] [{idx:03d}/{total}] intento {attempt}: {img.name}")
-        url = None
-        try:
-            url = client.animate(img)
-            pool.release(client)
-        except GrokRateLimit as e:
-            pool.mark_ratelimited(client, e.retry_after)
-            continue
-        except GrokAuthError:
-            pool.mark_dead(client)
-            if not pool.any_alive():
-                log.error("  Sin slots disponibles. Verifica --login.")
-                cancel_ev.set()
-            continue
-        except Exception as e:
-            pool.release(client)
-            wait = min(10 * attempt, 40)
-            log.error(f"[{client.label}] [{idx:03d}] Gen error: {str(e)[:120]} — {wait}s")
-            _sleep(wait, cancel_ev)
-            continue
-
-        if not url:
-            wait = min(10 * attempt, 40)
-            log.warning(f"[{client.label}] [{idx:03d}] Sin URL — {wait}s")
-            _sleep(wait, cancel_ev)
-            continue
-
-        # Copiar cookies para la descarga antes de que el slot se reasigne
-        dl_session = requests.Session()
-        for name, value in client.cookies_dict.items():
-            dl_session.cookies.set(name, value, domain=".grok.com")
-        dl_session.cookies.set("_ga", "GA1.1.1", domain=".grok.com")
-
-        # ── Fase 2: DESCARGA ─────────────────────────────────────────
-        ok = _download_url(url, dest, label=client.label, session=dl_session)
-        if ok:
-            with lock:
-                success_count[0] += 1
-            log.info(f"  [{idx:03d}] ✅ OK — {success_count[0]}/{total} completados")
-            return
-        log.warning(f"  [{idx:03d}] URL muerta — regenerando")
-
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
     p = argparse.ArgumentParser(
-        description="Grok Multi-Account Animator v4 (anti-ratelimit)",
+        description="Grok Multi-Account Animator v4",
         formatter_class=argparse.RawTextHelpFormatter
     )
     p.add_argument("images",        help="Carpeta con imagenes")
     p.add_argument("--prompt",      default="Animate this image with smooth natural motion")
-    p.add_argument("--aspect-ratio", default="2:3",
+    p.add_argument("--aspect-ratio",default="2:3",
                    choices=["1:1","16:9","9:16","4:3","3:4","2:3","3:2"])
-    p.add_argument("--video-length", type=int, default=6)
+    p.add_argument("--video-length",type=int, default=6)
     p.add_argument("--resolution",  default="480p", choices=["480p","720p","1080p"])
-    p.add_argument("--login",       action="store_true",
+    p.add_argument("--login", action="store_true",
                    help=(
                        "Abre Chrome para iniciar sesion en cada cuenta.\n"
                        "Crea las carpetas primero:\n"
@@ -725,33 +796,30 @@ def main():
                    ))
     p.add_argument("--output-dir",  default="")
     p.add_argument("--filter-file", default="")
-    p.add_argument("--slots",       type=int, default=1, metavar="N",
+    p.add_argument("--slots", type=int, default=1, metavar="N",
                    help=(
                        "Videos en paralelo POR cuenta [1-12, default: 1]\n"
-                       "  --slots 2 -> 2 videos/cuenta (recomendado con 5 cuentas)\n"
-                       "Total = cuentas x slots (ej: 5 cuentas x 2 = 10 en paralelo)"
+                       "  --slots 3 -> 3 videos/cuenta (recomendado)\n"
+                       "Total = cuentas x slots (ej: 5 cuentas x 3 = 15 en paralelo)"
                    ))
-    p.add_argument("--spacing",     type=float, default=12.0, metavar="SEG",
-                   help="Segundos minimos entre requests del mismo account (default: 12)")
     args = p.parse_args()
 
     if not 1 <= args.slots <= SLOTS_MAX:
         p.error(f"--slots debe estar entre 1 y {SLOTS_MAX}")
 
-    # Aplicar spacing desde argumento
-    GrokPool.ACCOUNT_MIN_SPACING = args.spacing
-
     output_dir = Path(args.output_dir).resolve() if args.output_dir else DOWNLOADS_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not ACCOUNTS_DIR.exists():
-        log.error(f"No existe {ACCOUNTS_DIR}")
-        log.error("Crea las carpetas: mkdir -p accounts/cuenta1 accounts/cuenta2 ...")
+        log.error(f"No existe {ACCOUNTS_DIR} -> crea: accounts/cuenta1/ ... accounts/cuenta5/")
         sys.exit(1)
 
     account_folders = sorted([d for d in ACCOUNTS_DIR.iterdir() if d.is_dir()])
     if not account_folders:
         log.error(f"Sin carpetas en {ACCOUNTS_DIR}")
+        log.error("Crea las carpetas de cuentas primero:")
+        log.error("  mkdir -p accounts/cuenta1 accounts/cuenta2 accounts/cuenta3")
+        log.error("  mkdir -p accounts/cuenta4 accounts/cuenta5")
         sys.exit(1)
 
     if args.login:
@@ -764,21 +832,19 @@ def main():
                                          args.aspect_ratio, args.video_length,
                                          args.resolution))
     if not all_clients:
-        log.error("Sin clientes disponibles. Ejecuta con --login primero.")
-        sys.exit(1)
+        log.error("Sin clientes disponibles. Ejecuta con --login primero."); sys.exit(1)
 
     images = get_images(args.images, filter_file=args.filter_file)
     total  = len(images)
 
     log.info(f"\n{'='*65}")
-    log.info(f"  Imagenes  : {total} (ordenadas por fecha de creacion)")
-    log.info(f"  Cuentas   : {len(account_folders)} x {args.slots} slot(s) "
-             f"= {len(all_clients)} en paralelo")
-    log.info(f"  Slots     : {[c.label for c in all_clients]}")
-    log.info(f"  Spacing   : {args.spacing}s entre requests por cuenta")
-    log.info(f"  Prompt    : {args.prompt[:60]}")
-    log.info(f"  Aspect    : {args.aspect_ratio} | {args.video_length}s | {args.resolution}")
-    log.info(f"  Salida    : {output_dir}")
+    log.info(f"  Imagenes : {total} (ordenadas por fecha de creacion)")
+    log.info(f"  Cuentas  : {len(account_folders)} x {args.slots} slot(s) "
+             f"= {len(all_clients)} videos en paralelo")
+    log.info(f"  Slots    : {[c.label for c in all_clients]}")
+    log.info(f"  Prompt   : {args.prompt[:60]}")
+    log.info(f"  Aspect   : {args.aspect_ratio} | {args.video_length}s | {args.resolution}")
+    log.info(f"  Salida   : {output_dir}")
     log.info(f"{'='*65}\n")
 
     pool          = GrokPool(all_clients)
@@ -786,26 +852,16 @@ def main():
     success_count = [0]
     lock          = threading.Lock()
 
-    # Workers = slots*3: mientras N slots generan, 2N hilos descargan en paralelo
-    n_workers = len(all_clients) * 3
-    log.info(f"  Thread pool: {n_workers} workers ({len(all_clients)} slots x 3)")
-
-    # NUEVO v4: stagger inicial — lanzar 1 worker por slot con separacion,
-    # evitando el burst masivo al arrancar con 20+ imagenes.
-    STAGGER_S = max(2.0, args.spacing / max(len(all_clients), 1))
-    log.info(f"  Stagger   : {STAGGER_S:.1f}s entre lanzamientos iniciales")
+    # OPTIMIZACIÓN: workers = min(imagenes, slots*2) — evita saturar el servidor
+    n_workers = min(total, len(all_clients) * 2)
+    log.info(f"  Thread pool: {n_workers} workers ({len(all_clients)} slots x 2, cap={total})")
 
     with ThreadPoolExecutor(max_workers=n_workers) as ex:
-        futures = []
-        for idx, img in enumerate(images, 1):
-            futures.append(
-                ex.submit(_worker, idx, img, total, pool, output_dir,
-                          success_count, lock, cancel_ev)
-            )
-            # Solo stagger las primeras N (1 por slot disponible)
-            if idx <= len(all_clients):
-                time.sleep(STAGGER_S)
-
+        futures = [
+            ex.submit(_worker, idx, img, total, pool, output_dir,
+                      success_count, lock, cancel_ev)
+            for idx, img in enumerate(images, 1)
+        ]
         try:
             for f in as_completed(futures):
                 try: f.result()
