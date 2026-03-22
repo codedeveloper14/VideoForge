@@ -406,6 +406,8 @@ _PLAYWRIGHT_OK      = True   # siempre True: no usamos Playwright
 
 os.makedirs(_WHISK_DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(_WHISK_COOKIES_DIR,  exist_ok=True)
+
+# Crear carpetas Grok y cuentas por defecto al inicio
 for _grok_sub in ["accounts", "downloads", "chrome_profiles"]:
     (GROK_DIR / _grok_sub).mkdir(parents=True, exist_ok=True)
 for _acc in ["cuenta1", "cuenta2", "cuenta3", "cuenta4", "cuenta5"]:
@@ -1534,10 +1536,12 @@ def grok_sesiones():
             if ck_file.exists():
                 try:
                     ck = _json.loads(ck_file.read_text())
-                    ck_dict = {c["name"]: c["value"] for c in ck if isinstance(c, dict)}
-                    twpid = ck_dict.get("_twpid", "")
-                    active = bool(twpid) or len(ck) > 5
-                    user = twpid[:20] if twpid else f"{len(ck)} cookies"
+                    gk  = [c for c in ck if isinstance(c,dict) and "grok.com"    in c.get("domain","")]
+                    tw  = [c for c in ck if isinstance(c,dict) and ("twitter.com" in c.get("domain","") or "twimg.com" in c.get("domain",""))]
+                    goo = [c for c in ck if isinstance(c,dict) and "google.com"  in c.get("domain","")]
+                    active = len(gk) >= 3 or len(tw) >= 2 or len(goo) >= 3
+                    twpid = next((c["value"] for c in ck if isinstance(c,dict) and c.get("name") == "_twpid"), "")
+                    user  = twpid[:20] if twpid else f"{len(ck)} cookies"
                 except Exception:
                     active = ck_file.stat().st_size > 50
             result.append({"name": folder.name, "active": active, "user": user,
@@ -1569,74 +1573,69 @@ def grok_login_cuenta():
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
             return
 
-        # Perfil temporal limpio para evitar cookies viejas
-        temp_profile = GROK_DIR / "chrome_profiles" / f"_tmp_{folder_name}"
-        if temp_profile.exists():
-            try: _sh.rmtree(str(temp_profile))
-            except Exception: pass
-        temp_profile.mkdir(parents=True, exist_ok=True)
+        # Usar perfil persistente por cuenta para que Google OAuth funcione correctamente
+        profile_dir = GROK_DIR / "chrome_profiles" / folder_name
+        profile_dir.mkdir(parents=True, exist_ok=True)
+
+        grok_state["log_lines"].append(
+            f"  ⏳ [{folder_name}] Browser abierto — inicia sesión en grok.com y CIERRA la ventana cuando termines."
+        )
 
         try:
             with sync_playwright() as pw:
-                ctx = pw.chromium.launch_persistent_context(
-                    str(temp_profile),
+                browser = pw.chromium.launch(
                     headless=False,
                     args=["--disable-blink-features=AutomationControlled",
-                          "--no-first-run", "--no-sandbox"],
-                    viewport={"width": 1280, "height": 900},
+                          "--no-first-run", "--no-sandbox",
+                          "--disable-web-security",
+                          f"--user-data-dir={profile_dir}"],
                 )
-                page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                ctx  = browser.new_context(viewport={"width": 1280, "height": 900})
+                page = ctx.new_page()
+
                 try:
                     page.goto("https://grok.com", timeout=30000)
                     page.wait_for_load_state("domcontentloaded", timeout=15000)
                 except Exception:
                     pass
 
-                grok_state["log_lines"].append(
-                    f"  ⏳ [{folder_name}] Inicia sesión con tu cuenta de X/Twitter en grok.com — se guardará automáticamente."
-                )
+                # Esperar a que el usuario cierre el browser (hasta 10 min)
+                try:
+                    browser.wait_for_event("disconnected", timeout=600000)
+                except Exception:
+                    pass
 
-                # Detectar _twpid: cookie de Twitter que solo aparece tras login exitoso
-                saved = False
-                deadline = _t.time() + 600
-                while _t.time() < deadline:
-                    _t.sleep(3)
-                    try:
-                        cookies = ctx.cookies("https://grok.com")
-                    except Exception:
-                        break
-                    ck_dict = {c["name"]: c["value"] for c in cookies}
-                    twpid = ck_dict.get("_twpid", "").strip()
-                    if twpid:
-                        clist = [{"name": c["name"], "value": c["value"]} for c in cookies]
-                        (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
-                        grok_state["log_lines"].append(
-                            f"  ✅ [{folder_name}] Sesión guardada — Twitter ID: {twpid[:24]} ({len(clist)} cookies)."
-                        )
-                        saved = True
-                        _t.sleep(1)
-                        try: ctx.close()
-                        except Exception: pass
-                        break
+                # Guardar todas las cookies al cerrar
+                try:
+                    cookies = ctx.cookies()
+                except Exception:
+                    cookies = []
 
-                if not saved:
-                    try: cookies = ctx.cookies("https://grok.com")
-                    except Exception: cookies = []
-                    if cookies:
-                        clist = [{"name": c["name"], "value": c["value"]} for c in cookies]
-                        (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
+                if cookies:
+                    clist = [{"name": c["name"], "value": c["value"],
+                              "domain": c.get("domain",""), "path": c.get("path","/")}
+                             for c in cookies]
+                    (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
+                    gk_cookies  = [c for c in cookies if "grok.com" in c.get("domain","")]
+                    tw_cookies  = [c for c in cookies if "twitter.com" in c.get("domain","") or "twimg.com" in c.get("domain","")]
+                    goog_cookies = [c for c in cookies if "google.com" in c.get("domain","")]
+                    has_session = len(gk_cookies) >= 3 or len(tw_cookies) >= 2 or len(goog_cookies) >= 3
+                    if has_session:
                         grok_state["log_lines"].append(
-                            f"  ⚠️  [{folder_name}] Guardadas {len(clist)} cookies al cerrar browser."
+                            f"  ✅ [{folder_name}] Sesión guardada ({len(clist)} cookies totales — "
+                            f"grok:{len(gk_cookies)} twitter:{len(tw_cookies)} google:{len(goog_cookies)})."
                         )
                     else:
                         grok_state["log_lines"].append(
-                            f"  ⚠️  [{folder_name}] Browser cerrado sin cookies."
+                            f"  ⚠️  [{folder_name}] Guardadas {len(clist)} cookies pero sin sesión clara."
                         )
+                else:
+                    grok_state["log_lines"].append(
+                        f"  ⚠️  [{folder_name}] Browser cerrado sin cookies."
+                    )
+
         except Exception as e:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error inesperado: {e}")
-        finally:
-            try: _sh.rmtree(str(temp_profile))
-            except Exception: pass
+            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
 
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"ok": True, "message": f"Chrome abierto para {folder_name}"})
