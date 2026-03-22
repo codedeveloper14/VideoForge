@@ -1577,71 +1577,74 @@ def grok_login_cuenta():
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
             return
 
-        # Perfil PERSISTENTE por cuenta — no temporal, para que Google OAuth funcione
+        # Perfil persistente por cuenta — sobrevive OAuth redirects
         profile_dir = GROK_DIR / "chrome_profiles" / folder_name
         profile_dir.mkdir(parents=True, exist_ok=True)
 
         grok_state["log_lines"].append(
-            f"  🌐 [{folder_name}] Browser abierto — inicia sesión y CIERRA la ventana cuando termines."
+            f"  🌐 [{folder_name}] Browser abierto — inicia sesión y cierra la ventana cuando termines."
         )
 
+        last_cookies = []
         try:
             with sync_playwright() as pw:
                 ctx = pw.chromium.launch_persistent_context(
                     str(profile_dir),
                     headless=False,
                     args=[
+                        "--no-sandbox",
                         "--disable-blink-features=AutomationControlled",
                         "--no-first-run",
-                        "--no-sandbox",
                         "--disable-popup-blocking",
-                        "--disable-infobars",
-                        "--ignore-certificate-errors",
                     ],
-                    ignore_default_args=["--enable-automation"],
                     viewport={"width": 1280, "height": 900},
+                    no_viewport=False,
                 )
                 page = ctx.pages[0] if ctx.pages else ctx.new_page()
                 try:
                     page.goto("https://grok.com", timeout=30000)
-                    page.wait_for_load_state("domcontentloaded", timeout=15000)
                 except Exception:
                     pass
 
-                # Esperar a que el usuario cierre el browser (hasta 10 min)
-                # NO borrar el perfil — debe sobrevivir para OAuth
-                try:
-                    ctx.wait_for_event("close", timeout=600000)
-                except Exception:
-                    pass
-
-                # Guardar cookies justo antes de que ctx muera
-                try:
-                    all_cookies = ctx.cookies()
-                except Exception:
-                    all_cookies = []
-
-                if all_cookies:
-                    clist = [
-                        {"name": c["name"], "value": c["value"],
-                         "domain": c.get("domain", ""), "path": c.get("path", "/")}
-                        for c in all_cookies
-                    ]
-                    (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
-                    gk  = [c for c in all_cookies if "grok.com"    in c.get("domain","")]
-                    tw  = [c for c in all_cookies if "twitter.com" in c.get("domain","")]
-                    goo = [c for c in all_cookies if "google.com"  in c.get("domain","")]
-                    grok_state["log_lines"].append(
-                        f"  ✅ [{folder_name}] {len(clist)} cookies guardadas "
-                        f"(grok:{len(gk)} twitter:{len(tw)} google:{len(goo)})."
-                    )
-                else:
-                    grok_state["log_lines"].append(
-                        f"  ⚠️  [{folder_name}] Browser cerrado sin cookies."
-                    )
+                # Guardar cookies cada 3 segundos mientras el browser esté abierto
+                # Así siempre tenemos las últimas cookies aunque el contexto cierre inesperadamente
+                deadline = _t.time() + 600
+                while _t.time() < deadline:
+                    try:
+                        cookies = ctx.cookies()
+                        if cookies:
+                            last_cookies = cookies
+                            # Guardar en disco en cada ciclo
+                            clist = [
+                                {"name": c["name"], "value": c["value"],
+                                 "domain": c.get("domain",""), "path": c.get("path","/")}
+                                for c in cookies
+                            ]
+                            (folder / "cookies_auto.json").write_text(
+                                _json.dumps(clist, indent=2)
+                            )
+                        _t.sleep(3)
+                    except Exception:
+                        # El browser fue cerrado por el usuario
+                        break
 
         except Exception as e:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
+            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error al abrir browser: {e}")
+            return
+
+        # Reporte final
+        if last_cookies:
+            gk  = [c for c in last_cookies if "grok.com"    in c.get("domain","")]
+            tw  = [c for c in last_cookies if "twitter.com" in c.get("domain","")]
+            goo = [c for c in last_cookies if "google.com"  in c.get("domain","")]
+            grok_state["log_lines"].append(
+                f"  ✅ [{folder_name}] Sesión guardada — {len(last_cookies)} cookies "
+                f"(grok:{len(gk)} twitter:{len(tw)} google:{len(goo)})."
+            )
+        else:
+            grok_state["log_lines"].append(
+                f"  ⚠️  [{folder_name}] Browser cerrado sin cookies."
+            )
 
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"ok": True, "message": f"Chrome abierto para {folder_name}"})
