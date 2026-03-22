@@ -1627,16 +1627,12 @@ def grok_login_cuenta():
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
             return
 
-        # Perfil temporal limpio igual que el script de referencia
+        # Perfil temporal limpio por cuenta (igual que el script de referencia)
         temp_profile = GROK_DIR / "chrome_profiles" / f"_tmp_{folder_name}"
         if temp_profile.exists():
             try: _sh.rmtree(str(temp_profile))
             except Exception: pass
         temp_profile.mkdir(parents=True, exist_ok=True)
-
-        grok_state["log_lines"].append(
-            f"  🌐 [{folder_name}] Abriendo Chrome — inicia sesión en grok.com y espera a que se guarde la sesión automáticamente."
-        )
 
         try:
             with sync_playwright() as pw:
@@ -1654,37 +1650,29 @@ def grok_login_cuenta():
                     pass
 
                 grok_state["log_lines"].append(
-                    f"  ⏳ [{folder_name}] Loguéate en el browser. Las cookies se guardarán solas al detectar sesión activa..."
+                    f"  ⏳ [{folder_name}] Loguéate en el browser. Se guardará automáticamente al detectar sesión..."
                 )
 
-                # Esperar cookie "sso" igual que el script de referencia
                 saved = False
-                deadline = _t.time() + 600  # 10 minutos max
+                deadline = _t.time() + 600  # 10 min max
                 while _t.time() < deadline:
                     _t.sleep(3)
                     try:
                         cookies_raw = ctx.cookies("https://grok.com")
                     except Exception:
-                        break
+                        break  # browser cerrado por el usuario
                     ck_dict = {c["name"]: c["value"] for c in cookies_raw}
-                    # Detectar sesión activa igual que el script: buscar cookie "sso"
+                    # Detectar sesión real: cookie "sso" (igual que script de referencia)
                     if ck_dict.get("sso"):
                         clist = [
-                            {
-                                "name":     c["name"],
-                                "value":    c["value"],
-                                "domain":   ".grok.com",
-                                "path":     "/",
-                                "httpOnly": False,
-                                "secure":   True,
-                            }
+                            {"name": c["name"], "value": c["value"],
+                             "domain": ".grok.com", "path": "/",
+                             "httpOnly": False, "secure": True}
                             for c in cookies_raw
                         ]
-                        (folder / "cookies_auto.json").write_text(
-                            _json.dumps(clist, indent=2)
-                        )
+                        (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
                         grok_state["log_lines"].append(
-                            f"  ✅ [{folder_name}] Sesión guardada ({len(clist)} cookies): {list(ck_dict.keys())[:5]}"
+                            f"  ✅ [{folder_name}] Sesión guardada ({len(clist)} cookies)."
                         )
                         saved = True
                         _t.sleep(1)
@@ -1693,11 +1681,9 @@ def grok_login_cuenta():
                         break
 
                 if not saved:
-                    # Guardar lo que haya si el usuario cerró manualmente
-                    try:
-                        cookies_raw = ctx.cookies("https://grok.com")
-                    except Exception:
-                        cookies_raw = []
+                    # Intentar guardar lo que haya si el usuario cerró el browser
+                    try: cookies_raw = ctx.cookies("https://grok.com")
+                    except Exception: cookies_raw = []
                     if cookies_raw:
                         clist = [
                             {"name": c["name"], "value": c["value"],
@@ -1707,18 +1693,16 @@ def grok_login_cuenta():
                         ]
                         (folder / "cookies_auto.json").write_text(_json.dumps(clist, indent=2))
                         grok_state["log_lines"].append(
-                            f"  ⚠️  [{folder_name}] Guardadas {len(clist)} cookies (sin confirmar sesión 'sso')."
+                            f"  ⚠️  [{folder_name}] Guardadas {len(clist)} cookies (sin 'sso')."
                         )
                     else:
                         grok_state["log_lines"].append(
-                            f"  ⚠️  [{folder_name}] Sin cookies — sesión no guardada."
+                            f"  ⚠️  [{folder_name}] Sin cookies — no se guardó sesión."
                         )
-                # Limpiar perfil temporal
-                try: _sh.rmtree(str(temp_profile))
-                except Exception: pass
 
         except Exception as e:
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
+        finally:
             try: _sh.rmtree(str(temp_profile))
             except Exception: pass
 
