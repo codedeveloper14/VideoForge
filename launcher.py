@@ -407,10 +407,11 @@ _PLAYWRIGHT_OK      = True   # siempre True: no usamos Playwright
 os.makedirs(_WHISK_DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(_WHISK_COOKIES_DIR,  exist_ok=True)
 
-# Crear carpetas de Grok al inicio
-os.makedirs(str(GROK_DIR / "accounts"),        exist_ok=True)
-os.makedirs(str(GROK_DIR / "downloads"),       exist_ok=True)
-os.makedirs(str(GROK_DIR / "chrome_profiles"), exist_ok=True)
+# Crear carpetas de Grok y cuentas por defecto al inicio
+for _grok_sub in ["accounts", "downloads", "chrome_profiles"]:
+    (GROK_DIR / _grok_sub).mkdir(parents=True, exist_ok=True)
+for _acc in ["cuenta1", "cuenta2", "cuenta3", "cuenta4", "cuenta5"]:
+    (GROK_DIR / "accounts" / _acc).mkdir(parents=True, exist_ok=True)
 
 _whisk_state = {
     "running": False, "step": "idle",
@@ -1581,8 +1582,8 @@ def grok_sesiones():
     try:
         accounts_dir = _P(str(GROK_DIR)) / "accounts"
         accounts_dir.mkdir(parents=True, exist_ok=True)
-        (_P(str(GROK_DIR)) / "downloads").mkdir(parents=True, exist_ok=True)
-        (_P(str(GROK_DIR)) / "chrome_profiles").mkdir(parents=True, exist_ok=True)
+        for _acc in ["cuenta1", "cuenta2", "cuenta3", "cuenta4", "cuenta5"]:
+            (accounts_dir / _acc).mkdir(parents=True, exist_ok=True)
         result = []
         for folder in sorted(accounts_dir.iterdir()):
             if not folder.is_dir(): continue
