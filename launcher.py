@@ -3,7 +3,7 @@
 VideoForge — Launcher Unificado
 ================================
 Combina el servidor Flask (servidor.py) con la app VideoForge embebida.
-Corre en http://127.0.0.1:8080/ y se abre automáticamente en el navegador.
+Corre en http://localhost:8080/ y se abre automáticamente en el navegador.
 
 Compilar a .app (Mac):
     pyinstaller --windowed --name "VideoForge" launcher.py
@@ -34,6 +34,11 @@ import json, subprocess, uuid, re, requests
 from io import BytesIO
 
 app = Flask(__name__)
+app = Flask(__name__)
+# ── Login ──────────────────────────────────────────────
+from auth_module import init_auth
+init_auth(app)
+# ───────────────────────────────────────────────────────
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024
 
 jobs = {}
@@ -406,10 +411,6 @@ _PLAYWRIGHT_OK      = True   # siempre True: no usamos Playwright
 
 os.makedirs(_WHISK_DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(_WHISK_COOKIES_DIR,  exist_ok=True)
-for _gs in ["accounts","downloads","chrome_profiles"]:
-    (GROK_DIR / _gs).mkdir(parents=True, exist_ok=True)
-for _ga in ["cuenta1","cuenta2","cuenta3","cuenta4","cuenta5"]:
-    (GROK_DIR / "accounts" / _ga).mkdir(parents=True, exist_ok=True)
 
 _whisk_state = {
     "running": False, "step": "idle",
@@ -1579,9 +1580,8 @@ def grok_sesiones():
     from pathlib import Path as _P
     try:
         accounts_dir = _P(str(GROK_DIR)) / "accounts"
-        accounts_dir.mkdir(parents=True, exist_ok=True)
-        for _acc in ["cuenta1","cuenta2","cuenta3","cuenta4","cuenta5"]:
-            (accounts_dir / _acc).mkdir(parents=True, exist_ok=True)
+        if not accounts_dir.exists():
+            return jsonify({"accounts": [], "error": f"No existe {accounts_dir}"})
         result = []
         for folder in sorted(accounts_dir.iterdir()):
             if not folder.is_dir(): continue
@@ -1591,9 +1591,11 @@ def grok_sesiones():
             if ck_file.exists():
                 try:
                     ck = _json.loads(ck_file.read_text())
-                    active = len(ck) > 2
-                    uid_cookie = next((c["value"] for c in ck if isinstance(c,dict) and c.get("name") == "x-userid"), "")
-                    user = uid_cookie[:20] if uid_cookie else f"{len(ck)} cookies"
+                    ck_dict = {c["name"]: c["value"] for c in ck if isinstance(c, dict)}
+                    # Grok usa cookie 'sso' como indicador de sesión válida
+                    active = bool(ck_dict.get("sso"))
+                    uid_cookie = ck_dict.get("x-userid", "")
+                    user = uid_cookie[:20] if uid_cookie else (f"{len(ck)} ck" if active else "sin sesión")
                 except Exception:
                     active = ck_file.stat().st_size > 50
             result.append({"name": folder.name, "active": active, "user": user,
@@ -1618,19 +1620,33 @@ def grok_login_cuenta():
     grok_state["log_lines"].append(f"  🌐 [{folder_name}] Abriendo Chrome — inicia sesión en grok.com y cierra la ventana.")
 
     def _do_login():
+        import shutil as _shutil
         try:
             from playwright.sync_api import sync_playwright
-            profile_dir = str(GROK_DIR / "chrome_profiles" / folder_name)
-            FPath(profile_dir).mkdir(parents=True, exist_ok=True)
+
+            # ── Perfil temporal limpio (evita estados corruptos de sesiones previas) ──
+            temp_profile = str(FPath("/tmp") / f"grok_tmp_{folder_name}")
+            if FPath(temp_profile).exists():
+                _shutil.rmtree(temp_profile)
+            FPath(temp_profile).mkdir(parents=True, exist_ok=True)
+
             with sync_playwright() as pw:
                 ctx = pw.chromium.launch_persistent_context(
-                    profile_dir, headless=False,
-                    args=["--disable-blink-features=AutomationControlled", "--no-first-run"],
-                    no_viewport=True
+                    temp_profile, headless=False,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-first-run",
+                    ],
+                    viewport={"width": 1280, "height": 900},
                 )
                 page = ctx.pages[0] if ctx.pages else ctx.new_page()
-                try: page.goto("https://grok.com", timeout=15000)
-                except Exception: pass
+                try:
+                    page.goto("https://grok.com/imagine", timeout=30000)
+                    page.wait_for_load_state("networkidle", timeout=30000)
+                except Exception:
+                    pass
+
                 saved = False
                 import time as _t
                 deadline = _t.time() + 300
@@ -1639,25 +1655,56 @@ def grok_login_cuenta():
                         cookies = ctx.cookies("https://grok.com")
                     except Exception:
                         break
-                    has_auth = any(c.get("name","").startswith("x-") for c in cookies)
-                    if has_auth and len(cookies) >= 3:
+
+                    ck_dict = {c["name"]: c["value"] for c in cookies}
+                    # Grok autentica con la cookie 'sso' (no con prefijo 'x-')
+                    if ck_dict.get("sso"):
                         import json as _json
+                        # Guardar con formato COMPLETO para que Playwright las cargue bien
+                        cookie_list = [
+                            {
+                                "name":     c["name"],
+                                "value":    c["value"],
+                                "domain":   ".grok.com",
+                                "path":     "/",
+                                "httpOnly": c.get("httpOnly", False),
+                                "secure":   c.get("secure", True),
+                            }
+                            for c in cookies
+                        ]
                         (folder / "cookies_auto.json").write_text(
-                            _json.dumps([{"name":c["name"],"value":c["value"]} for c in cookies], indent=2)
+                            _json.dumps(cookie_list, indent=2)
                         )
-                        grok_state["log_lines"].append(f"  ✅ [{folder_name}] Sesión guardada ({len(cookies)} cookies).")
+                        grok_state["log_lines"].append(
+                            f"  ✅ [{folder_name}] Sesión guardada "
+                            f"(sso={ck_dict['sso'][:12]}… | {len(cookies)} cookies)."
+                        )
                         saved = True
                         _t.sleep(1)
                         try: ctx.close()
                         except Exception: pass
                         break
                     _t.sleep(2)
+
                 if not saved:
-                    grok_state["log_lines"].append(f"  ⚠️  [{folder_name}] Browser cerrado sin guardar sesión.")
+                    try: ctx.close()
+                    except Exception: pass
+                    grok_state["log_lines"].append(
+                        f"  ⚠️  [{folder_name}] Browser cerrado sin guardar sesión "
+                        f"(cookie 'sso' no detectada)."
+                    )
         except ImportError:
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
         except Exception as e:
             grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
+        finally:
+            # Limpiar perfil temporal siempre, incluso si hubo error
+            try:
+                temp_profile = str(FPath("/tmp") / f"grok_tmp_{folder_name}")
+                if FPath(temp_profile).exists():
+                    _shutil.rmtree(temp_profile)
+            except Exception:
+                pass
 
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"ok": True, "message": f"Chrome abierto para {folder_name}"})
