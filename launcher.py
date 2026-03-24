@@ -278,15 +278,29 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
 
         extra = trans_dur if transicion != "none" else 0.0
         escenas_modal = []
+        MAX_CHUNK = 8.0
         for i, ts in enumerate(timestamps):
             idx_img = min(i, len(imagenes)-1)
             with open(imagenes[idx_img], "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode("utf-8")
-            escenas_modal.append({
-                "imagen_b64": img_b64,
-                "duracion": ts["duracion"] + (extra if i < len(timestamps)-1 else 0.0),
-                "movimiento": movimiento
-            })
+            base_dur = ts["duracion"]
+            if base_dur <= MAX_CHUNK:
+                escenas_modal.append({
+                    "imagen_b64": img_b64,
+                    "duracion": base_dur,
+                    "movimiento": movimiento
+                })
+            else:
+                # Dividir en sub-chunks de <= 8s, sin transicion interna
+                remaining = base_dur
+                while remaining > 0:
+                    d = min(MAX_CHUNK, remaining)
+                    escenas_modal.append({
+                        "imagen_b64": img_b64,
+                        "duracion": d,
+                        "movimiento": movimiento
+                    })
+                    remaining -= d
 
         payload = {
             "audio_b64":  audio_b64,
@@ -1279,18 +1293,17 @@ def api_whisk_clear():
 
 @app.route("/api/whisk/check-login", methods=["GET"])
 def api_whisk_check_login():
-    # Only check file existence — no network call (avoids false negatives from timeouts)
     profiles = []
     for i in range(_WHISK_NUM_ACCOUNTS):
         ck_f = os.path.join(_WHISK_COOKIES_DIR, f"account_{i}.txt")
-        active = False
         if os.path.isfile(ck_f):
-            try:
-                ck = open(ck_f, encoding="utf-8").read().strip()
-                active = len(ck) > 20  # has meaningful cookie string
-            except Exception:
-                active = False
-        profiles.append({"id": i, "logged_in": active, "user": ""})
+            ck = open(ck_f, encoding="utf-8").read().strip()
+            if ck:
+                r = _WhiskClient(ck, label=f"C{i}").test_auth()
+                profiles.append({"id": i, "logged_in": r["ok"],
+                                  "user": r.get("user", "")})
+                continue
+        profiles.append({"id": i, "logged_in": False, "user": ""})
     return jsonify(profiles=profiles)
 
 
@@ -2423,13 +2436,8 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             w_res, h_res = 1920, 1080
 
         # ── Add transition overlap to all but last scene ───────────────────
-        extra = trans_dur if transicion != "none" else 0.0
-        for i, sc in enumerate(scenes):
-            if i < len(scenes)-1:
-                # Solo imágenes reciben overlap — Modal hace xfade
-                # Los clips de video NO llevan extra (sin xfade local, causaría drift)
-                if sc["type"] == "image":
-                    sc["duracion"] = round(sc["duracion"] + extra, 3)
+        # extra NO se aplica globalmente — se aplica dentro de cada batch de imagen
+        # para que el overlap interno del xfade lo consuma exactamente sin drift
 
         # ── Silent audio (Modal necesita audio_b64 válido por batch) ─────────
         _silent = os.path.join(tmp_dir, "silent.mp3")
@@ -2489,9 +2497,17 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             batches  = [encoded[i*BATCH_SIZE:(i+1)*BATCH_SIZE] for i in range(n_b)]
             clips    = []
             for bi, batch in enumerate(batches):
+                # Añadir extra solo a scenes no-últimas del batch (overlap consume el extra)
+                # → total del batch = sum(duraciones base) → sin drift acumulativo
+                batch_mod = []
+                for j, sc_enc in enumerate(batch):
+                    sc_m = dict(sc_enc)
+                    if j < len(batch) - 1 and transicion != "none":
+                        sc_m["duracion"] = round(sc_enc["duracion"] + trans_dur, 3)
+                    batch_mod.append(sc_m)
                 payload = {
                     "audio_b64":  _silent_b64,
-                    "escenas":    batch,
+                    "escenas":    batch_mod,
                     "resolucion": resolucion.replace("x",":"),
                     "transicion": transicion,
                     "trans_dur":  trans_dur,
