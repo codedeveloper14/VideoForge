@@ -27,8 +27,8 @@ jobs:
       run: |
         # Crear archivo de licencia desde el secreto de GitHub
         echo "${{ secrets.PYARMOR_LICENSE }}" > pyarmor-license.txt
-        # Registrar la licencia
-        pyarmor register pyarmor-license.txt
+        # Registrar la licencia con el nombre del producto
+        pyarmor register -p StudioIVR pyarmor-license.txt
 
     - name: Install Playwright browsers
       run: |
