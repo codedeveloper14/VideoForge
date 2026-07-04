@@ -21,14 +21,7 @@ jobs:
     - name: Install all dependencies
       run: |
         python -m pip install --upgrade pip wheel setuptools
-        python -m pip install pyarmor pyinstaller cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe
-
-    - name: Register PyArmor license
-      run: |
-        # Crear archivo de licencia desde el secreto de GitHub
-        echo "${{ secrets.PYARMOR_LICENSE }}" > pyarmor-license.txt
-        # Registrar la licencia con el nombre del producto
-        pyarmor register -p StudioIVR pyarmor-license.txt
+        python -m pip install pyinstaller cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe
 
     - name: Install Playwright browsers
       run: |
@@ -46,20 +39,7 @@ jobs:
         sips -z 512 512 assets/icon.png --out assets/icon.iconset/icon_512x512.png
         iconutil -c icns assets/icon.iconset -o assets/icon.icns
 
-    - name: Obfuscate all modules
-      run: |
-        mkdir -p dist
-        for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
-          if [ -f "$mod" ]; then
-            echo "Ofuscando $mod..."
-            pyarmor gen --obf-code 2 -O dist "$mod"
-          fi
-        done
-
-    - name: List obfuscated files
-      run: ls -la dist/
-
-    - name: Build with PyInstaller
+    - name: Build with PyInstaller (SIN OFUSCACIÓN)
       run: |
         python -m PyInstaller \
           --onefile \
@@ -73,14 +53,8 @@ jobs:
           --add-data "grok-animator2.0:grok-animator2.0" \
           --add-data "whisk_downloads:whisk_downloads" \
           --add-data "Build and Instructions:Build and Instructions" \
-          --add-data "dist/auth_module.py:." \
-          --add-data "dist/ui_embedded.py:." \
-          --add-data "dist/grok_multi.py:." \
-          --add-data "dist/vf_db_connection.py:." \
-          --add-data "dist/vf_db_interact.py:." \
-          --add-data "dist/vf_db_sync.py:." \
           --distpath dist_final \
-          dist/launcher.py
+          launcher.py
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
