@@ -76,5 +76,5 @@ VideoForge/
 
 ## Autores
 
-David Bermudez Python developer
-Gabriela Montilla Fullstack Developer
+- **David Bermudez** — Python Developer
+- **Gabriela Montilla** — Fullstack Developer
