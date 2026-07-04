@@ -1,0 +1,43 @@
+# Variables de entorno
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Archivos sensibles - NO SUBIR NUNCA
+cookies/
+gentube_cookies/
+meta_accounts/
+whisk_downloads/
+jobs/
+grok-animator2.0/
+"Build and Instructions/"
+
+
+# Instaladores y binarios
+IVR_2.5.spec
+IVR_2.5_Setup.exe
+installer_script.iss
+
+# Assets (si contienen datos sensibles)
+assets/
+
+# GitHub Actions (revisar si tiene tokens)
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
