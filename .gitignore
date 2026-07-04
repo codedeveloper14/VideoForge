@@ -31,7 +31,7 @@ installer_script.iss
 assets/
 
 # GitHub Actions (revisar si tiene tokens)
-.github/
+
 
 # IDE
 .vscode/

@@ -1,0 +1,82 @@
+name: Build for macOS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Permite ejecutarlo manualmente
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.14'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip wheel setuptools
+        python -m pip install pyinstaller pyarmor cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe
+
+    - name: Install Playwright browsers (for macOS)
+      run: |
+        python -m playwright install --with-deps chromium
+
+    - name: Convert icon to .icns (macOS format)
+      run: |
+        # Crear carpeta temporal para el iconset
+        mkdir -p assets/icon.iconset
+        # Usar sips para convertir el .ico a PNG y redimensionar
+        sips -z 512 512 assets/icon.ico --out assets/icon.png
+        # Generar tamaños necesarios para macOS
+        sips -z 16 16 assets/icon.png --out assets/icon.iconset/icon_16x16.png
+        sips -z 32 32 assets/icon.png --out assets/icon.iconset/icon_32x32.png
+        sips -z 64 64 assets/icon.png --out assets/icon.iconset/icon_64x64.png
+        sips -z 128 128 assets/icon.png --out assets/icon.iconset/icon_128x128.png
+        sips -z 256 256 assets/icon.png --out assets/icon.iconset/icon_256x256.png
+        sips -z 512 512 assets/icon.png --out assets/icon.iconset/icon_512x512.png
+        # Crear el archivo .icns
+        iconutil -c icns assets/icon.iconset -o assets/icon.icns
+
+    - name: Obfuscate all modules
+      run: |
+        mkdir -p dist
+        for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
+          if [ -f "$mod" ]; then
+            pyarmor gen --obf-code 2 -O dist "$mod"
+          fi
+        done
+
+    - name: Build with PyInstaller (macOS)
+      run: |
+        python -m PyInstaller \
+          --onefile \
+          --windowed \
+          --name IVR_2.5 \
+          --icon assets/icon.icns \
+          --add-data "cookies:cookies" \
+          --add-data "jobs:jobs" \
+          --add-data "meta_accounts:meta_accounts" \
+          --add-data "gentube_cookies:gentube_cookies" \
+          --add-data "grok-animator2.0:grok-animator2.0" \
+          --add-data "whisk_downloads:whisk_downloads" \
+          --add-data "Build and Instructions:Build and Instructions" \
+          --add-data "dist/auth_module.py:." \
+          --add-data "dist/ui_embedded.py:." \
+          --add-data "dist/grok_multi.py:." \
+          --add-data "dist/vf_db_connection.py:." \
+          --add-data "dist/vf_db_interact.py:." \
+          --add-data "dist/vf_db_sync.py:." \
+          --distpath dist_final \
+          dist/launcher.py
+
+    - name: Upload artifact (macOS executable)
+      uses: actions/upload-artifact@v4
+      with:
+        name: IVR-2.5-macOS
+        path: dist_final/IVR_2.5
