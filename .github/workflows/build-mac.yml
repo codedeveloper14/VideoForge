@@ -27,17 +27,73 @@ jobs:
       run: |
         python -m playwright install --with-deps chromium
 
-    - name: Convert icon to .icns
+    - name: Convert icon to .icns using Python
       run: |
-        mkdir -p assets/icon.iconset
-        sips -z 512 512 assets/icon.ico --out assets/icon.png
-        sips -z 16 16 assets/icon.png --out assets/icon.iconset/icon_16x16.png
-        sips -z 32 32 assets/icon.png --out assets/icon.iconset/icon_32x32.png
-        sips -z 64 64 assets/icon.png --out assets/icon.iconset/icon_64x64.png
-        sips -z 128 128 assets/icon.png --out assets/icon.iconset/icon_128x128.png
-        sips -z 256 256 assets/icon.png --out assets/icon.iconset/icon_256x256.png
-        sips -z 512 512 assets/icon.png --out assets/icon.iconset/icon_512x512.png
-        iconutil -c icns assets/icon.iconset -o assets/icon.icns
+        # Crear script Python para convertir el icono
+        cat > convert_icon.py << 'EOF'
+        import os
+        from PIL import Image
+        import subprocess
+        import shutil
+
+        # Verificar que el icono existe
+        icon_path = 'assets/icon.ico'
+        if not os.path.exists(icon_path):
+            print(f" No se encontró {icon_path}")
+            exit(1)
+
+        # Crear carpeta para el iconset
+        iconset_dir = 'assets/icon.iconset'
+        os.makedirs(iconset_dir, exist_ok=True)
+
+        # Tamaños necesarios para macOS .icns
+        sizes = [
+            (16, 16),
+            (32, 32),
+            (64, 64),
+            (128, 128),
+            (256, 256),
+            (512, 512)
+        ]
+
+        try:
+            # Cargar el icono
+            img = Image.open(icon_path)
+            print(f" Icono cargado: {img.size} {img.mode}")
+            
+            # Guardar cada tamaño
+            for w, h in sizes:
+                # Redimensionar manteniendo relación de aspecto
+                resized = img.resize((w, h), Image.Resampling.LANCZOS)
+                # Guardar como PNG
+                png_path = os.path.join(iconset_dir, f'icon_{w}x{h}.png')
+                resized.save(png_path, 'PNG')
+                print(f" Creado: {png_path}")
+
+            # Crear el archivo .icns usando iconutil
+            icns_path = 'assets/icon.icns'
+            
+            # Verificar que iconutil está disponible
+            if shutil.which('iconutil'):
+                cmd = ['iconutil', '-c', 'icns', iconset_dir, '-o', icns_path]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                
+                if result.returncode == 0 and os.path.exists(icns_path):
+                    print(f" Icono convertido a: {icns_path}")
+                else:
+                    print(f" Error al convertir: {result.stderr}")
+                    exit(1)
+            else:
+                print(" iconutil no encontrado")
+                exit(1)
+                
+        except Exception as e:
+            print(f" Error: {e}")
+            exit(1)
+        EOF
+
+        # Ejecutar el script
+        python convert_icon.py
 
     - name: Build with PyInstaller (SIN OFUSCACIÓN)
       run: |
