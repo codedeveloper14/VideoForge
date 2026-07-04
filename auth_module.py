@@ -82,13 +82,13 @@ PLANS = {
 
 # Alias de nombres de plan alternativos en la BD → clave canónica
 PLAN_ALIASES = {
-    "starter":    "basico",
-    "basic":      "basico",
-    "basico":     "basico",
-    "free":       "free",
-    "standard":   "pro",
-    "premium":    "pro",
-    "advanced":   "pro",
+    "starter":     "basico",
+    "basic":       "basico",
+    "basico":      "basico",
+    "free":        "free",
+    "standard":    "pro",
+    "premium":     "pro",
+    "advanced":    "pro",
     "enterprise": "unlimited",
     "business":   "ultra",
     "ilimitado":  "unlimited",
@@ -101,8 +101,8 @@ def normalize_plan_key(raw: str) -> str:
     key = PLAN_ALIASES.get(key, key)          # resolver alias
     return key if key in PLANS else "basico"  # validar contra PLANS
 
-# Stripe URLs por (plan_actual → plan_destino)
-STRIPE_SECRET_KEY = "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"
+# Cargar Stripe Key desde variables de entorno
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 
 # Precios en centavos por plan (para crear Checkout Sessions)
 STRIPE_PRICES = {
@@ -128,6 +128,33 @@ STRIPE_URLS = {
     ("pro",    "unlimited"): "https://buy.stripe.com/fZufZj3W50sr9wEf9N3cc0e",
     ("ultra",  "unlimited"): "https://buy.stripe.com/fZufZj3W50sr9wEf9N3cc0e",
 }
+
+def _chars_to_min(chars: int) -> str:
+    """Convierte caracteres a string legible de minutos."""
+    m = chars / 900
+    if m < 1:
+        return f"{int(m*60)}s"
+    return f"{m:.0f} min"
+
+# ─────────────────────────────────────────────────────────────────
+# CONFIGURACIÓN  ← Cargada de forma segura
+# ─────────────────────────────────────────────────────────────────
+
+DB_CONFIG = {
+    "host":            os.getenv("DB_HOST"),
+    "user":            os.getenv("DB_USER"),
+    "password":        os.getenv("DB_PASSWORD"),
+    "database":        os.getenv("DB_NAME"),
+    "port":            3306,
+    "connect_timeout": 10,
+    "charset":         "utf8mb4"
+}
+
+APP_SECRET_KEY      = os.getenv("APP_SECRET_KEY")
+SESSION_MINUTES     = 40          # ← inactividad máxima (minutos)
+PUBLIC_ROUTES       = {"/api/login", "/login", "/api/change-password", "/favicon.ico", "/api/logout", "/shell", "/api/register", "/stripe-success"}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_SECONDS     = 300
 
 def _chars_to_min(chars: int) -> str:
     """Convierte caracteres a string legible de minutos."""
