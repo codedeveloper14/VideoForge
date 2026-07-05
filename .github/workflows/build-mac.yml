@@ -111,8 +111,24 @@ jobs:
         mkdir -p "$APP_DIR/MacOS"
         mkdir -p "$APP_DIR/Resources"
         
+        # Encontrar el ejecutable dentro de la carpeta dist_final/IVR_2.5/
+        # PyInstaller con --onedir crea una carpeta con el nombre del programa
+        if [ -d "dist_final/IVR_2.5" ]; then
+          # Si es un directorio, buscar el ejecutable dentro
+          EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f -perm +111 | head -1)
+          if [ -z "$EXECUTABLE" ]; then
+            # Si no encuentra por permisos, buscar cualquier archivo llamado IVR_2.5
+            EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f | head -1)
+          fi
+        else
+          # Si es un archivo directo
+          EXECUTABLE="dist_final/IVR_2.5"
+        fi
+        
+        echo "Ejecutable encontrado: $EXECUTABLE"
+        
         # Copiar el ejecutable
-        cp dist_final/IVR_2.5 "$APP_DIR/MacOS/"
+        cp "$EXECUTABLE" "$APP_DIR/MacOS/"
         chmod +x "$APP_DIR/MacOS/IVR_2.5"
         
         # Copiar el icono
@@ -150,7 +166,7 @@ jobs:
         </plist>
         EOF
         
-        # Crear el archivo PkgInfo (requerido para .app)
+        # Crear el archivo PkgInfo
         echo "APPL????" > "$APP_DIR/PkgInfo"
 
     - name: Create .dmg installer
