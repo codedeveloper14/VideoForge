@@ -29,55 +29,36 @@ jobs:
 
     - name: Convert icon to .icns using Python
       run: |
-        # Crear script Python para convertir el icono
         cat > convert_icon.py << 'EOF'
         import os
         from PIL import Image
         import subprocess
         import shutil
 
-        # Verificar que el icono existe
         icon_path = 'assets/icon.ico'
         if not os.path.exists(icon_path):
             print(f" No se encontró {icon_path}")
             exit(1)
 
-        # Crear carpeta para el iconset
         iconset_dir = 'assets/icon.iconset'
         os.makedirs(iconset_dir, exist_ok=True)
 
-        # Tamaños necesarios para macOS .icns
-        sizes = [
-            (16, 16),
-            (32, 32),
-            (64, 64),
-            (128, 128),
-            (256, 256),
-            (512, 512)
-        ]
+        sizes = [(16, 16), (32, 32), (64, 64), (128, 128), (256, 256), (512, 512)]
 
         try:
-            # Cargar el icono
             img = Image.open(icon_path)
             print(f" Icono cargado: {img.size} {img.mode}")
             
-            # Guardar cada tamaño
             for w, h in sizes:
-                # Redimensionar manteniendo relación de aspecto
                 resized = img.resize((w, h), Image.Resampling.LANCZOS)
-                # Guardar como PNG
                 png_path = os.path.join(iconset_dir, f'icon_{w}x{h}.png')
                 resized.save(png_path, 'PNG')
                 print(f" Creado: {png_path}")
 
-            # Crear el archivo .icns usando iconutil
             icns_path = 'assets/icon.icns'
-            
-            # Verificar que iconutil está disponible
             if shutil.which('iconutil'):
                 cmd = ['iconutil', '-c', 'icns', iconset_dir, '-o', icns_path]
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                
                 if result.returncode == 0 and os.path.exists(icns_path):
                     print(f" Icono convertido a: {icns_path}")
                 else:
@@ -86,19 +67,28 @@ jobs:
             else:
                 print(" iconutil no encontrado")
                 exit(1)
-                
         except Exception as e:
             print(f" Error: {e}")
             exit(1)
         EOF
 
-        # Ejecutar el script
         python convert_icon.py
 
-    - name: Build with PyInstaller (SIN OFUSCACIÓN)
+    - name: Create required directories
+      run: |
+        mkdir -p cookies jobs meta_accounts gentube_cookies grok-animator2.0 whisk_downloads "Build and Instructions"
+        touch cookies/placeholder.txt
+        touch jobs/placeholder.txt
+        touch meta_accounts/placeholder.txt
+        touch gentube_cookies/placeholder.txt
+        touch grok-animator2.0/placeholder.txt
+        touch whisk_downloads/placeholder.txt
+        touch "Build and Instructions/placeholder.txt"
+
+    - name: Build with PyInstaller as .app bundle
       run: |
         python -m PyInstaller \
-          --onefile \
+          --onedir \
           --windowed \
           --name IVR_2.5 \
           --icon assets/icon.icns \
@@ -112,8 +102,81 @@ jobs:
           --distpath dist_final \
           launcher.py
 
-    - name: Upload artifact
+    - name: Create .app bundle
+      run: |
+        # Crear la estructura de .app
+        APP_NAME="IVR_2.5.app"
+        APP_DIR="$APP_NAME/Contents"
+        
+        mkdir -p "$APP_DIR/MacOS"
+        mkdir -p "$APP_DIR/Resources"
+        
+        # Copiar el ejecutable
+        cp dist_final/IVR_2.5 "$APP_DIR/MacOS/"
+        chmod +x "$APP_DIR/MacOS/IVR_2.5"
+        
+        # Copiar el icono
+        cp assets/icon.icns "$APP_DIR/Resources/"
+        
+        # Crear Info.plist
+        cat > "$APP_DIR/Info.plist" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleName</key>
+            <string>IVR 2.5</string>
+            <key>CFBundleDisplayName</key>
+            <string>IVR 2.5</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.videoforge.ivr25</string>
+            <key>CFBundleVersion</key>
+            <string>2.5.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>2.5.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleSignature</key>
+            <string>????</string>
+            <key>CFBundleExecutable</key>
+            <string>IVR_2.5</string>
+            <key>CFBundleIconFile</key>
+            <string>icon.icns</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+        </dict>
+        </plist>
+        EOF
+        
+        # Crear el archivo PkgInfo (requerido para .app)
+        echo "APPL????" > "$APP_DIR/PkgInfo"
+
+    - name: Create .dmg installer
+      run: |
+        # Instalar create-dmg
+        brew install create-dmg
+        
+        # Crear el DMG
+        create-dmg \
+          --volname "IVR 2.5" \
+          --window-pos 200 120 \
+          --window-size 800 400 \
+          --icon-size 100 \
+          --icon "IVR_2.5.app" 200 190 \
+          --app-drop-link 600 185 \
+          "IVR_2.5.dmg" \
+          "IVR_2.5.app"
+
+    - name: Upload .app artifact
       uses: actions/upload-artifact@v4
       with:
-        name: IVR-2.5-macOS
-        path: dist_final/IVR_2.5
+        name: IVR-2.5-app
+        path: IVR_2.5.app
+
+    - name: Upload .dmg artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: IVR-2.5-dmg
+        path: IVR_2.5.dmg
