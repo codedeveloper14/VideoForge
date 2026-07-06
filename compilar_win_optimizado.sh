@@ -1,14 +1,14 @@
 #!/bin/bash
 
 echo "========================================="
-echo "  🪟 COMPILANDO IVR 2.5 PARA WINDOWS (OPTIMIZADO)"
+echo "  COMPILANDO IVR 2.5 PARA WINDOWS (OPTIMIZADO)"
 echo "========================================="
 
 # Activar entorno virtual
 source venv/Scripts/activate
 
 # Instalar dependencias
-echo "📦 Instalando dependencias..."
+echo " Instalando dependencias..."
 pip install bcrypt replicate
 
 # Verificar
@@ -19,7 +19,7 @@ python -c "import replicate; print(' replicate OK')"
 rm -rf dist dist_final build IVR_2.5.spec dist_ofuscado
 
 # Ofuscar módulos
-echo "📦 Ofuscando módulos..."
+echo " Ofuscando módulos..."
 mkdir -p dist_ofuscado
 for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
     if [ -f "$mod" ]; then
@@ -29,14 +29,14 @@ done
 
 # Copiar flow_extension a dist_ofuscado
 if [ -d "flow_extension" ]; then
-    echo "📦 Copiando flow_extension..."
+    echo " Copiando flow_extension..."
     cp -r flow_extension dist_ofuscado/
 else
     echo " No se encontró flow_extension. Saltando..."
 fi
 
 # Compilar con PyInstaller optimizado
-echo "📦 Compilando con PyInstaller (optimizado)..."
+echo " Compilando con PyInstaller (optimizado)..."
 ./venv/Scripts/pyinstaller \
   --onefile \
   --windowed \
