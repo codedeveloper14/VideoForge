@@ -23,6 +23,10 @@ jobs:
         python -m pip install --upgrade pip wheel setuptools
         python -m pip install pyinstaller pyarmor cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe bcrypt replicate
 
+    - name: Register PyArmor license
+      run: |
+        pyarmor register -p StudioIVR "${{ secrets.PYARMOR_LICENSE }}"
+
     - name: Install Playwright browsers
       run: |
         python -m playwright install --with-deps chromium
