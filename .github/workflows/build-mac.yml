@@ -21,7 +21,7 @@ jobs:
     - name: Install all dependencies
       run: |
         python -m pip install --upgrade pip wheel setuptools
-        python -m pip install pyinstaller cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe
+        python -m pip install pyinstaller pyarmor cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe bcrypt replicate
 
     - name: Install Playwright browsers
       run: |
@@ -37,7 +37,7 @@ jobs:
 
         icon_path = 'assets/icon.ico'
         if not os.path.exists(icon_path):
-            print(f" No se encontró {icon_path}")
+            print(f"❌ No se encontró {icon_path}")
             exit(1)
 
         iconset_dir = 'assets/icon.iconset'
@@ -47,28 +47,28 @@ jobs:
 
         try:
             img = Image.open(icon_path)
-            print(f" Icono cargado: {img.size} {img.mode}")
+            print(f"✅ Icono cargado: {img.size} {img.mode}")
             
             for w, h in sizes:
                 resized = img.resize((w, h), Image.Resampling.LANCZOS)
                 png_path = os.path.join(iconset_dir, f'icon_{w}x{h}.png')
                 resized.save(png_path, 'PNG')
-                print(f" Creado: {png_path}")
+                print(f"✅ Creado: {png_path}")
 
             icns_path = 'assets/icon.icns'
             if shutil.which('iconutil'):
                 cmd = ['iconutil', '-c', 'icns', iconset_dir, '-o', icns_path]
                 result = subprocess.run(cmd, capture_output=True, text=True)
                 if result.returncode == 0 and os.path.exists(icns_path):
-                    print(f" Icono convertido a: {icns_path}")
+                    print(f"✅ Icono convertido a: {icns_path}")
                 else:
-                    print(f" Error al convertir: {result.stderr}")
+                    print(f"❌ Error al convertir: {result.stderr}")
                     exit(1)
             else:
-                print(" iconutil no encontrado")
+                print("❌ iconutil no encontrado")
                 exit(1)
         except Exception as e:
-            print(f" Error: {e}")
+            print(f"❌ Error: {e}")
             exit(1)
         EOF
 
@@ -85,13 +85,58 @@ jobs:
         touch whisk_downloads/placeholder.txt
         touch "Build and Instructions/placeholder.txt"
 
-    - name: Build with PyInstaller as .app bundle
+    - name: Obfuscate all modules
+      run: |
+        mkdir -p dist_ofuscado
+        for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
+          if [ -f "$mod" ]; then
+            echo "Ofuscando $mod..."
+            pyarmor gen --obf-code 2 -O dist_ofuscado "$mod"
+          fi
+        done
+
+    - name: Copy flow_extension to dist_ofuscado
+      run: |
+        if [ -d "flow_extension" ]; then
+          echo "📦 Copiando flow_extension..."
+          cp -r flow_extension dist_ofuscado/
+        else
+          echo "⚠️  No se encontró flow_extension. Saltando..."
+        fi
+
+    - name: Build with PyInstaller (optimized)
       run: |
         python -m PyInstaller \
-          --onedir \
+          --onefile \
           --windowed \
           --name IVR_2.5 \
           --icon assets/icon.icns \
+          --strip \
+          --hidden-import bcrypt \
+          --hidden-import replicate \
+          --hidden-import webview \
+          --hidden-import webview.platforms \
+          --hidden-import webview.platforms.winforms \
+          --hidden-import webview.platforms.winforms.webview \
+          --hidden-import tkinter \
+          --hidden-import tkinter.ttk \
+          --hidden-import tkinter.messagebox \
+          --hidden-import dotenv \
+          --hidden-import flask \
+          --hidden-import werkzeug \
+          --hidden-import jinja2 \
+          --hidden-import itsdangerous \
+          --hidden-import click \
+          --hidden-import markupsafe \
+          --hidden-import requests \
+          --hidden-import pymysql \
+          --hidden-import cryptography \
+          --hidden-import playwright \
+          --hidden-import PIL \
+          --collect-all webview \
+          --collect-all flask \
+          --collect-all bcrypt \
+          --collect-all replicate \
           --add-data "cookies:cookies" \
           --add-data "jobs:jobs" \
           --add-data "meta_accounts:meta_accounts" \
@@ -99,42 +144,39 @@ jobs:
           --add-data "grok-animator2.0:grok-animator2.0" \
           --add-data "whisk_downloads:whisk_downloads" \
           --add-data "Build and Instructions:Build and Instructions" \
+          --add-data "dist_ofuscado/flow_extension:flow_extension" \
+          --add-data "dist_ofuscado/auth_module.py:." \
+          --add-data "dist_ofuscado/ui_embedded.py:." \
+          --add-data "dist_ofuscado/grok_multi.py:." \
+          --add-data "dist_ofuscado/vf_db_connection.py:." \
+          --add-data "dist_ofuscado/vf_db_interact.py:." \
+          --add-data "dist_ofuscado/vf_db_sync.py:." \
           --distpath dist_final \
-          launcher.py
+          dist_ofuscado/launcher.py
 
     - name: Create .app bundle
       run: |
-        # Crear la estructura de .app
         APP_NAME="IVR_2.5.app"
         APP_DIR="$APP_NAME/Contents"
         
         mkdir -p "$APP_DIR/MacOS"
         mkdir -p "$APP_DIR/Resources"
         
-        # Encontrar el ejecutable dentro de la carpeta dist_final/IVR_2.5/
-        # PyInstaller con --onedir crea una carpeta con el nombre del programa
         if [ -d "dist_final/IVR_2.5" ]; then
-          # Si es un directorio, buscar el ejecutable dentro
           EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f -perm +111 | head -1)
           if [ -z "$EXECUTABLE" ]; then
-            # Si no encuentra por permisos, buscar cualquier archivo llamado IVR_2.5
             EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f | head -1)
           fi
         else
-          # Si es un archivo directo
           EXECUTABLE="dist_final/IVR_2.5"
         fi
         
         echo "Ejecutable encontrado: $EXECUTABLE"
         
-        # Copiar el ejecutable
         cp "$EXECUTABLE" "$APP_DIR/MacOS/"
         chmod +x "$APP_DIR/MacOS/IVR_2.5"
-        
-        # Copiar el icono
         cp assets/icon.icns "$APP_DIR/Resources/"
         
-        # Crear Info.plist
         cat > "$APP_DIR/Info.plist" << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -166,15 +208,11 @@ jobs:
         </plist>
         EOF
         
-        # Crear el archivo PkgInfo
         echo "APPL????" > "$APP_DIR/PkgInfo"
 
     - name: Create .dmg installer
       run: |
-        # Instalar create-dmg
         brew install create-dmg
-        
-        # Crear el DMG
         create-dmg \
           --volname "IVR 2.5" \
           --window-pos 200 120 \
