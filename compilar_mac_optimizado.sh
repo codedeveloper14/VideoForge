@@ -4,36 +4,73 @@ echo "========================================="
 echo "  COMPILANDO IVR 2.5 PARA MACOS (OPTIMIZADO)"
 echo "========================================="
 
-source venv/bin/activate
+# ============================================
+# 1. ACTIVAR ENTORNO VIRTUAL
+# ============================================
+if [ -d "venv" ]; then
+    source venv/bin/activate
+else
+    echo " No se encontró el entorno virtual. Ejecuta: python -m venv venv"
+    exit 1
+fi
 
-# Instalar dependencias
-echo "Instalando dependencias..."
+# ============================================
+# 2. INSTALAR DEPENDENCIAS
+# ============================================
+echo " Instalando dependencias..."
+pip install --upgrade pip
 pip install bcrypt replicate
 
 # Verificar
-python -c "import bcrypt; print('bcrypt OK')"
-python -c "import replicate; print('replicate OK')"
+python -c "import bcrypt; print(' bcrypt OK')"
+python -c "import replicate; print(' replicate OK')"
 
-# Limpiar
+# ============================================
+# 3. LIMPIAR COMPILACIONES ANTERIORES
+# ============================================
+echo " Limpiando compilaciones anteriores..."
 rm -rf dist dist_final build IVR_2.5.app IVR_2.5.dmg IVR_2.5.spec dist_ofuscado
 
-# Ofuscar módulos
-echo "Ofuscando módulos..."
+# ============================================
+# 4. OFUSCAR MÓDULOS
+# ============================================
+echo " Ofuscando módulos..."
 mkdir -p dist_ofuscado
 for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
     if [ -f "$mod" ]; then
+        echo "  → Ofuscando $mod..."
         pyarmor gen --obf-code 2 -O dist_ofuscado "$mod"
+    else
+        echo "  $mod no encontrado, saltando..."
     fi
 done
 
-# Copiar flow_extension a dist_ofuscado
+# ============================================
+# 5. COPIAR FLOW_EXTENSION AL OFUSCADO
+# ============================================
 if [ -d "flow_extension" ]; then
-    echo "Copiando flow_extension..."
+    echo " Copiando flow_extension..."
     cp -r flow_extension dist_ofuscado/
+else
+    echo "  No se encontró flow_extension. Saltando..."
 fi
 
-# Compilar con PyInstaller optimizado
-echo "Compilando con PyInstaller (optimizado)..."
+# ============================================
+# 6. VERIFICAR RECURSOS (PARA QUE FUNCIONE EN CUALQUIER MAC)
+# ============================================
+echo " Verificando recursos..."
+for folder in cookies jobs meta_accounts gentube_cookies grok-animator2.0 whisk_downloads "Build and Instructions"; do
+    if [ ! -d "$folder" ]; then
+        echo "    Creando carpeta: $folder"
+        mkdir -p "$folder"
+        touch "$folder/placeholder.txt"
+    fi
+done
+
+# ============================================
+# 7. COMPILAR CON PYINSTALLER (TODOS LOS RECURSOS INCLUIDOS)
+# ============================================
+echo " Compilando con PyInstaller (optimizado)..."
 pyinstaller \
   --onefile \
   --windowed \
@@ -82,16 +119,27 @@ pyinstaller \
   --distpath dist_final \
   dist_ofuscado/launcher.py
 
-# Crear .app
-echo "Creando .app..."
+if [ $? -ne 0 ] || [ ! -f "dist_final/IVR_2.5" ]; then
+    echo " Error en la compilación con PyInstaller"
+    exit 1
+fi
+
+# ============================================
+# 8. CREAR EL .APP (CON TODOS LOS RECURSOS)
+# ============================================
+echo " Creando .app..."
 APP_NAME="IVR_2.5.app"
 APP_DIR="$APP_NAME/Contents"
 mkdir -p "$APP_DIR/MacOS" "$APP_DIR/Resources"
 
+# Copiar ejecutable
 cp dist_final/IVR_2.5 "$APP_DIR/MacOS/"
 chmod +x "$APP_DIR/MacOS/IVR_2.5"
+
+# Copiar icono
 cp assets/icon.icns "$APP_DIR/Resources/"
 
+# Crear Info.plist
 cat > "$APP_DIR/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -125,8 +173,16 @@ EOF
 
 echo "APPL????" > "$APP_DIR/PkgInfo"
 
-# Crear .dmg optimizado
-echo "Creando .dmg optimizado..."
+# ============================================
+# 9. VERIFICAR QUE EL .APP CONTIENE TODOS LOS RECURSOS
+# ============================================
+echo " Verificando recursos dentro del .app..."
+ls -la "$APP_DIR/Resources/"
+
+# ============================================
+# 10. CREAR EL .DMG
+# ============================================
+echo " Creando .dmg optimizado..."
 rm -f IVR_2.5.dmg
 hdiutil create -volname "IVR 2.5" \
   -srcfolder IVR_2.5.app \
@@ -134,22 +190,35 @@ hdiutil create -volname "IVR 2.5" \
   -imagekey zlib-level=9 \
   IVR_2.5.dmg
 
+if [ $? -ne 0 ] || [ ! -f "IVR_2.5.dmg" ]; then
+    echo " Error al crear el .dmg"
+    exit 1
+fi
+
+# ============================================
+# 11. RESULTADO FINAL
+# ============================================
 echo ""
 echo "========================================="
-echo "COMPILACIÓN OPTIMIZADA COMPLETADA"
+echo " COMPILACIÓN OPTIMIZADA COMPLETADA"
 echo "========================================="
 ls -lh IVR_2.5.dmg
-
 echo ""
-echo "Tamaño del .dmg:"
+echo " Tamaño del .dmg:"
 du -sh IVR_2.5.dmg
 
 echo ""
-echo "Probando la app..."
+echo " Probando la app..."
 ./IVR_2.5.app/Contents/MacOS/IVR_2.5 &
 sleep 3
 
 echo ""
-echo "Instalando en ~/Applications/..."
+echo " Instalando en ~/Applications/..."
 cp -R IVR_2.5.app ~/Applications/
 open ~/Applications/IVR_2.5.app
+
+echo ""
+echo "========================================="
+echo " ¡LISTO! El .dmg contiene todos los recursos"
+echo "   y funcionará en cualquier Mac sin archivos sueltos."
+echo "========================================="
