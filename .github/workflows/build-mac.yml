@@ -21,11 +21,7 @@ jobs:
     - name: Install all dependencies
       run: |
         python -m pip install --upgrade pip wheel setuptools
-        python -m pip install pyinstaller pyarmor cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe bcrypt replicate
-
-    - name: Register PyArmor license
-      run: |
-        pyarmor register -p StudioIVR "${{ secrets.PYARMOR_LICENSE }}"
+        python -m pip install pyinstaller cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe bcrypt replicate
 
     - name: Install Playwright browsers
       run: |
@@ -89,26 +85,16 @@ jobs:
         touch whisk_downloads/placeholder.txt
         touch "Build and Instructions/placeholder.txt"
 
-    - name: Obfuscate all modules
-      run: |
-        mkdir -p dist_ofuscado
-        for mod in launcher.py auth_module.py ui_embedded.py grok_multi.py vf_db_connection.py vf_db_interact.py vf_db_sync.py; do
-          if [ -f "$mod" ]; then
-            echo "Ofuscando $mod..."
-            pyarmor gen --obf-code 2 -O dist_ofuscado "$mod"
-          fi
-        done
-
-    - name: Copy flow_extension to dist_ofuscado
+    - name: Copy flow_extension
       run: |
         if [ -d "flow_extension" ]; then
           echo "📦 Copiando flow_extension..."
-          cp -r flow_extension dist_ofuscado/
+          cp -r flow_extension .
         else
-          echo "⚠️  No se encontró flow_extension. Saltando..."
+          echo "⚠️  No se encontró flow_extension"
         fi
 
-    - name: Build with PyInstaller (optimized)
+    - name: Build with PyInstaller (SIN OFUSCACIÓN)
       run: |
         python -m PyInstaller \
           --onefile \
@@ -148,15 +134,9 @@ jobs:
           --add-data "grok-animator2.0:grok-animator2.0" \
           --add-data "whisk_downloads:whisk_downloads" \
           --add-data "Build and Instructions:Build and Instructions" \
-          --add-data "dist_ofuscado/flow_extension:flow_extension" \
-          --add-data "dist_ofuscado/auth_module.py:." \
-          --add-data "dist_ofuscado/ui_embedded.py:." \
-          --add-data "dist_ofuscado/grok_multi.py:." \
-          --add-data "dist_ofuscado/vf_db_connection.py:." \
-          --add-data "dist_ofuscado/vf_db_interact.py:." \
-          --add-data "dist_ofuscado/vf_db_sync.py:." \
+          --add-data "flow_extension:flow_extension" \
           --distpath dist_final \
-          dist_ofuscado/launcher.py
+          launcher.py
 
     - name: Create .app bundle
       run: |
