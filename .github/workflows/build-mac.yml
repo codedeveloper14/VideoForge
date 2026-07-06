@@ -85,14 +85,7 @@ jobs:
         touch whisk_downloads/placeholder.txt
         touch "Build and Instructions/placeholder.txt"
 
-    - name: Copy flow_extension
-      run: |
-        if [ -d "flow_extension" ]; then
-          echo "📦 Copiando flow_extension..."
-          cp -r flow_extension .
-        else
-          echo "⚠️  No se encontró flow_extension"
-        fi
+    # ELIMINADO: el paso de copia flow_extension (no es necesario)
 
     - name: Build with PyInstaller (SIN OFUSCACIÓN)
       run: |
