@@ -1,0 +1,149 @@
+{
+  "manifest_version": 3,
+  "name": "VideoForge - Cookie Helper",
+  "version": "5.12",
+  "description": "Copia o exporta las cookies de Google Flow con un clic para usar en Imperio Studio",
+  "permissions": [
+    "cookies",
+    "activeTab",
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://labs.google/*",
+    "https://labs.google.com/*",
+    "https://grok.com/*",
+    "https://*.grok.com/*",
+    "https://gemini.google.com/*",
+    "https://*.google.com/*",
+    "https://chat.qwen.ai/*",
+    "https://*.qwen.ai/*",
+    "https://www.dubvoice.ai/*",
+    "https://*.dubvoice.ai/*",
+    "https://*.supabase.co/*",
+    "https://www.meta.ai/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "ws://127.0.0.1/*",
+    "ws://localhost/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "incognito": "split",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://labs.google/fx/*/tools/flow*",
+        "https://labs.google/fx/tools/flow*",
+        "https://labs.google.com/fx/*/tools/flow*",
+        "https://labs.google.com/fx/tools/flow*"
+      ],
+      "js": [
+        "flow_content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://labs.google/fx/*/tools/flow*",
+        "https://labs.google/fx/tools/flow*",
+        "https://labs.google.com/fx/*/tools/flow*",
+        "https://labs.google.com/fx/tools/flow*"
+      ],
+      "js": [
+        "flow_token_gen.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chat.qwen.ai/*",
+        "https://*.qwen.ai/*"
+      ],
+      "js": [
+        "qwen_content.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chat.qwen.ai/*",
+        "https://*.qwen.ai/*"
+      ],
+      "js": [
+        "qwen_bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://grok.com/*",
+        "https://*.grok.com/*"
+      ],
+      "js": [
+        "grok_upload_relay.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://grok.com/*",
+        "https://*.grok.com/*"
+      ],
+      "js": [
+        "grok_bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.dubvoice.ai/*",
+        "https://dubvoice.ai/*"
+      ],
+      "js": [
+        "dubvoice_bridge.js"
+      ],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://www.dubvoice.ai/*",
+        "https://dubvoice.ai/*"
+      ],
+      "js": [
+        "dubvoice_content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.meta.ai/*"],
+      "js": ["meta_token_gen.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.meta.ai/*"],
+      "js": ["meta_bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
