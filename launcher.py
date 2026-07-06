@@ -1697,11 +1697,11 @@ try:
     bar.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 0 2px;flex-wrap:wrap';
     bar.innerHTML =
       '<span style="font-family:var(--mono);font-size:9px;color:var(--m);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0">Modo:</span>'+
-      '<button id="vf-meta-mode-ext" onclick="window.__vfMetaMode=\'ext\';_vfMetaModeRefresh()" '+
+     '<button id="vf-meta-mode-ext" onclick="window.__vfMetaMode=\"ext\";_vfMetaModeRefresh()" '+
         'style="font-family:var(--mono);font-size:9px;padding:2px 9px;border-radius:5px;cursor:pointer;'+
         'background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.45);color:#c084fc">'+
         '⚡ Playwright DOM</button>'+
-      '<button id="vf-meta-mode-http" onclick="window.__vfMetaMode=\'http\';_vfMetaModeRefresh()" '+
+      '<button id="vf-meta-mode-http" onclick="window.__vfMetaMode=\"http\";_vfMetaModeRefresh()" '+
         'style="font-family:var(--mono);font-size:9px;padding:2px 9px;border-radius:5px;cursor:pointer;'+
         'background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.25);color:var(--m)">'+
         '🔧 HTTP (debug)</button>'+
@@ -28185,6 +28185,25 @@ def _flask_ready(url="http://127.0.0.1:8080/", max_wait=20, intervalo=0.25):
 
 
 if __name__ == "__main__":
+# ============================================
+    # INICIAR WEBSOCKET BRIDGE (SIN INTERRUMPIR)
+    # ============================================
+    import threading
+    import time
+    
+    def _start_bridge_auto():
+        try:
+            # Esperar a que Flask arranque primero
+            time.sleep(3)
+            _flow_start_ws_server()
+            print("[Bridge] ✅ WebSocket corriendo en ws://127.0.0.1:5557")
+        except Exception as e:
+            print(f"[Bridge] ⚠️  No se pudo iniciar: {e}")
+    
+    # Iniciar bridge en hilo DAEMON (no bloquea la app)
+    threading.Thread(target=_start_bridge_auto, daemon=True).start()
+    
+
     _mostrar_splash()
     print("\n" + "═"*52)
     print("  🎬  Studio IVR — Pipeline de Video con IA")
