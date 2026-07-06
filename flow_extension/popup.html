@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #10101a;
+      --border:   #2a1f4a;
+      --purple:   #8b5cf6;
+      --purple2:  #a78bfa;
+      --purple-dim:#3b1f8a;
+      --text:     #e2d9f3;
+      --muted:    #7a6fa0;
+      --green:    #34d399;
+      --red:      #f87171;
+      --yellow:   #fbbf24;
+    }
+
+    body {
+      width: 340px;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 18px 16px 20px;
+      min-height: 280px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -60px; left: -40px;
+      width: 220px; height: 220px;
+      background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -40px; right: -30px;
+      width: 160px; height: 160px;
+      background: radial-gradient(circle, rgba(167,139,250,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2px;
+    }
+    .logo-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, var(--purple) 0%, #6d28d9 100%);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      box-shadow: 0 0 12px rgba(139,92,246,0.5);
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      background: linear-gradient(90deg, #fff 0%, var(--purple2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding-left: 40px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin-bottom: 16px;
+    }
+
+    /* ── Status ── */
+    .status {
+      font-size: 12px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+    .status::before {
+      content: '';
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status.success {
+      background: rgba(52,211,153,0.08);
+      border: 1px solid rgba(52,211,153,0.25);
+      color: var(--green);
+    }
+    .status.success::before { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status.error {
+      background: rgba(248,113,113,0.08);
+      border: 1px solid rgba(248,113,113,0.25);
+      color: var(--red);
+    }
+    .status.error::before { background: var(--red); }
+    .status.loading {
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.20);
+      color: var(--yellow);
+      animation: pulse-border 1.8s ease-in-out infinite;
+    }
+    .status.loading::before { background: var(--yellow); animation: blink 1.2s ease-in-out infinite; }
+
+    @keyframes pulse-border {
+      0%,100% { border-color: rgba(251,191,36,0.20); }
+      50%      { border-color: rgba(251,191,36,0.45); }
+    }
+    @keyframes blink {
+      0%,100% { opacity:1; } 50% { opacity:0.3; }
+    }
+
+    /* ── Cookie box — always hidden, JS may set display:block but we override ── */
+    .cookie-box,
+    #flowCookieBox {
+      display: none !important;
+    }
+
+    /* ── Buttons ── */
+    button {
+      width: 100%;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: all 0.18s;
+      letter-spacing: 0.01em;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--purple) 0%, #6d28d9 100%);
+      color: #fff;
+      box-shadow: 0 2px 14px rgba(139,92,246,0.35);
+    }
+    button.primary:hover {
+      background: linear-gradient(135deg, var(--purple2) 0%, var(--purple) 100%);
+      box-shadow: 0 2px 20px rgba(139,92,246,0.55);
+      transform: translateY(-1px);
+    }
+    button.primary:disabled {
+      background: rgba(139,92,246,0.15);
+      color: var(--muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+    button.send-btn {
+      background: rgba(52,211,153,0.12);
+      border: 1px solid rgba(52,211,153,0.30);
+      color: var(--green);
+      margin-top: 8px;
+      box-shadow: none;
+    }
+    button.send-btn:hover:not(:disabled) {
+      background: rgba(52,211,153,0.20);
+      border-color: rgba(52,211,153,0.55);
+      transform: translateY(-1px);
+    }
+    button.send-btn:disabled {
+      background: rgba(52,211,153,0.05);
+      border-color: rgba(52,211,153,0.10);
+      color: rgba(52,211,153,0.3);
+      cursor: not-allowed;
+      transform: none;
+    }
+    button.copied {
+      background: linear-gradient(135deg, var(--green), #059669) !important;
+      color: #fff !important;
+      box-shadow: 0 2px 14px rgba(52,211,153,0.4) !important;
+    }
+
+    /* ── Send status ── */
+    #flowSendStatus {
+      font-size: 10px;
+      margin-top: 6px;
+      color: var(--muted);
+      display: none;
+      text-align: center;
+    }
+
+    /* ── Instructions ── */
+    .instructions {
+      margin-top: 14px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .instructions b { color: var(--text); }
+    .instructions ol { padding-left: 16px; }
+    .instructions li { margin-bottom: 3px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-icon">▶</div>
+    <h1>VideoForge</h1>
+  </div>
+  <div class="subtitle">Cookie Helper · Flow</div>
+  <div class="divider"></div>
+
+  <!-- Flow Panel (only panel) -->
+  <div id="flowPanel">
+    <div id="flowStatus" class="status loading">Buscando cookies de Flow...</div>
+    <div id="flowCookieBox" class="cookie-box"></div>
+    <button id="flowCopyBtn" class="primary" disabled>Copiar Cookie de Flow</button>
+    <button id="flowSendBtn" class="send-btn primary" disabled>📤 Enviar a VideoForge (127.0.0.1:8080)</button>
+    <div id="flowSendStatus"></div>
+
+    <div class="instructions">
+      <p><b>Instrucciones:</b></p>
+      <ol>
+        <li>Inicia sesión en <b>labs.google.com/fx/tools/flow</b></li>
+        <li>Haz clic en <b>Copiar Cookie de Flow</b></li>
+        <li>Pega en el campo correspondiente en VideoForge</li>
+        <li>Mantén la pestaña de Flow abierta en <b>todos los perfiles</b> de Chrome mientras generas imágenes</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Off-screen ghost container for JS compatibility — never visible -->
+  <div aria-hidden="true" style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;">
+    <div id="whiskPanel"></div>
+    <div id="grokPanel"></div>
+    <div id="geminiPanel"></div>
+    <div id="qwenPanel"></div>
+    <div id="dubvoicePanel"></div>
+    <span id="flowDot"></span>
+    <span id="whiskDot"></span>
+    <span id="grokDot"></span>
+    <span id="geminiDot"></span>
+    <span id="qwenDot"></span>
+    <span id="dubvoiceDot"></span>
+    <div id="whiskStatus"></div>
+    <div id="whiskCookieBox"></div>
+    <button id="whiskCopyBtn"></button>
+    <div id="grokStatus"></div>
+    <div id="grokCookieBox"></div>
+    <button id="grokCopyBtn"></button>
+    <div id="geminiStatus"></div>
+    <div id="geminiCookieBox"></div>
+    <button id="geminiCopyBtn"></button>
+    <div id="qwenStatus"></div>
+    <div id="qwenCookieBox"></div>
+    <button id="qwenCopyBtn"></button>
+    <div id="dubvoiceStatus"></div>
+    <div id="dubvoiceCookieBox"></div>
+    <button id="dubvoiceCopyBtn"></button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

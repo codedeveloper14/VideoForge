@@ -2,6 +2,14 @@
 .env
 .env.*
 
+venv/
+dist/
+dist_final/
+dist_ofuscado/
+build/
+*.app
+*.dmg
+
 # Python
 __pycache__/
 *.py[cod]

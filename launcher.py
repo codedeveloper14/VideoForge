@@ -16,6 +16,9 @@ Compilar a .app (Mac):
 
 import sys, os
 from dotenv import load_dotenv
+import shutil
+import platform
+import hashlib
 
 load_dotenv()
 
@@ -17374,6 +17377,95 @@ def _flow_find_extension_dir() -> str:
 
     return str(_FLOW_BASE_DIR_PW)  # fallback — el usuario verá el error y puede corregir
 
+def get_app_data_path():
+    """Devuelve la ruta base de datos de la aplicación según el SO"""
+    system = platform.system()
+    
+    if system == "Windows":
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+        return os.path.join(appdata, 'VideoForge')
+    elif system == "Darwin":  # macOS
+        home = os.path.expanduser('~')
+        return os.path.join(home, 'Library', 'Application Support', 'VideoForge')
+    else:
+        return os.path.join(os.path.expanduser('~'), '.config', 'VideoForge')
+
+def get_extension_install_path():
+    return os.path.join(get_app_data_path(), 'flow_extension')
+
+def get_extension_source_path():
+    if getattr(sys, 'frozen', False):
+        if hasattr(sys, '_MEIPASS'):
+            src = os.path.join(sys._MEIPASS, 'flow_extension')
+            if os.path.exists(src):
+                return src
+        exe_dir = os.path.dirname(sys.executable)
+        src = os.path.join(exe_dir, 'flow_extension')
+        if os.path.exists(src):
+            return src
+    for name in ['flow_extension', 'flow_extensions']:
+        if os.path.exists(name):
+            return os.path.abspath(name)
+    return None
+
+def calculate_dir_hash(path):
+    if not os.path.exists(path):
+        return None
+    hasher = hashlib.sha256()
+    for root, dirs, files in sorted(os.walk(path)):
+        for file in sorted(files):
+            file_path = os.path.join(root, file)
+            try:
+                with open(file_path, 'rb') as f:
+                    for chunk in iter(lambda: f.read(65536), b''):
+                        hasher.update(chunk)
+            except:
+                pass
+    return hasher.hexdigest()
+
+def ensure_flow_extension_installed():
+    dest_path = get_extension_install_path()
+    src_path = get_extension_source_path()
+    
+    if src_path is None or not os.path.exists(src_path):
+        print("⚠️  No se encontró flow_extension en el paquete")
+        return dest_path
+    
+    os.makedirs(dest_path, exist_ok=True)
+    version_file = os.path.join(dest_path, '.version')
+    current_hash = calculate_dir_hash(src_path)
+    
+    need_install = True
+    if os.path.exists(version_file):
+        try:
+            with open(version_file, 'r') as f:
+                saved_hash = f.read().strip()
+            if saved_hash == current_hash:
+                need_install = False
+                print(f"✅ flow_extension ya está actualizado en {dest_path}")
+        except:
+            pass
+    
+    if need_install:
+        print(f"📦 Instalando flow_extension en {dest_path}")
+        try:
+            if os.path.exists(dest_path):
+                shutil.rmtree(dest_path)
+            shutil.copytree(src_path, dest_path)
+            with open(version_file, 'w') as f:
+                f.write(current_hash)
+            print("✅ flow_extension instalado correctamente")
+        except Exception as e:
+            print(f"❌ Error al instalar flow_extension: {e}")
+    
+    return dest_path
+
+# ============================================
+# INSTALAR AL INICIO
+# ============================================
+
+FLOW_EXTENSION_PATH = ensure_flow_extension_installed()
+print(f"📂 flow_extension instalado en: {FLOW_EXTENSION_PATH}")
 
 def _meta_find_extension_dir() -> str:
     """
