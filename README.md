@@ -1,77 +1,53 @@
-# Studio IVR
+# Studio IVR (VideoForge)
 
-VideoForge es una aplicación de escritorio desarrollada con PyWebView y Flask para automatizar tareas relacionadas con la generación de contenido multimedia.
+Aplicación de escritorio para automatización de generación de contenido multimedia con IA.
 
-## Características
+---
 
-- Interfaz nativa con PyWebView.
-- Backend desarrollado con Flask.
-- Código protegido con PyArmor.
-- Instalador para Windows.
-- Compilación para macOS mediante GitHub Actions.
-- Actualizaciones desde GitHub Releases.
+##  Características
 
-## Requisitos
+- **Interfaz nativa** con PyWebView
+- **Backend Flask** para API y lógica de negocio
+- **Código protegido** con PyArmor (ofuscación)
+- **Instalador para Windows** con Inno Setup
+- **Compilación para macOS** (Universal2: Intel + Apple Silicon M1/M2/M3)
+- **WebSocket Bridge** para comunicación con extensión de Chrome
+- **Generación de imágenes** con Google Flow / Whisk
+- **Actualizaciones** desde GitHub Releases
 
-- Python 3.14+
-- Git
+---
 
-### Windows
+##  Requisitos
 
-- Inno Setup 6
+| Requisito | Versión |
+|-----------|---------|
+| Python | 3.14+ |
+| Git | Cualquiera |
+| Windows | 10/11 |
+| macOS | 11+ (Big Sur) |
+| Inno Setup | 6 (solo para Windows) |
+| Xcode CLI | (solo para macOS) |
 
-### macOS
+---
 
-- Xcode Command Line Tools
-
-## Instalación
+##  Instalación para Desarrollo
 
 ```bash
+# 1. Clonar el repositorio
 git clone https://github.com/codedeveloper14/VideoForge.git
 cd VideoForge
 
-python -m venv .venv
+# 2. Crear entorno virtual
+python -m venv venv
 
-# Windows
-.venv\Scripts\activate
+# 3. Activar entorno virtual
+# Windows:
+venv\Scripts\activate
+# macOS / Linux:
+source venv/bin/activate
 
-# macOS / Linux
-source .venv/bin/activate
-
+# 4. Instalar dependencias
 pip install -r requirements.txt
-```
-
-## Ejecutar
-
-```bash
-python main.py
-```
-
-## Compilar
-
-### Windows
-
-```bash
-python build_windows.py
-```
-
-### macOS
-
-La compilación se realiza mediante GitHub Actions.
-
-## Estructura
-
-```
-VideoForge/
-├── main.py
-├── app.py
-├── requirements.txt
-├── auth_module/
-├── ui_embedded/
-├── grok_multi/
-├── static/
-├── templates/
-└── vf_db/
 ```
 
 ## Autores
