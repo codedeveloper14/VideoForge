@@ -2,14 +2,14 @@
 Studio IVR — Módulo de Autenticación  v3.0
 ==========================================
 Cambios en esta versión:
-  ✅  SESSION_MINUTES = 40   — sesión deslizante (se renueva con cada request)
-  ✅  _SERVER_BOOT           — invalida TODAS las sesiones al reiniciar el servidor
-  ✅  Botón "Cerrar sesión"  — inyectado automáticamente en la barra lateral
-  ✅  Toast de advertencia   — aparece 5 min antes de expirar por inactividad
-  ✅  Sistema de planes: Starter / Pro / Ultra
-  ✅  Límites diarios: videos, caracteres TTS, duración máxima de video
-  ✅  UI de Configuración y Upgrade en la barra lateral
-  ✅  Popup de límite alcanzado con opción de upgrade
+  [OK]  SESSION_MINUTES = 40   — sesión deslizante (se renueva con cada request)
+  [OK]  _SERVER_BOOT           — invalida TODAS las sesiones al reiniciar el servidor
+  [OK]  Botón "Cerrar sesión"  — inyectado automáticamente en la barra lateral
+  [OK]  Toast de advertencia   — aparece 5 min antes de expirar por inactividad
+  [OK]  Sistema de planes: Starter / Pro / Ultra
+  [OK]  Límites diarios: videos, caracteres TTS, duración máxima de video
+  [OK]  UI de Configuración y Upgrade en la barra lateral
+  [OK]  Popup de límite alcanzado con opción de upgrade
 
 Dependencias:
     pip install pymysql bcrypt flask
@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 
 # ─────────────────────────────────────────────────────────────────
 # PLANES — límites diarios por plan
-#   tts_chars_per_day: ~900 chars/min   (30→27k | 60→54k | 150→135k)
+#   tts_chars_per_day: ~900 chars/min   (30-->27k | 60-->54k | 150-->135k)
 #   max_video_minutes: None = ilimitado
 # ─────────────────────────────────────────────────────────────────
 PLANS = {
@@ -80,7 +80,7 @@ PLANS = {
     },
 }
 
-# Alias de nombres de plan alternativos en la BD → clave canónica
+# Alias de nombres de plan alternativos en la BD --> clave canónica
 PLAN_ALIASES = {
     "starter":     "basico",
     "basic":       "basico",
@@ -419,7 +419,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       </div>
 
       <button class="btn" id="loginBtn" onclick="doLogin()">
-        <span id="btnTxt">Iniciar sesión →</span>
+        <span id="btnTxt">Iniciar sesión --></span>
         <span class="ldots" id="ldots"><span class="ld"></span><span class="ld"></span><span class="ld"></span></span>
       </button>
 
@@ -475,7 +475,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <div class="mhint" id="mhint"></div>
     </div>
     <button class="btn-gold" id="cpBtn" onclick="doChange()" disabled>
-      <span id="cpTxt">Guardar contraseña →</span>
+      <span id="cpTxt">Guardar contraseña --></span>
       <span class="ldots" id="cpLd"><span class="ld"></span><span class="ld"></span><span class="ld"></span></span>
     </button>
   </div>
@@ -925,7 +925,7 @@ def _update_user_plan(username: str, new_plan: str, stripe_session_id: str = Non
                 pass
         conn.close()
         if updated:
-            print(f"[STRIPE] Plan actualizado: {username} → {new_plan}")
+            print(f"[STRIPE] Plan actualizado: {username} --> {new_plan}")
         return updated
     except Exception as e:
         print(f"[STRIPE] _update_user_plan error: {e}")
@@ -1744,7 +1744,7 @@ function _vfOpenOverlay(name){
   /* Quitar clase de cierre y reactivar animación */
   try{ el.classList.remove('vf-overlay-closed'); }catch(e){}
   el.style.animation = ''; /* eliminar override inline para que corra la animación CSS */
-  void el.offsetWidth;     /* forzar reflow → reinicia la animación */
+  void el.offsetWidth;     /* forzar reflow --> reinicia la animación */
   el.style.display = 'block';
   window.scrollTo(0,0);
 }
@@ -2392,7 +2392,7 @@ def init_auth(app):
         import json as _json
         user = getattr(g, "_vf_user", None)
         if user:
-            # Renueva el token → reinicia el contador de inactividad
+            # Renueva el token --> reinicia el contador de inactividad
             new_token = _make_token(user, APP_SECRET_KEY)
             response.set_cookie(
                 SESSION_COOKIE, new_token,
@@ -2973,9 +2973,9 @@ def crear_usuario_cli(username, password, role="user"):
             )
         conn.commit()
         conn.close()
-        print(f"✅ Usuario '{username}' creado con rol '{role}'.")
+        print(f"[OK] Usuario '{username}' creado con rol '{role}'.")
     except Exception as e:
-        print(f"❌ Error al crear usuario: {e}")
+        print(f"[ERROR] Error al crear usuario: {e}")
 
 
 if __name__ == "__main__":

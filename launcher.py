@@ -22,6 +22,50 @@ import hashlib
 
 load_dotenv()
 
+# FORZAR pywebview a usar MSHTML (NO WinForms)
+os.environ['WEBVIEW_GUI'] = 'mshtml'
+
+# Deshabilitar advertencias de Unicode en Windows
+if sys.platform == 'win32':
+    import warnings
+    warnings.filterwarnings('ignore', category=UnicodeWarning)
+    
+    # Configurar codificación UTF-8 para la consola
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except:
+        pass
+
+# ============================================
+#  CARPETAS DE DATOS (AppData)
+# ============================================
+
+def get_app_data_folder():
+    if platform.system() == "Windows":
+        appdata = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+        return os.path.join(appdata, 'VideoForge')
+    else:
+        home = os.path.expanduser('~')
+        return os.path.join(home, 'Library', 'Application Support', 'VideoForge')
+
+# USAR SIEMPRE ESTO
+APP_DATA = get_app_data_folder()
+JOBS_FOLDER = os.path.join(APP_DATA, 'jobs')
+COOKIES_FOLDER = os.path.join(APP_DATA, 'cookies')
+WHISK_DOWNLOADS = os.path.join(APP_DATA, 'whisk_downloads')
+FLOW_EXTENSION_FOLDER = os.path.join(APP_DATA, 'flow_extension')
+
+# Crear carpetas si no existen
+for folder in [JOBS_FOLDER, COOKIES_FOLDER, WHISK_DOWNLOADS, FLOW_EXTENSION_FOLDER]:
+    os.makedirs(folder, exist_ok=True)
+
+print(f"[OK] AppData: {APP_DATA}")
+print(f"[OK] Jobs: {JOBS_FOLDER}")
+print(f"[OK] Cookies: {COOKIES_FOLDER}")
+print(f"[OK] Whisk: {WHISK_DOWNLOADS}")
+print(f"[OK] Flow Extension: {FLOW_EXTENSION_FOLDER}")
+
+
 # ── PyInstaller: sys.executable es el .exe, NO python.exe. No se puede hacer
 #    Popen([exe, "grok_multi.py", ...]) — eso arranca OTRO Studio IVR y rompe el puerto.
 #    Los hijos entran aquí, ejecutan grok_multi con runpy y salen sin cargar Flask.
@@ -46,7 +90,7 @@ import tempfile, subprocess
 
 # ── Stdout unicode-safe (Windows compiled exe usa charmap/CP1252 por defecto,
 #    que no puede encodar emoji ni muchos caracteres Unicode).
-#    Intentamos en orden: reconfigure → wrap buffer → SetConsoleOutputCP(UTF-8)
+#    Intentamos en orden: reconfigure --> wrap buffer --> SetConsoleOutputCP(UTF-8)
 #    para que ningún print() pueda crashear el proceso. ─────────────────────────
 import io as _io
 if sys.platform == "win32":
@@ -162,7 +206,7 @@ def _mostrar_splash():
             splash.after(1500, _arrancar)
 
     def _instalar(tmp_path):
-        set_status("✅ Instalando actualización...")
+        set_status("[OK] Instalando actualización...")
         set_progress(100)
         bat_path = os.path.join(tempfile.gettempdir(), "vf_update.bat")
         with open(bat_path, "w") as bat:
@@ -412,12 +456,12 @@ try:
     )
     _vf_inicio_css = (
         "<style id='vf-inicio-style'>"
-        # No project → hide everything except Inicio
+        # No project --> hide everything except Inicio
         "body.vf-np .sb-div,"
         "body.vf-np .sb-section-label,"
         "body.vf-np .sb-item:not([data-page='home']){"
         "display:none!important}"
-        # Project active → hide Inicio (redundant once inside a project)
+        # Project active --> hide Inicio (redundant once inside a project)
         "body:not(.vf-np) .sb-item[data-page='home']{"
         "display:none!important}"
         "</style>"
@@ -435,7 +479,7 @@ try:
         "})();"
         "</script>"
     )
-    # ── Sync filesystem projects → localStorage so Inicio shows all projects ──
+    # ── Sync filesystem projects --> localStorage so Inicio shows all projects ──
     _vf_fs_sync = (
         "<script id='vf-fs-sync'>"
         "(function(){"
@@ -609,15 +653,15 @@ try:
             if(cs!=='proc'){_st[pg]='proc';_setDot(pg,'proc');}
           }else if(pDone[pg]&&cs==='proc'){
             if(pg==='voz'&&vozGenOnly){
-              /* generar done but fusionar not yet done → keep orange */
+              /* generar done but fusionar not yet done --> keep orange */
               if(cs!=='proc'){_st[pg]='proc';_setDot(pg,'proc');}
             }else{
               _st[pg]='done';_setDot(pg,'done');
             }
           }else if(!pProc[pg]&&!pDone[pg]&&cs==='proc'){
-            /* job cleaned from API while still marked proc → assume done */
+            /* job cleaned from API while still marked proc --> assume done */
             if(pg==='voz'&&!vozFusDone){
-              /* voz cleaned but fusionar never ran → orange until explicitly cleared */
+              /* voz cleaned but fusionar never ran --> orange until explicitly cleared */
             }else{
               _st[pg]='done';_setDot(pg,'done');
             }
@@ -1321,11 +1365,11 @@ try:
         "       }).catch(function(){});"
         "     }"
         "     if(u.indexOf('/api/whisk/run-prompts')>=0 && resp.ok){ var _ws=_VFP['imagenes'];if(_ws){_ws.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');} pollWhisk(); }"
-        "     if(u.indexOf('/api/flow/run-prompts')>=0){ if(resp.ok){ var _fs=_VFP['imagenes'];if(_fs){_fs.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');}pollFlow();}else{resp.clone().json().then(function(ej){var _emsg=(ej&&ej.error)||'Error al iniciar generacion';if(typeof fLog==='function')fLog('❌ '+_emsg);try{var _dz=document.getElementById('flow-ref-dropzone')||document.querySelector('#flow-ref-area')||document.querySelector('[id*=ref][id*=drop],[id*=drop][id*=ref]');if(!_dz){var _allInp=document.querySelectorAll('input[type=file][accept*=image]');for(var _ii=0;_ii<_allInp.length;_ii++){var _pp=_allInp[_ii].parentElement;if(_pp&&(_pp.style.border||_pp.className)){_dz=_pp;break;}}}if(_dz){_dz.style.border='2px solid #f87171';_dz.style.boxShadow='0 0 0 4px rgba(239,68,68,0.4)';_dz.style.transition='all 0.3s';var _wn=document.createElement('div');_wn.style.cssText='position:absolute;top:0;left:0;right:0;background:rgba(239,68,68,0.9);color:#fff;padding:6px 10px;font-size:11px;font-weight:700;border-radius:6px 6px 0 0;text-align:center;z-index:9';_wn.textContent='⚠️ Imagen4 requiere imagen de referencia';if(getComputedStyle(_dz).position==='static')_dz.style.position='relative';_dz.appendChild(_wn);_dz.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){if(_dz){_dz.style.border='';_dz.style.boxShadow='';_dz.style.position='';try{_dz.removeChild(_wn);}catch(e){}}},5000);}}catch(_de){}alert(_emsg);}).catch(function(){alert('Error al iniciar la generacion Flow.');});}}"
+        "     if(u.indexOf('/api/flow/run-prompts')>=0){ if(resp.ok){ var _fs=_VFP['imagenes'];if(_fs){_fs.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');}pollFlow();}else{resp.clone().json().then(function(ej){var _emsg=(ej&&ej.error)||'Error al iniciar generacion';if(typeof fLog==='function')fLog('[ERROR] '+_emsg);try{var _dz=document.getElementById('flow-ref-dropzone')||document.querySelector('#flow-ref-area')||document.querySelector('[id*=ref][id*=drop],[id*=drop][id*=ref]');if(!_dz){var _allInp=document.querySelectorAll('input[type=file][accept*=image]');for(var _ii=0;_ii<_allInp.length;_ii++){var _pp=_allInp[_ii].parentElement;if(_pp&&(_pp.style.border||_pp.className)){_dz=_pp;break;}}}if(_dz){_dz.style.border='2px solid #f87171';_dz.style.boxShadow='0 0 0 4px rgba(239,68,68,0.4)';_dz.style.transition='all 0.3s';var _wn=document.createElement('div');_wn.style.cssText='position:absolute;top:0;left:0;right:0;background:rgba(239,68,68,0.9);color:#fff;padding:6px 10px;font-size:11px;font-weight:700;border-radius:6px 6px 0 0;text-align:center;z-index:9';_wn.textContent='[WARNING] Imagen4 requiere imagen de referencia';if(getComputedStyle(_dz).position==='static')_dz.style.position='relative';_dz.appendChild(_wn);_dz.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){if(_dz){_dz.style.border='';_dz.style.boxShadow='';_dz.style.position='';try{_dz.removeChild(_wn);}catch(e){}}},5000);}}catch(_de){}alert(_emsg);}).catch(function(){alert('Error al iniciar la generacion Flow.');});}}"
         "     if(u.indexOf('/api/pollination/generate')>=0 && resp.ok){"
         "       var _ps=_VFP['imagenes']; if(_ps){ _ps.phase='n8n esta generando imagenes...'; _ps.pct=40; }"
         "       resp.clone().json().then(function(j){ var _ps2=_VFP['imagenes']; if(_ps2&&j&&j.count!=null) _ps2.metrics='Recibidas '+j.count+' imagen(es)'; }).catch(function(){});"
-        "       add('✅ Respuesta del webhook recibida. Guardando en disco…');"
+        "       add('[OK] Respuesta del webhook recibida. Guardando en disco…');"
         "       setTimeout(function(){ st.pct=100; done('Imágenes Pollination listas.'); }, 900);"
         "     }"
         "     if(u.indexOf('/api/guion/n8n_proxy')>=0 && resp.ok){"
@@ -1371,7 +1415,7 @@ try:
         "   return resp;"
         " }).catch(function(err){"
         "   if(_VFP['render']&&_VFP['render'].open){ applyRenderFailure('No hubo conexión con el servidor. Comprueba tu red e inténtalo de nuevo.'); }"
-        "   else { add('❌ Error de red: '+(err&&err.message?err.message:err)); done('No se pudo completar el proceso.'); }"
+        "   else { add('[ERROR] Error de red: '+(err&&err.message?err.message:err)); done('No se pudo completar el proceso.'); }"
         "   throw err;"
         " });"
         "};"
@@ -1508,7 +1552,7 @@ except Exception:
 # Idioma ES/EN: menú en la barra lateral + localStorage (vf_ui_lang)
 try:
     _html = HTML_BYTES.decode("utf-8", errors="replace")
-    _vf_i18n = '<style id="vf-i18n-style">\n.sb-footer{flex-wrap:wrap;gap:10px;align-items:center}\n.vf-lang{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap}\n.vf-lang-label{font-family:var(--mono);font-size:8px;color:var(--m2);letter-spacing:.12em;text-transform:uppercase;opacity:.85}\n.vf-lang-btns{display:flex;gap:4px}\n.vf-lang-btn{\n  font-family:var(--mono);font-size:9.5px;font-weight:600;\n  padding:5px 10px;border-radius:6px;cursor:pointer;border:1px solid rgba(124,106,255,.25);\n  background:rgba(124,106,255,.08);color:var(--m);letter-spacing:.04em;\n  transition:background .15s,color .15s,border-color .15s;\n}\n.vf-lang-btn:hover{color:var(--t);background:rgba(124,106,255,.15)}\n.vf-lang-btn.on{color:var(--t);background:linear-gradient(135deg,rgba(124,106,255,.35),rgba(167,139,250,.2));border-color:rgba(167,139,250,.45)}\n</style>\n<script>\n(function(){\nvar VF_MAP = {"Cada escena recibe un prompt en inglés con composición, iluminación, paleta de color y referencia de lente — listo para pegar en cualquier generador de imágenes.": "Each scene gets an English prompt with composition, lighting, color palette, and lens reference — ready to paste into any image generator.", "Ingresa tu guión completo. La IA lo fragmenta, calcula el timing y genera un prompt de imagen cinematográfico para cada escena.": "Enter your full script. AI chunks it, calculates timing, and generates a cinematic image prompt for each scene.", "Ken Burns, transiciones, fade de audio. El MP4 final en resolución configurable, renderizado local o en Collab.": "Ken Burns, transitions, audio fade. The final MP4 at configurable resolution, rendered locally or in Colab.", "Escribe un guión. La IA lo convierte en escenas, genera imágenes y renderiza el video final — en minutos.": "Write a script. AI turns it into scenes, generates images, and renders the final video — in minutes.", "Pega cada prompt en Google AutoWhisk para generar la imagen de cada escena. Descarga numeradas en orden.": "Paste each prompt in Google AutoWhisk to generate each scene image. Download numbered in order.", "Sube imágenes + audio + guión. Renderiza el MP4 con transiciones, Ken Burns y sincronización por escena.": "Upload images + audio + script. Render the MP4 with transitions, Ken Burns, and per-scene sync.", "Cada paso produce exactamente lo que el siguiente necesita. Sin fricciones, sin formatos incompatibles.": "Each step outputs exactly what the next needs. No friction, no incompatible formats.", "Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.": "Create a project to organize the whole pipeline: script, voice, images, and rendering in one place.", "Envía prompts a tu webhook (mismo flujo que la app Pollination). Las imágenes se guardan en la carpeta": "Send prompts to your webhook (same flow as the Pollination app). Images are saved to the folder ", "Usa IA conversacional para generar o refinar el guión completo. Define tono, duración y narrativa.": "Use conversational AI to generate or refine the full script. Set tone, duration, and narrative.", "Genera imágenes con Google Whisk y guárdalas directamente en la carpeta del proyecto. Requiere que": "Generate images with Google Whisk and save them directly to the project folder. Requires ", "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Video Animator.": "Upload your images, set the prompt, and process multiple videos in parallel with Video Animator.", "Divide el guión en bloques de 5–7 seg y genera un prompt de imagen cinematográfico por escena.": "Split the script into 5–7 second blocks and generate a cinematic image prompt per scene.", "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok AI.": "Upload your images, set the prompt, and process multiple videos in parallel with Video Animator.", "Cada parte del pipeline está pensada para eliminar el trabajo manual entre herramientas.": "Each part of the pipeline is designed to remove manual work between tools.", "Prompts y guión con saltos en texto plano listo para usar. Sin exportaciones raras.": "Prompts and script with line breaks as plain text, ready to use. No odd exports.", "Un solo envío procesa todo el guión: fragmentación, timing y prompts en paralelo.": "A single submission processes the whole script: chunking, timing, and prompts in parallel.", "Crea miniaturas de alto CTR para YouTube usando IA — impulsado por Whisk.": "Create high-CTR YouTube thumbnails with AI — powered by Whisk.", "Genera voz en off con IA y guárdala en la carpeta del proyecto activo.": "Generate voice-over with AI and save it to the active project folder.", "Escribe o pega tu texto en el procesador y el pipeline hace el resto.": "Type or paste your text in the processor and the pipeline does the rest.", "El prompt default usa el tema y los detalles extra automáticamente.": "The default prompt uses the topic and extra details automatically.", "JPG · PNG · WEBP · múltiples a la vez · se ordenan por fecha": "JPG · PNG · WEBP · multiple at once · sorted by date", "La API de Whisk requiere siempre una imagen de referencia.": "The Whisk API always requires a reference image.", "Esto puede tomar unos minutos según la duración y calidad": "This may take a few minutes depending on length and quality", "Dale un nombre a tu proyecto. Podrás cambiarlo después.": "Name your project. You can change it later.", "Movimiento de cámara, transiciones y ajustes de salida": "Camera motion, transitions and output settings", "Las escenas se mezclan suavemente sin pasar por negro.": "Scenes blend smoothly without going to black.", "Generados con Grok Animator — listos para renderizar": "Generated with Video animator — ready to render", "(usa videos disponibles + imágenes para el resto)": "(uses available videos + images for the rest)", "Escenas, timing y prompts en menos de 5 minutos.": "Scenes, timing and prompts in under 5 minutes.", "MP4 · imágenes + audio + escenas sincronizadas": "MP4 · images + audio + synced scenes", "Efecto al cambiar de una imagen a la siguiente": "Effect when switching from one image to the next", "Usar guión fragmentado existente del proyecto": "Use existing fragmented script from project", "↳ El corte siempre se hace en frase completa": "↳ Cuts always happen at full sentences", "— selecciona proyecto en la barra superior —": "— select a project in the top bar —", "del proyecto — la misma ruta que usa Whisk.": "from the project — same path Whisk uses.", "Activar sacudida de lente (Shake/Jitter)": "Enable lens shake (shake/jitter)", "✓ Fragmento 1/3 procesado (1820 chars)": "✓ Chunk 1/3 processed (1820 chars)", "Tu video ha sido generado exitosamente": "Your video was generated successfully", "Studio IVR — Pipeline de Video con IA": "Studio IVR — AI Video Pipeline", "Escribe el nuevo nombre del proyecto.": "Enter the new project name.", "Continuar — Efectos y configuración →": "Continue — Effects & settings →", "Pipeline de creación de video con IA": "AI video creation pipeline", "Cada línea = una escena = una imagen": "Each line = one scene = one image", "Videos renderizados de este proyecto": "Rendered videos from this project", "✓ Fragmento 3/3 — prompts generados": "✓ Chunk 3/3 — prompts generated", "— selecciona en la barra superior —": "— select in the top bar —", "Pipeline de video con IA · 4 pasos": "AI video pipeline · 4 steps", "✓ Fragmento 2/3 — timing calculado": "✓ Chunk 2/3 — timing calculated", "Audio, contenido y guión del video": "Audio, content and video script", "jpg, png, webp · orden alfabético": "jpg, png, webp · alphabetical order", "Arrastra o clic para subir imagen": "Drag or click to upload image", "$ enviando guión al pipeline...": "$ sending script to pipeline...", "video_animator — output en vivo": "video_animator — live output", "Generar imágenes (Pollination)": "Generate images (Pollination)", "Las miniaturas aparecerán aquí": "Thumbnails will appear here", "// Escenas · procesando guión": "// Scenes · processing script", "procesador_guiones — pipeline": "script_processor — pipeline", "— Sin proyecto seleccionado —": "— No project selected —", "Selecciona múltiples a la vez": "Select multiple at once", "Muestra de Audio (máx 10MB)": "Audio sample (max 10MB)", "Sube imágenes para comenzar": "Upload images to start", "Faster-Whisper — CPU rápido": "Faster-Whisper — fast CPU", "Módulo 05 · Video Animator": "Module 05 · Video Animator", "Usar imágenes del proyecto": "Use project images", "🎬 Solo Videos del proyecto": "🎬 Project videos only", "Usar prompts del proyecto": "Use project prompts", "Módulo Final · Miniaturas": "Final module · Thumbnails", "Genera escenas y prompts": "Generate scenes & prompts", "Prompts Cinematográficos": "Cinematic prompts", "Efecto sobre cada imagen": "Effect on each image", "El proceso puede tardar": "This may take", "Usar guión del proyecto": "Use project script", "Verificando servidor...": "Checking server...", "Módulo 03 · Pollination": "Module 03 · Pollination", "Prompts (uno por línea)": "Prompts (one per line)", "Usar audio del proyecto": "Use project audio", "0 caracteres · 0 líneas": "0 characters · 0 lines", "Efectos y configuración": "Effects & settings", "API OpenAI — Nube (~2s)": "OpenAI API — Cloud (~2s)", "Arrastra imagen o clic": "Drag image or click", "// Parámetros de video": "// Video parameters", "Transición entre clips": "Transition between clips", "DURACIÓN DE TRANSICIÓN": "TRANSITION DURATION", "crear, no configurar.": "creating, not configuring.", "Empieza con el guión.": "Start with the script.", "💾 Guardar en proyecto": "💾 Save to project", "Verificando sesión...": "Checking session...", "Generación de Imagen": "Image generation", "Renderizado de Video": "Video rendering", "Cuatro herramientas.": "Four tools.", "Módulo 01 · Pipeline": "Module 01 · Pipeline", "~1820 chars / bloque": "~1820 chars / block", "Módulo 02 · Pipeline": "Module 02 · Pipeline", "Detección Automática": "Auto-detect", "Módulo 03 · Whisk AI": "Module 03 · Whisk AI", "🔍 Verificar sesiones": "🔍 Check sessions", "⚡ Iniciar Generación": "⚡ Start generation", "Enviando lote a n8n…": "Sending batch to n8n…", "Sin imágenes todavía": "No images yet", "¿Qué contenido usar?": "Which content to use?", "🧠 Mezcla Inteligente": "🧠 Smart mix", "Movimiento de cámara": "Camera motion", "medium — Muy preciso": "medium — Most accurate", "+ Generar otro video": "+ Generate another video", "✦ Generar Miniaturas": "✦ Generate thumbnails", "Generación de Video": "Video generation", "→ total_fragmentos:": "→ total_chunks:", "Pipeline Automático": "Automatic pipeline", "de ~1820 caracteres": "of ~1820 characters", "Proyecto (opcional)": "Project (optional)", "Prompt de animación": "Animation prompt", "Slots simultáneos ·": "Concurrent slots ·", "Cargando cuentas...": "Loading accounts...", "⚡ Iniciar Animación": "⚡ Start animation", "Esperando inicio...": "Waiting to start...", "Modo de Renderizado": "Render mode", "Videos del proyecto": "Project videos", "Zoom + pan diagonal": "Zoom + diagonal pan", "Resolución y modelo": "Resolution & model", " esté corriendo en ": " to be running on ", "Renombrar Proyecto": "Rename Project", "Renderiza el video": "Render the video", "// Resultado final": "// Final result", "Escenas estimadas:": "Estimated scenes:", "según la extensión": "depending on length", "bloques de 5–7 seg": "5–7 sec blocks", "🔬 Clonar y Guardar": "🔬 Clone & save", "Desliza horizontal": "Slide horizontal", "base — Recomendado": "base — Recommended", "Renderizando video": "Rendering video", "⬇️ Descargar Video": "⬇️ Download video", "Usar prompt propio": "Use custom prompt", "Generación de Voz": "Voice generation", "Ver cómo funciona": "See how it works", "Crea las imágenes": "Create the images", "✓ Listo en 2m 34s": "✓ Done in 2m 34s", "Video renderizado": "Rendered video", "IA Conversacional": "Conversational AI", "Timing de 5–7 seg": "5–7 sec timing", "Render con FFmpeg": "Render with FFmpeg", "Imagen por escena": "Image per scene", "Listo para copiar": "Ready to copy", "// Guión Completo": "// Full script", "Prompts generados": "Prompts generated", "prompts de imagen": "image prompts", "Prompts de imagen": "Image prompts", "Cargando voces...": "Loading voices...", "⚡ Procesar Speech": "⚡ Process speech", "esté corriendo en": "must be running on", "Slots simultáneos": "Concurrent slots", "⬇ Descargar todas": "⬇ Download all", "Sube tus archivos": "Upload your files", "Acerca lentamente": "Slow zoom in", "Desliza al entrar": "Slide on enter", "tiny — Muy rápido": "tiny — Fastest", "Crear Proyecto →": "Create Project →", "Flujo de trabajo": "Workflow", "Escribe el guión": "Write the script", "→ total_escenas:": "→ total_scenes:", "5–7 seg / escena": "5–7 sec / scene", "Total de escenas": "Total scenes", "Guión con saltos": "Script with line breaks", "// Configuración": "// Settings", "🖼️ Solo Imágenes": "🖼️ Images only", "Proyecto activo:": "Active project:", "Aleja lentamente": "Slow zoom out", "Acerca al entrar": "Zoom in on enter", "Local — Estándar": "Local — Standard", "Guardar Cambios": "Save Changes", "Crear Escenas →": "Create Scenes →", "IA generativa ↗": "Generative AI ↗", "Output Copiable": "Copy-friendly output", "✅ Fusionar Todo": "✅ Merge all", "Clic o arrastra": "Click or drag", "Proyecto activo": "Active project", "📂 Abrir carpeta": "📂 Open folder", "Renders finales": "Final renders", "Imagen estática": "Static image", "Slide izquierda": "Slide left", "small — Preciso": "small — Accurate", "⚡ Generar Video": "⚡ Generate video", "¡Video listo! 🎉": "Video ready! 🎉", "Nuevo Proyecto": "New Project", "Abrir Gemini →": "Open Gemini →", "Procesar Guión": "Process script", "+ Generar otro": "+ Generate another", "Total estimado": "Estimated total", "1:1 — Cuadrado": "1:1 — Square", "Sin movimiento": "No motion", "Sin transición": "No transition", "MODELO WHISPER": "WHISPER MODEL", "Un resultado.": "One result.", "Diseñado para": "Built for", "💬 Solo saltos": "💬 Line breaks only", "Procesando...": "Processing...", "Fusionando...": "Merging...", "Transcripción": "Transcription", "Generación de": "Generation ·", "Conectando...": "Connecting...", "Pan Izquierda": "Pan left", "✦ Desvanecido": "✦ Crossfade", "Corte directo": "Hard cut", "Slide derecha": "Slide right", "Funde a negro": "Fade to black", "Configuración": "Settings", "MOTOR WHISPER": "WHISPER ENGINE", "¡Video listo!": "Video ready!", "Procesador →": "Processor →", "Render Local": "Local render", "0 caracteres": "0 characters", "🔬 Clonar Voz": "🔬 Clone voice", "↺ Reconectar": "↺ Reconnect", "Repeticiones": "Repeats", "las imágenes": "the images", "Aspect Ratio": "Aspect ratio", "Generador de": "Generator ·", "Generando...": "Generating...", "Capacidades": "Capabilities", "Copiar todo": "Copy all", "puerto 5050": "port 5050", "// Imágenes": "// Images", "en paralelo": "in parallel", "↺ Verificar": "↺ Verify", "Pan Derecha": "Pan right", "RECOMENDADO": "RECOMMENDED", "Miniaturas": "Thumbnails", "Fragmentos": "Chunks", "Estudio de voces": "Voice studio", "Estudio de": "Studio ·", "🎙️ Estudio": "🎙️ Studio", "Procesados": "Processed", "Resolución": "Resolution", "Fade negro": "Fade to black", "RESOLUCIÓN": "RESOLUTION", "Procesando": "Processing", "procesando": "processing", "Variantes:": "Variants:", "Renombrar": "Rename", "Del texto": "From script", "al video.": "to video.", "Proyectos": "Projects", "y Escenas": "and Scenes", "a Escenas": "to Scenes", "Portugués": "Portuguese", "⏹ Detener": "⏹ Stop", "✕ Limpiar": "✕ Clear", "✓ cargado": "✓ loaded", "Requerida": "Required", "Cancelar": "Cancel", "Duplicar": "Duplicate", "Eliminar": "Delete", "Proyecto": "Project", "Guardado": "Saved", "División": "Split", "⚡ Código": "⚡ Code", "tu audio": "your audio", "Imágenes": "Images", "Destino:": "Destination:", "Lote vía": "Batch via", "Duración": "Duration", "Progreso": "Progress", "Archivos": "Files", "← Volver": "← Back", "Guiones": "Scripts", "Dividir": "Split", "Español": "Spanish", "Francés": "French", "imagen/": "image/", "Formato": "Format", "Galería": "Gallery", "Cuentas": "Accounts", "limpiar": "clear", "Efectos": "Effects", "Salida": "Output", "Nombre": "Name", "Idioma": "Language", "Inglés": "English", "Alemán": "German", "10 seg": "10 sec", "Tamaño": "Size", "Abrir": "Open", "Nuevo": "New", "Guión": "Script", "4 seg": "4 sec", "6 seg": "6 sec", "8 seg": "8 sec", "🤖 IA": "🤖 AI", "Mis": "My", "Voz": "Voice"};\nvar VF_ATTRS = {"#modal-proj-name": {"placeholder": {"es": "Ej: Episodio 01 — La Historia del Arte", "en": "E.g. Episode 01 — Art History"}}, "#modal-rename-input": {"placeholder": {"es": "Nombre del proyecto", "en": "Project name"}}, "#guion-input": {"placeholder": {"es": "Pega aquí tu guión completo. En un mundo donde la tecnología avanza a pasos agigantados...", "en": "Paste your full script here. In a world where technology leaps forward..."}}, "#guionInput": {"placeholder": {"es": "Esta es la primera escena del video.\\nEsta es la segunda escena con más detalles.\\nEsta es la tercera escena con el cierre.\\nCada línea corresponde a una imagen en orden.", "en": "This is the first scene of the video.\\nThis is the second scene with more detail.\\nThis is the third scene with the ending.\\nEach line matches one image in order."}}, "#vsProjName": {"placeholder": {"es": "Usa el proyecto activo si está vacío", "en": "Uses active project if empty"}}, "#vsText": {"placeholder": {"es": "Pega tu guión aquí...", "en": "Paste your script here..."}}, "#vsClName": {"placeholder": {"es": "Ej: Narrador_Serio_01", "en": "E.g. Narrator_Serious_01"}}, "#vsClText": {"placeholder": {"es": "Escribe exactamente lo que dice el audio...", "en": "Write exactly what the audio says..."}}, "#wsk-prompts": {"placeholder": {"es": "Un prompt por línea.\\nEjemplo:\\nA cinematic portrait of a woman in golden hour light\\nA futuristic cityscape at night with neon reflections", "en": "One prompt per line.\\nExample:\\nA cinematic portrait of a woman in golden hour light\\nA futuristic cityscape at night with neon reflections"}}, "#pol-prompts": {"placeholder": {"es": "Un prompt por línea…", "en": "One prompt per line…"}}, "#gk-prompt": {"placeholder": {"es": "Cinematic slow zoom with natural motion...", "en": "Cinematic slow zoom with natural motion..."}}, "#mnt-tema": {"placeholder": {"es": "Ej: Inteligencia artificial en el trabajo", "en": "E.g. Artificial intelligence at work"}}, "#mnt-extra": {"placeholder": {"es": "Ej: colores rojo y negro, texto \'EL FUTURO ES HOY\', estilo cinematográfico oscuro...", "en": "E.g. red and black colors, text \'THE FUTURE IS NOW\', dark cinematic style..."}}, "#mnt-prompt-custom": {"placeholder": {"es": "Escribe aquí tu prompt completo...", "en": "Write your full prompt here..."}}};\n\nvar VF_ENTRIES = Object.keys(VF_MAP).sort(function(a,b){return b.length-a.length;}).map(function(k){return [k, VF_MAP[k]];});\nvar VF_STORAGE = "vf_ui_lang";\nvar _vfBackup = new Map();\n\nfunction vfCapture(){\n  if(_vfBackup.size) return;\n  var w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT, null);\n  var n;\n  while(n = w.nextNode()){\n    if(!n.nodeValue || !/\\S/.test(n.nodeValue)) continue;\n    if(n.parentNode && (n.parentNode.tagName==="SCRIPT" || n.parentNode.tagName==="STYLE")) continue;\n    _vfBackup.set(n, n.nodeValue);\n  }\n}\n\nfunction vfApplyAttrs(lang){\n  var L = lang === "en" ? "en" : "es";\n  for(var sel in VF_ATTRS){\n    var el = document.querySelector(sel);\n    if(!el) continue;\n    var spec = VF_ATTRS[sel];\n    for(var attr in spec){\n      var pair = spec[attr];\n      if(pair && pair[L] != null) el.setAttribute(attr, pair[L]);\n    }\n  }\n}\n\nfunction vfApplyLang(lang){\n  vfCapture();\n  var L = lang === "en" ? "en" : "es";\n  _vfBackup.forEach(function(orig, node){\n    if(!node.parentNode) return;\n    var t = orig;\n    if(L === "en"){\n      for(var i=0;i<VF_ENTRIES.length;i++){\n        var es = VF_ENTRIES[i][0], en = VF_ENTRIES[i][1];\n        if(t.indexOf(es) !== -1) t = t.split(es).join(en);\n      }\n    }\n    node.nodeValue = t;\n  });\n  vfApplyAttrs(L);\n  try{ localStorage.setItem(VF_STORAGE, L); }catch(e){}\n  document.documentElement.lang = L === "en" ? "en" : "es";\n  var ttl = document.querySelector("title");\n  if(ttl){\n    ttl.textContent = L === "en" ? "Studio IVR — AI Video Pipeline" : "Studio IVR — Pipeline de Video con IA";\n  }\n  document.querySelectorAll(".vf-lang-btn").forEach(function(b){\n    var m = b.getAttribute("data-lang");\n    b.classList.toggle("on", m === L);\n  });\n  var lbl = document.querySelector("#vf-lang-bar .vf-lang-label");\n  if(lbl) lbl.textContent = (L === "en") ? "Language" : "Idioma";\n}\n\nfunction vfInitLangBar(){\n  var foot = document.querySelector(".sb-footer");\n  if(!foot || document.getElementById("vf-lang-bar")) return;\n  var wrap = document.createElement("div");\n  wrap.id = "vf-lang-bar";\n  wrap.className = "vf-lang";\n  wrap.innerHTML = \'<span class="vf-lang-label">Idioma</span><div class="vf-lang-btns">\'+\n    \'<button type="button" class="vf-lang-btn" data-lang="es" title="Español">ES</button>\'+\n    \'<button type="button" class="vf-lang-btn" data-lang="en" title="English">EN</button></div>\';\n  foot.appendChild(wrap);\n  wrap.querySelectorAll(".vf-lang-btn").forEach(function(btn){\n    btn.addEventListener("click", function(){ vfApplyLang(btn.getAttribute("data-lang")); });\n  });\n  var saved = "es";\n  try{ saved = localStorage.getItem(VF_STORAGE) || "es"; }catch(e){}\n  if(saved !== "es" && saved !== "en") saved = "es";\n  vfApplyLang(saved);\n}\n\nif(document.readyState === "loading")\n  document.addEventListener("DOMContentLoaded", vfInitLangBar);\nelse\n  vfInitLangBar();\n})();\n</script>'
+    _vf_i18n = '<style id="vf-i18n-style">\n.sb-footer{flex-wrap:wrap;gap:10px;align-items:center}\n.vf-lang{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap}\n.vf-lang-label{font-family:var(--mono);font-size:8px;color:var(--m2);letter-spacing:.12em;text-transform:uppercase;opacity:.85}\n.vf-lang-btns{display:flex;gap:4px}\n.vf-lang-btn{\n  font-family:var(--mono);font-size:9.5px;font-weight:600;\n  padding:5px 10px;border-radius:6px;cursor:pointer;border:1px solid rgba(124,106,255,.25);\n  background:rgba(124,106,255,.08);color:var(--m);letter-spacing:.04em;\n  transition:background .15s,color .15s,border-color .15s;\n}\n.vf-lang-btn:hover{color:var(--t);background:rgba(124,106,255,.15)}\n.vf-lang-btn.on{color:var(--t);background:linear-gradient(135deg,rgba(124,106,255,.35),rgba(167,139,250,.2));border-color:rgba(167,139,250,.45)}\n</style>\n<script>\n(function(){\nvar VF_MAP = {"Cada escena recibe un prompt en inglés con composición, iluminación, paleta de color y referencia de lente — listo para pegar en cualquier generador de imágenes.": "Each scene gets an English prompt with composition, lighting, color palette, and lens reference — ready to paste into any image generator.", "Ingresa tu guión completo. La IA lo fragmenta, calcula el timing y genera un prompt de imagen cinematográfico para cada escena.": "Enter your full script. AI chunks it, calculates timing, and generates a cinematic image prompt for each scene.", "Ken Burns, transiciones, fade de audio. El MP4 final en resolución configurable, renderizado local o en Collab.": "Ken Burns, transitions, audio fade. The final MP4 at configurable resolution, rendered locally or in Colab.", "Escribe un guión. La IA lo convierte en escenas, genera imágenes y renderiza el video final — en minutos.": "Write a script. AI turns it into scenes, generates images, and renders the final video — in minutes.", "Pega cada prompt en Google AutoWhisk para generar la imagen de cada escena. Descarga numeradas en orden.": "Paste each prompt in Google AutoWhisk to generate each scene image. Download numbered in order.", "Sube imágenes + audio + guión. Renderiza el MP4 con transiciones, Ken Burns y sincronización por escena.": "Upload images + audio + script. Render the MP4 with transitions, Ken Burns, and per-scene sync.", "Cada paso produce exactamente lo que el siguiente necesita. Sin fricciones, sin formatos incompatibles.": "Each step outputs exactly what the next needs. No friction, no incompatible formats.", "Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.": "Create a project to organize the whole pipeline: script, voice, images, and rendering in one place.", "Envía prompts a tu webhook (mismo flujo que la app Pollination). Las imágenes se guardan en la carpeta": "Send prompts to your webhook (same flow as the Pollination app). Images are saved to the folder ", "Usa IA conversacional para generar o refinar el guión completo. Define tono, duración y narrativa.": "Use conversational AI to generate or refine the full script. Set tone, duration, and narrative.", "Genera imágenes con Google Whisk y guárdalas directamente en la carpeta del proyecto. Requiere que": "Generate images with Google Whisk and save them directly to the project folder. Requires ", "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Video Animator.": "Upload your images, set the prompt, and process multiple videos in parallel with Video Animator.", "Divide el guión en bloques de 5–7 seg y genera un prompt de imagen cinematográfico por escena.": "Split the script into 5–7 second blocks and generate a cinematic image prompt per scene.", "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok AI.": "Upload your images, set the prompt, and process multiple videos in parallel with Video Animator.", "Cada parte del pipeline está pensada para eliminar el trabajo manual entre herramientas.": "Each part of the pipeline is designed to remove manual work between tools.", "Prompts y guión con saltos en texto plano listo para usar. Sin exportaciones raras.": "Prompts and script with line breaks as plain text, ready to use. No odd exports.", "Un solo envío procesa todo el guión: fragmentación, timing y prompts en paralelo.": "A single submission processes the whole script: chunking, timing, and prompts in parallel.", "Crea miniaturas de alto CTR para YouTube usando IA — impulsado por Whisk.": "Create high-CTR YouTube thumbnails with AI — powered by Whisk.", "Genera voz en off con IA y guárdala en la carpeta del proyecto activo.": "Generate voice-over with AI and save it to the active project folder.", "Escribe o pega tu texto en el procesador y el pipeline hace el resto.": "Type or paste your text in the processor and the pipeline does the rest.", "El prompt default usa el tema y los detalles extra automáticamente.": "The default prompt uses the topic and extra details automatically.", "JPG · PNG · WEBP · múltiples a la vez · se ordenan por fecha": "JPG · PNG · WEBP · multiple at once · sorted by date", "La API de Whisk requiere siempre una imagen de referencia.": "The Whisk API always requires a reference image.", "Esto puede tomar unos minutos según la duración y calidad": "This may take a few minutes depending on length and quality", "Dale un nombre a tu proyecto. Podrás cambiarlo después.": "Name your project. You can change it later.", "Movimiento de cámara, transiciones y ajustes de salida": "Camera motion, transitions and output settings", "Las escenas se mezclan suavemente sin pasar por negro.": "Scenes blend smoothly without going to black.", "Generados con Grok Animator — listos para renderizar": "Generated with Video animator — ready to render", "(usa videos disponibles + imágenes para el resto)": "(uses available videos + images for the rest)", "Escenas, timing y prompts en menos de 5 minutos.": "Scenes, timing and prompts in under 5 minutes.", "MP4 · imágenes + audio + escenas sincronizadas": "MP4 · images + audio + synced scenes", "Efecto al cambiar de una imagen a la siguiente": "Effect when switching from one image to the next", "Usar guión fragmentado existente del proyecto": "Use existing fragmented script from project", "↳ El corte siempre se hace en frase completa": "↳ Cuts always happen at full sentences", "— selecciona proyecto en la barra superior —": "— select a project in the top bar —", "del proyecto — la misma ruta que usa Whisk.": "from the project — same path Whisk uses.", "Activar sacudida de lente (Shake/Jitter)": "Enable lens shake (shake/jitter)", "✓ Fragmento 1/3 procesado (1820 chars)": "✓ Chunk 1/3 processed (1820 chars)", "Tu video ha sido generado exitosamente": "Your video was generated successfully", "Studio IVR — Pipeline de Video con IA": "Studio IVR — AI Video Pipeline", "Escribe el nuevo nombre del proyecto.": "Enter the new project name.", "Continuar — Efectos y configuración -->": "Continue — Effects & settings -->", "Pipeline de creación de video con IA": "AI video creation pipeline", "Cada línea = una escena = una imagen": "Each line = one scene = one image", "Videos renderizados de este proyecto": "Rendered videos from this project", "✓ Fragmento 3/3 — prompts generados": "✓ Chunk 3/3 — prompts generated", "— selecciona en la barra superior —": "— select in the top bar —", "Pipeline de video con IA · 4 pasos": "AI video pipeline · 4 steps", "✓ Fragmento 2/3 — timing calculado": "✓ Chunk 2/3 — timing calculated", "Audio, contenido y guión del video": "Audio, content and video script", "jpg, png, webp · orden alfabético": "jpg, png, webp · alphabetical order", "Arrastra o clic para subir imagen": "Drag or click to upload image", "$ enviando guión al pipeline...": "$ sending script to pipeline...", "video_animator — output en vivo": "video_animator — live output", "Generar imágenes (Pollination)": "Generate images (Pollination)", "Las miniaturas aparecerán aquí": "Thumbnails will appear here", "// Escenas · procesando guión": "// Scenes · processing script", "procesador_guiones — pipeline": "script_processor — pipeline", "— Sin proyecto seleccionado —": "— No project selected —", "Selecciona múltiples a la vez": "Select multiple at once", "Muestra de Audio (máx 10MB)": "Audio sample (max 10MB)", "Sube imágenes para comenzar": "Upload images to start", "Faster-Whisper — CPU rápido": "Faster-Whisper — fast CPU", "Módulo 05 · Video Animator": "Module 05 · Video Animator", "Usar imágenes del proyecto": "Use project images", "🎬 Solo Videos del proyecto": "🎬 Project videos only", "Usar prompts del proyecto": "Use project prompts", "Módulo Final · Miniaturas": "Final module · Thumbnails", "Genera escenas y prompts": "Generate scenes & prompts", "Prompts Cinematográficos": "Cinematic prompts", "Efecto sobre cada imagen": "Effect on each image", "El proceso puede tardar": "This may take", "Usar guión del proyecto": "Use project script", "Verificando servidor...": "Checking server...", "Módulo 03 · Pollination": "Module 03 · Pollination", "Prompts (uno por línea)": "Prompts (one per line)", "Usar audio del proyecto": "Use project audio", "0 caracteres · 0 líneas": "0 characters · 0 lines", "Efectos y configuración": "Effects & settings", "API OpenAI — Nube (~2s)": "OpenAI API — Cloud (~2s)", "Arrastra imagen o clic": "Drag image or click", "// Parámetros de video": "// Video parameters", "Transición entre clips": "Transition between clips", "DURACIÓN DE TRANSICIÓN": "TRANSITION DURATION", "crear, no configurar.": "creating, not configuring.", "Empieza con el guión.": "Start with the script.", "💾 Guardar en proyecto": "💾 Save to project", "Verificando sesión...": "Checking session...", "Generación de Imagen": "Image generation", "Renderizado de Video": "Video rendering", "Cuatro herramientas.": "Four tools.", "Módulo 01 · Pipeline": "Module 01 · Pipeline", "~1820 chars / bloque": "~1820 chars / block", "Módulo 02 · Pipeline": "Module 02 · Pipeline", "Detección Automática": "Auto-detect", "Módulo 03 · Whisk AI": "Module 03 · Whisk AI", "🔍 Verificar sesiones": "🔍 Check sessions", "⚡ Iniciar Generación": "⚡ Start generation", "Enviando lote a n8n…": "Sending batch to n8n…", "Sin imágenes todavía": "No images yet", "¿Qué contenido usar?": "Which content to use?", "🧠 Mezcla Inteligente": "🧠 Smart mix", "Movimiento de cámara": "Camera motion", "medium — Muy preciso": "medium — Most accurate", "+ Generar otro video": "+ Generate another video", "✦ Generar Miniaturas": "✦ Generate thumbnails", "Generación de Video": "Video generation", "--> total_fragmentos:": "--> total_chunks:", "Pipeline Automático": "Automatic pipeline", "de ~1820 caracteres": "of ~1820 characters", "Proyecto (opcional)": "Project (optional)", "Prompt de animación": "Animation prompt", "Slots simultáneos ·": "Concurrent slots ·", "Cargando cuentas...": "Loading accounts...", "⚡ Iniciar Animación": "⚡ Start animation", "Esperando inicio...": "Waiting to start...", "Modo de Renderizado": "Render mode", "Videos del proyecto": "Project videos", "Zoom + pan diagonal": "Zoom + diagonal pan", "Resolución y modelo": "Resolution & model", " esté corriendo en ": " to be running on ", "Renombrar Proyecto": "Rename Project", "Renderiza el video": "Render the video", "// Resultado final": "// Final result", "Escenas estimadas:": "Estimated scenes:", "según la extensión": "depending on length", "bloques de 5–7 seg": "5–7 sec blocks", "🔬 Clonar y Guardar": "🔬 Clone & save", "Desliza horizontal": "Slide horizontal", "base — Recomendado": "base — Recommended", "Renderizando video": "Rendering video", "⬇️ Descargar Video": "⬇️ Download video", "Usar prompt propio": "Use custom prompt", "Generación de Voz": "Voice generation", "Ver cómo funciona": "See how it works", "Crea las imágenes": "Create the images", "✓ Listo en 2m 34s": "✓ Done in 2m 34s", "Video renderizado": "Rendered video", "IA Conversacional": "Conversational AI", "Timing de 5–7 seg": "5–7 sec timing", "Render con FFmpeg": "Render with FFmpeg", "Imagen por escena": "Image per scene", "Listo para copiar": "Ready to copy", "// Guión Completo": "// Full script", "Prompts generados": "Prompts generated", "prompts de imagen": "image prompts", "Prompts de imagen": "Image prompts", "Cargando voces...": "Loading voices...", "⚡ Procesar Speech": "⚡ Process speech", "esté corriendo en": "must be running on", "Slots simultáneos": "Concurrent slots", "⬇ Descargar todas": "⬇ Download all", "Sube tus archivos": "Upload your files", "Acerca lentamente": "Slow zoom in", "Desliza al entrar": "Slide on enter", "tiny — Muy rápido": "tiny — Fastest", "Crear Proyecto -->": "Create Project -->", "Flujo de trabajo": "Workflow", "Escribe el guión": "Write the script", "--> total_escenas:": "--> total_scenes:", "5–7 seg / escena": "5–7 sec / scene", "Total de escenas": "Total scenes", "Guión con saltos": "Script with line breaks", "// Configuración": "// Settings", "🖼️ Solo Imágenes": "🖼️ Images only", "Proyecto activo:": "Active project:", "Aleja lentamente": "Slow zoom out", "Acerca al entrar": "Zoom in on enter", "Local — Estándar": "Local — Standard", "Guardar Cambios": "Save Changes", "Crear Escenas -->": "Create Scenes -->", "IA generativa ↗": "Generative AI ↗", "Output Copiable": "Copy-friendly output", "[OK] Fusionar Todo": "[OK] Merge all", "Clic o arrastra": "Click or drag", "Proyecto activo": "Active project", "📂 Abrir carpeta": "📂 Open folder", "Renders finales": "Final renders", "Imagen estática": "Static image", "Slide izquierda": "Slide left", "small — Preciso": "small — Accurate", "⚡ Generar Video": "⚡ Generate video", "¡Video listo! 🎉": "Video ready! 🎉", "Nuevo Proyecto": "New Project", "Abrir Gemini -->": "Open Gemini -->", "Procesar Guión": "Process script", "+ Generar otro": "+ Generate another", "Total estimado": "Estimated total", "1:1 — Cuadrado": "1:1 — Square", "Sin movimiento": "No motion", "Sin transición": "No transition", "MODELO WHISPER": "WHISPER MODEL", "Un resultado.": "One result.", "Diseñado para": "Built for", "💬 Solo saltos": "💬 Line breaks only", "Procesando...": "Processing...", "Fusionando...": "Merging...", "Transcripción": "Transcription", "Generación de": "Generation ·", "Conectando...": "Connecting...", "Pan Izquierda": "Pan left", "✦ Desvanecido": "✦ Crossfade", "Corte directo": "Hard cut", "Slide derecha": "Slide right", "Funde a negro": "Fade to black", "Configuración": "Settings", "MOTOR WHISPER": "WHISPER ENGINE", "¡Video listo!": "Video ready!", "Procesador -->": "Processor -->", "Render Local": "Local render", "0 caracteres": "0 characters", "🔬 Clonar Voz": "🔬 Clone voice", "↺ Reconectar": "↺ Reconnect", "Repeticiones": "Repeats", "las imágenes": "the images", "Aspect Ratio": "Aspect ratio", "Generador de": "Generator ·", "Generando...": "Generating...", "Capacidades": "Capabilities", "Copiar todo": "Copy all", "puerto 5050": "port 5050", "// Imágenes": "// Images", "en paralelo": "in parallel", "↺ Verificar": "↺ Verify", "Pan Derecha": "Pan right", "RECOMENDADO": "RECOMMENDED", "Miniaturas": "Thumbnails", "Fragmentos": "Chunks", "Estudio de voces": "Voice studio", "Estudio de": "Studio ·", "🎙️ Estudio": "🎙️ Studio", "Procesados": "Processed", "Resolución": "Resolution", "Fade negro": "Fade to black", "RESOLUCIÓN": "RESOLUTION", "Procesando": "Processing", "procesando": "processing", "Variantes:": "Variants:", "Renombrar": "Rename", "Del texto": "From script", "al video.": "to video.", "Proyectos": "Projects", "y Escenas": "and Scenes", "a Escenas": "to Scenes", "Portugués": "Portuguese", "⏹ Detener": "⏹ Stop", "✕ Limpiar": "✕ Clear", "✓ cargado": "✓ loaded", "Requerida": "Required", "Cancelar": "Cancel", "Duplicar": "Duplicate", "Eliminar": "Delete", "Proyecto": "Project", "Guardado": "Saved", "División": "Split", "⚡ Código": "⚡ Code", "tu audio": "your audio", "Imágenes": "Images", "Destino:": "Destination:", "Lote vía": "Batch via", "Duración": "Duration", "Progreso": "Progress", "Archivos": "Files", "← Volver": "← Back", "Guiones": "Scripts", "Dividir": "Split", "Español": "Spanish", "Francés": "French", "imagen/": "image/", "Formato": "Format", "Galería": "Gallery", "Cuentas": "Accounts", "limpiar": "clear", "Efectos": "Effects", "Salida": "Output", "Nombre": "Name", "Idioma": "Language", "Inglés": "English", "Alemán": "German", "10 seg": "10 sec", "Tamaño": "Size", "Abrir": "Open", "Nuevo": "New", "Guión": "Script", "4 seg": "4 sec", "6 seg": "6 sec", "8 seg": "8 sec", "🤖 IA": "🤖 AI", "Mis": "My", "Voz": "Voice"};\nvar VF_ATTRS = {"#modal-proj-name": {"placeholder": {"es": "Ej: Episodio 01 — La Historia del Arte", "en": "E.g. Episode 01 — Art History"}}, "#modal-rename-input": {"placeholder": {"es": "Nombre del proyecto", "en": "Project name"}}, "#guion-input": {"placeholder": {"es": "Pega aquí tu guión completo. En un mundo donde la tecnología avanza a pasos agigantados...", "en": "Paste your full script here. In a world where technology leaps forward..."}}, "#guionInput": {"placeholder": {"es": "Esta es la primera escena del video.\\nEsta es la segunda escena con más detalles.\\nEsta es la tercera escena con el cierre.\\nCada línea corresponde a una imagen en orden.", "en": "This is the first scene of the video.\\nThis is the second scene with more detail.\\nThis is the third scene with the ending.\\nEach line matches one image in order."}}, "#vsProjName": {"placeholder": {"es": "Usa el proyecto activo si está vacío", "en": "Uses active project if empty"}}, "#vsText": {"placeholder": {"es": "Pega tu guión aquí...", "en": "Paste your script here..."}}, "#vsClName": {"placeholder": {"es": "Ej: Narrador_Serio_01", "en": "E.g. Narrator_Serious_01"}}, "#vsClText": {"placeholder": {"es": "Escribe exactamente lo que dice el audio...", "en": "Write exactly what the audio says..."}}, "#wsk-prompts": {"placeholder": {"es": "Un prompt por línea.\\nEjemplo:\\nA cinematic portrait of a woman in golden hour light\\nA futuristic cityscape at night with neon reflections", "en": "One prompt per line.\\nExample:\\nA cinematic portrait of a woman in golden hour light\\nA futuristic cityscape at night with neon reflections"}}, "#pol-prompts": {"placeholder": {"es": "Un prompt por línea…", "en": "One prompt per line…"}}, "#gk-prompt": {"placeholder": {"es": "Cinematic slow zoom with natural motion...", "en": "Cinematic slow zoom with natural motion..."}}, "#mnt-tema": {"placeholder": {"es": "Ej: Inteligencia artificial en el trabajo", "en": "E.g. Artificial intelligence at work"}}, "#mnt-extra": {"placeholder": {"es": "Ej: colores rojo y negro, texto \'EL FUTURO ES HOY\', estilo cinematográfico oscuro...", "en": "E.g. red and black colors, text \'THE FUTURE IS NOW\', dark cinematic style..."}}, "#mnt-prompt-custom": {"placeholder": {"es": "Escribe aquí tu prompt completo...", "en": "Write your full prompt here..."}}};\n\nvar VF_ENTRIES = Object.keys(VF_MAP).sort(function(a,b){return b.length-a.length;}).map(function(k){return [k, VF_MAP[k]];});\nvar VF_STORAGE = "vf_ui_lang";\nvar _vfBackup = new Map();\n\nfunction vfCapture(){\n  if(_vfBackup.size) return;\n  var w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT, null);\n  var n;\n  while(n = w.nextNode()){\n    if(!n.nodeValue || !/\\S/.test(n.nodeValue)) continue;\n    if(n.parentNode && (n.parentNode.tagName==="SCRIPT" || n.parentNode.tagName==="STYLE")) continue;\n    _vfBackup.set(n, n.nodeValue);\n  }\n}\n\nfunction vfApplyAttrs(lang){\n  var L = lang === "en" ? "en" : "es";\n  for(var sel in VF_ATTRS){\n    var el = document.querySelector(sel);\n    if(!el) continue;\n    var spec = VF_ATTRS[sel];\n    for(var attr in spec){\n      var pair = spec[attr];\n      if(pair && pair[L] != null) el.setAttribute(attr, pair[L]);\n    }\n  }\n}\n\nfunction vfApplyLang(lang){\n  vfCapture();\n  var L = lang === "en" ? "en" : "es";\n  _vfBackup.forEach(function(orig, node){\n    if(!node.parentNode) return;\n    var t = orig;\n    if(L === "en"){\n      for(var i=0;i<VF_ENTRIES.length;i++){\n        var es = VF_ENTRIES[i][0], en = VF_ENTRIES[i][1];\n        if(t.indexOf(es) !== -1) t = t.split(es).join(en);\n      }\n    }\n    node.nodeValue = t;\n  });\n  vfApplyAttrs(L);\n  try{ localStorage.setItem(VF_STORAGE, L); }catch(e){}\n  document.documentElement.lang = L === "en" ? "en" : "es";\n  var ttl = document.querySelector("title");\n  if(ttl){\n    ttl.textContent = L === "en" ? "Studio IVR — AI Video Pipeline" : "Studio IVR — Pipeline de Video con IA";\n  }\n  document.querySelectorAll(".vf-lang-btn").forEach(function(b){\n    var m = b.getAttribute("data-lang");\n    b.classList.toggle("on", m === L);\n  });\n  var lbl = document.querySelector("#vf-lang-bar .vf-lang-label");\n  if(lbl) lbl.textContent = (L === "en") ? "Language" : "Idioma";\n}\n\nfunction vfInitLangBar(){\n  var foot = document.querySelector(".sb-footer");\n  if(!foot || document.getElementById("vf-lang-bar")) return;\n  var wrap = document.createElement("div");\n  wrap.id = "vf-lang-bar";\n  wrap.className = "vf-lang";\n  wrap.innerHTML = \'<span class="vf-lang-label">Idioma</span><div class="vf-lang-btns">\'+\n    \'<button type="button" class="vf-lang-btn" data-lang="es" title="Español">ES</button>\'+\n    \'<button type="button" class="vf-lang-btn" data-lang="en" title="English">EN</button></div>\';\n  foot.appendChild(wrap);\n  wrap.querySelectorAll(".vf-lang-btn").forEach(function(btn){\n    btn.addEventListener("click", function(){ vfApplyLang(btn.getAttribute("data-lang")); });\n  });\n  var saved = "es";\n  try{ saved = localStorage.getItem(VF_STORAGE) || "es"; }catch(e){}\n  if(saved !== "es" && saved !== "en") saved = "es";\n  vfApplyLang(saved);\n}\n\nif(document.readyState === "loading")\n  document.addEventListener("DOMContentLoaded", vfInitLangBar);\nelse\n  vfInitLangBar();\n})();\n</script>'
     if "</body>" in _html and "vfApplyLang" not in _html:
         _html = _html.replace("</body>", _vf_i18n + "\n</body>", 1)
         HTML_BYTES = _html.encode("utf-8")
@@ -1720,11 +1764,11 @@ try:
     if(m === 'ext'){
       bE.style.background='rgba(168,85,247,.25)'; bE.style.borderColor='rgba(168,85,247,.6)'; bE.style.color='#c084fc';
       bH.style.background='rgba(148,163,184,.07)'; bH.style.borderColor='rgba(148,163,184,.25)'; bH.style.color='var(--m)';
-      if(hint) hint.textContent='→ Playwright DOM (recomendado)';
+      if(hint) hint.textContent='--> Playwright DOM (recomendado)';
     } else {
       bH.style.background='rgba(34,197,94,.2)'; bH.style.borderColor='rgba(34,197,94,.45)'; bH.style.color='#4ade80';
       bE.style.background='rgba(148,163,184,.07)'; bE.style.borderColor='rgba(148,163,184,.25)'; bE.style.color='var(--m)';
-      if(hint) hint.textContent='→ HTTP directo (debug)';
+      if(hint) hint.textContent='--> HTTP directo (debug)';
     }
   };
 
@@ -1781,7 +1825,7 @@ try:
         "            headers:{'Content-Type':'application/json'},\n"
         "            body:JSON.stringify({account:ac,slots:parseInt(sl.value)||3})\n"
         "          }).then(function(r){return r.json();}).then(function(d){\n"
-        "            b.textContent=d.error?'❌ Error':'✅ Abierto';\n"
+        "            b.textContent=d.error?'[ERROR] Error':'[OK] Abierto';\n"
         "            setTimeout(function(){b.textContent='\U0001F310 Abrir Chrome';b.disabled=false;},4000);\n"
         "          }).catch(function(){b.textContent='\U0001F310 Abrir Chrome';b.disabled=false;});\n"
         "        };\n"
@@ -1801,7 +1845,7 @@ try:
         "            headers:{'Content-Type':'application/json'},\n"
         "            body:JSON.stringify({account:ac})\n"
         "          }).then(function(r){return r.json();}).then(function(d){\n"
-        "            b.textContent=d.error?'❌ Error':'✅ Abierto';\n"
+        "            b.textContent=d.error?'[ERROR] Error':'[OK] Abierto';\n"
         "            setTimeout(function(){b.textContent='\U0001F527 Modo Dev';b.disabled=false;},6000);\n"
         "          }).catch(function(){b.textContent='\U0001F527 Modo Dev';b.disabled=false;});\n"
         "        };\n"
@@ -2205,7 +2249,7 @@ try:
     _html = HTML_BYTES.decode("utf-8", errors="replace")
     if "vf-myt-page" not in _html:
         _html = _html.replace('    <!-- GUIONES -->\n    <button class="sb-item" data-page="guion" onclick="navigate(\'guion\')">\n      <span class="sb-ic">\n        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>\n      </span>\n      Guiones\n    </button>\n\n    <!-- VOZ -->', '    <!-- GUIONES -->\n    <button class="sb-item" data-page="guion" onclick="navigate(\'guion\')">\n      <span class="sb-ic">\n        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>\n      </span>\n      Guión escrito\n    </button>\n    <button class="sb-item" data-page="modelo-yt" onclick="navigate(\'modelo-yt\')">\n      <span class="sb-ic">\n        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="15" height="14" rx="2"/><polygon points="23,8 16,11.5 23,15 23,8" fill="currentColor" stroke="none"/></svg>\n      </span>\n      Modelado YouTube\n    </button>\n\n    <!-- VOZ -->', 1)
-        _html = _html.replace('  </div><!-- #page-editor -->\n\n  <div id="page-voz"    class="page-section">', '  </div><!-- #page-editor -->\n\n  <div id="page-modelo-yt" class="page-section">\n  <div class="proj-topbar" id="topbar-modeloyt">\n    <span class="proj-topbar-label">Proyecto</span>\n    <select class="proj-select" id="proj-select-modeloyt" onchange="switchProjectFromTool(this.value)">\n      <option value="">— Sin proyecto seleccionado —</option>\n    </select>\n    <button class="proj-new-btn" onclick="openModal(\'create\')">\n      <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>\n      Nuevo\n    </button>\n    <div class="proj-topbar-status" id="topbar-status-modeloyt" style="display:none">\n      <span class="proj-status-dot"></span>\n      <span id="topbar-status-label-modeloyt">Guardado</span>\n    </div>\n  </div>\n  <div class="pg-guion vf-myt-page">\n    <div class="g-header">\n      <div class="tool-eyebrow"><span class="tool-eyebrow-dot"></span>Módulo 01 · YouTube</div>\n      <h1 class="tool-h1">Modelado <span class="grad">desde video</span></h1>\n      <p class="tool-sub">Extrae el guion desde un enlace de YouTube, adjunta una imagen de referencia para coherencia visual en Whisk, y define qué partes animar antes de pasar a imágenes, video IA y render.</p>\n    </div>\n    <div class="myt-flow-strip">\n      <span>Siguiente en el pipeline:</span>\n      <button type="button" class="myt-flow-btn primary" onclick="navigate(\'imagen\')">1→ Imágenes</button>\n      <button type="button" class="myt-flow-btn" onclick="navigate(\'video\')">2→ Video IA</button>\n      <button type="button" class="myt-flow-btn" onclick="navigate(\'render\')">3→ Render</button>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// URL y guion modelado</span></div>\n      <label class="g-hint-row" style="display:block;margin-bottom:8px;font-family:var(--mono);font-size:10px;color:var(--m)">URL del video (YouTube)</label>\n      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">\n        <input type="text" id="myt-yt-url" class="modal-input" style="flex:1;min-width:220px;margin:0" placeholder="https://www.youtube.com/watch?v=..."/>\n        <button type="button" id="myt-yt-btn" class="btn-submit" style="margin:0;min-width:160px" onclick="mytFetchYoutube()">⚡ Iniciar pipeline</button>\n      </div>\n      <details style="border:1px solid var(--b);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:rgba(0,0,0,.12)">\n        <summary style="cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--m2)">Cookies opcionales (evitar bloqueos)</summary>\n        <textarea id="myt-yt-cookie" style="width:100%;min-height:72px;margin-top:8px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:8px;color:var(--t);font-family:var(--mono);font-size:9px;padding:8px;resize:vertical;box-sizing:border-box" placeholder="cookies.txt / pegar cookies..."></textarea>\n      </details>\n      <div id="myt-yt-status" class="status-bar" style="display:none;margin-bottom:10px"></div>\n      <div id="myt-script-wrap" style="display:none">\n        <label style="font-family:var(--mono);font-size:10px;color:var(--m);display:block;margin-bottom:6px">Guion (editable)</label>\n        <textarea id="myt-script-editor" style="width:100%;min-height:200px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;color:var(--t);font-size:13px;line-height:1.5;padding:12px;resize:vertical;box-sizing:border-box"></textarea>\n        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">\n          <button type="button" class="btn-copy-main" onclick="mytCopyScript()">Copiar guion</button>\n        </div>\n      </div>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// Imagen de referencia (generación)</span></div>\n      <p class="myt-hint">Se aplicará como sujeto en Whisk al abrir Generación de imagen si guardas en el proyecto.</p>\n      <div id="myt-dz" style="border:2px dashed var(--b2);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:rgba(124,106,255,.04);margin-top:10px">\n        <input type="file" id="myt-ref-file" accept="image/*" style="display:none"/>\n        <img id="myt-ref-prev" alt="" style="max-height:120px;max-width:100%;border-radius:8px;display:none;margin:0 auto 8px"/>\n        <div id="myt-dz-lbl" style="font-family:var(--mono);font-size:11px;color:var(--m2)">Clic o arrastra imagen de estilo / personaje</div>\n        <button type="button" id="myt-ref-clear" class="myt-flow-btn" style="margin-top:10px;display:none" onclick="mytClearRef(event)">Quitar imagen</button>\n      </div>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// Plan de animación (video IA)</span></div>\n      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-family:var(--mono);font-size:11px;cursor:pointer">\n        <input type="checkbox" id="myt-static-only"/> Solo imágenes estáticas (sin animar clips en video IA)\n      </label>\n      <label style="font-family:var(--mono);font-size:10px;color:var(--m);display:block;margin-top:8px">Ámbito (selección múltiple; Ctrl/Cmd + clic)</label>\n      <select id="myt-anim-sel" multiple size="3"></select>\n      <p class="myt-hint">Si marcas «Todo el video», las mitades se ignoran al guardar. Usa los números para limitar cuántas escenas animar al inicio y al final.</p>\n      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">\n        <div>\n          <label style="font-family:var(--mono);font-size:9px;color:var(--m2)">Imágenes a animar al inicio</label>\n          <input type="number" id="myt-n-start" min="0" value="0" class="modal-input" style="width:100%;margin-top:4px"/>\n        </div>\n        <div>\n          <label style="font-family:var(--mono);font-size:9px;color:var(--m2)">Imágenes a animar al final</label>\n          <input type="number" id="myt-n-end" min="0" value="0" class="modal-input" style="width:100%;margin-top:4px"/>\n        </div>\n      </div>\n    </div>\n    <div class="g-footer" style="flex-direction:column;align-items:stretch;gap:12px">\n      <button type="button" class="btn-submit" onclick="mytSaveAll()">💾 Guardar modelo YouTube en proyecto</button>\n      <p class="myt-hint" style="text-align:center">Incluye URL, cookies, plan de animación, imagen de referencia y guion (también en «Guión del proyecto» para voz).</p>\n    </div>\n  </div>\n</div>\n  <div id="page-voz"    class="page-section">', 1)
+        _html = _html.replace('  </div><!-- #page-editor -->\n\n  <div id="page-voz"    class="page-section">', '  </div><!-- #page-editor -->\n\n  <div id="page-modelo-yt" class="page-section">\n  <div class="proj-topbar" id="topbar-modeloyt">\n    <span class="proj-topbar-label">Proyecto</span>\n    <select class="proj-select" id="proj-select-modeloyt" onchange="switchProjectFromTool(this.value)">\n      <option value="">— Sin proyecto seleccionado —</option>\n    </select>\n    <button class="proj-new-btn" onclick="openModal(\'create\')">\n      <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>\n      Nuevo\n    </button>\n    <div class="proj-topbar-status" id="topbar-status-modeloyt" style="display:none">\n      <span class="proj-status-dot"></span>\n      <span id="topbar-status-label-modeloyt">Guardado</span>\n    </div>\n  </div>\n  <div class="pg-guion vf-myt-page">\n    <div class="g-header">\n      <div class="tool-eyebrow"><span class="tool-eyebrow-dot"></span>Módulo 01 · YouTube</div>\n      <h1 class="tool-h1">Modelado <span class="grad">desde video</span></h1>\n      <p class="tool-sub">Extrae el guion desde un enlace de YouTube, adjunta una imagen de referencia para coherencia visual en Whisk, y define qué partes animar antes de pasar a imágenes, video IA y render.</p>\n    </div>\n    <div class="myt-flow-strip">\n      <span>Siguiente en el pipeline:</span>\n      <button type="button" class="myt-flow-btn primary" onclick="navigate(\'imagen\')">1--> Imágenes</button>\n      <button type="button" class="myt-flow-btn" onclick="navigate(\'video\')">2--> Video IA</button>\n      <button type="button" class="myt-flow-btn" onclick="navigate(\'render\')">3--> Render</button>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// URL y guion modelado</span></div>\n      <label class="g-hint-row" style="display:block;margin-bottom:8px;font-family:var(--mono);font-size:10px;color:var(--m)">URL del video (YouTube)</label>\n      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">\n        <input type="text" id="myt-yt-url" class="modal-input" style="flex:1;min-width:220px;margin:0" placeholder="https://www.youtube.com/watch?v=..."/>\n        <button type="button" id="myt-yt-btn" class="btn-submit" style="margin:0;min-width:160px" onclick="mytFetchYoutube()">⚡ Iniciar pipeline</button>\n      </div>\n      <details style="border:1px solid var(--b);border-radius:10px;padding:8px 10px;margin-bottom:10px;background:rgba(0,0,0,.12)">\n        <summary style="cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--m2)">Cookies opcionales (evitar bloqueos)</summary>\n        <textarea id="myt-yt-cookie" style="width:100%;min-height:72px;margin-top:8px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:8px;color:var(--t);font-family:var(--mono);font-size:9px;padding:8px;resize:vertical;box-sizing:border-box" placeholder="cookies.txt / pegar cookies..."></textarea>\n      </details>\n      <div id="myt-yt-status" class="status-bar" style="display:none;margin-bottom:10px"></div>\n      <div id="myt-script-wrap" style="display:none">\n        <label style="font-family:var(--mono);font-size:10px;color:var(--m);display:block;margin-bottom:6px">Guion (editable)</label>\n        <textarea id="myt-script-editor" style="width:100%;min-height:200px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;color:var(--t);font-size:13px;line-height:1.5;padding:12px;resize:vertical;box-sizing:border-box"></textarea>\n        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">\n          <button type="button" class="btn-copy-main" onclick="mytCopyScript()">Copiar guion</button>\n        </div>\n      </div>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// Imagen de referencia (generación)</span></div>\n      <p class="myt-hint">Se aplicará como sujeto en Whisk al abrir Generación de imagen si guardas en el proyecto.</p>\n      <div id="myt-dz" style="border:2px dashed var(--b2);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:rgba(124,106,255,.04);margin-top:10px">\n        <input type="file" id="myt-ref-file" accept="image/*" style="display:none"/>\n        <img id="myt-ref-prev" alt="" style="max-height:120px;max-width:100%;border-radius:8px;display:none;margin:0 auto 8px"/>\n        <div id="myt-dz-lbl" style="font-family:var(--mono);font-size:11px;color:var(--m2)">Clic o arrastra imagen de estilo / personaje</div>\n        <button type="button" id="myt-ref-clear" class="myt-flow-btn" style="margin-top:10px;display:none" onclick="mytClearRef(event)">Quitar imagen</button>\n      </div>\n    </div>\n    <div class="g-card">\n      <div class="g-card-header"><span class="g-card-title">// Plan de animación (video IA)</span></div>\n      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-family:var(--mono);font-size:11px;cursor:pointer">\n        <input type="checkbox" id="myt-static-only"/> Solo imágenes estáticas (sin animar clips en video IA)\n      </label>\n      <label style="font-family:var(--mono);font-size:10px;color:var(--m);display:block;margin-top:8px">Ámbito (selección múltiple; Ctrl/Cmd + clic)</label>\n      <select id="myt-anim-sel" multiple size="3"></select>\n      <p class="myt-hint">Si marcas «Todo el video», las mitades se ignoran al guardar. Usa los números para limitar cuántas escenas animar al inicio y al final.</p>\n      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">\n        <div>\n          <label style="font-family:var(--mono);font-size:9px;color:var(--m2)">Imágenes a animar al inicio</label>\n          <input type="number" id="myt-n-start" min="0" value="0" class="modal-input" style="width:100%;margin-top:4px"/>\n        </div>\n        <div>\n          <label style="font-family:var(--mono);font-size:9px;color:var(--m2)">Imágenes a animar al final</label>\n          <input type="number" id="myt-n-end" min="0" value="0" class="modal-input" style="width:100%;margin-top:4px"/>\n        </div>\n      </div>\n    </div>\n    <div class="g-footer" style="flex-direction:column;align-items:stretch;gap:12px">\n      <button type="button" class="btn-submit" onclick="mytSaveAll()">💾 Guardar modelo YouTube en proyecto</button>\n      <p class="myt-hint" style="text-align:center">Incluye URL, cookies, plan de animación, imagen de referencia y guion (también en «Guión del proyecto» para voz).</p>\n    </div>\n  </div>\n</div>\n  <div id="page-voz"    class="page-section">', 1)
         _html = _html.replace('<div class="modal-title">Nuevo Proyecto</div>\n    <div class="modal-sub">Dale un nombre a tu proyecto. Podrás cambiarlo después.</div>\n    <input class="modal-input" id="modal-proj-name"', '<div class="modal-title">Nuevo Proyecto</div>\n    <div class="modal-sub">Elige cómo entra el guion y un nombre. Podrás cambiarlo después.</div>\n    <div class="modal-pipeline-row">\n      <label class="modal-pipeline-opt"><input type="radio" name="modal-pipeline" id="modal-pipeline-sketch" value="sketch" checked style="accent-color:var(--c1)"/> <strong>Guión escrito</strong><br/><span style="font-size:10px;color:var(--m2)">Pegas o procesas texto en Guión escrito</span></label>\n      <label class="modal-pipeline-opt"><input type="radio" name="modal-pipeline" id="modal-pipeline-youtube" value="youtube" style="accent-color:var(--c1)"/> <strong>Modelado YouTube</strong><br/><span style="font-size:10px;color:var(--m2)">URL + referencia + plan de animación</span></label>\n    </div>\n    <input class="modal-input" id="modal-proj-name"', 1)
         if "</body>" in _html and "vf-myt-script" not in _html:
             _html = _html.replace("</body>", '\n<style id="vf-myt-style">\n#modal-create .modal-pipeline-row{display:flex;gap:12px;margin:12px 0 8px;flex-wrap:wrap}\n#modal-create .modal-pipeline-opt{flex:1;min-width:158px;border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.03);cursor:pointer;text-align:left;transition:border-color .15s,background .15s}\n#modal-create .modal-pipeline-opt:hover{border-color:rgba(124,106,255,.35)}\n.vf-myt-page .myt-flow-strip{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px;padding:12px 14px;background:rgba(124,106,255,.06);border:1px solid rgba(124,106,255,.22);border-radius:12px;align-items:center}\n.vf-myt-page .myt-flow-strip span{font-family:var(--mono);font-size:10px;color:var(--m2)}\n.vf-myt-page .myt-flow-btn{font-family:var(--mono);font-size:10px;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid var(--b2);background:rgba(255,255,255,.04);color:var(--t);cursor:pointer}\n.vf-myt-page .myt-flow-btn:hover{border-color:rgba(124,106,255,.45);color:var(--c1)}\n.vf-myt-page .myt-flow-btn.primary{background:linear-gradient(135deg,#7c6aff,#a855f7);border-color:transparent;color:#fff}\n.vf-myt-page #myt-anim-sel{width:100%;min-height:92px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;color:var(--t);padding:8px;font-family:var(--mono);font-size:11px;box-sizing:border-box}\n.vf-myt-page .myt-hint{font-family:var(--mono);font-size:9.5px;color:var(--m2);margin-top:8px;line-height:1.45}\n</style>\n<script id="vf-myt-script">\n(function(){\nif(window.__vfMytOk)return; window.__vfMytOk=true;\nvar MYT_WH=\'https://n8n-n8n.y9c1cn.easypanel.host/webhook/9769fc05-0170-4d76-931f-a2467f44e2de\';\n\nfunction mytFillAnimSel(){\n  var sel=document.getElementById(\'myt-anim-sel\');\n  if(!sel||sel.dataset.ready)return;\n  sel.innerHTML=\'<option value="whole">Animar todo el video</option>\'+\n    \'<option value="half_start">Mitad inicial del video</option>\'+\n    \'<option value="half_end">Mitad final del video</option>\';\n  sel.dataset.ready=\'1\';\n}\n\nfunction mytDefaults(){return{youtubeUrl:\'\',ytCookie:\'\',refImageDataUrl:null,refImageName:\'\',animRegions:[],animCountStart:0,animCountEnd:0,staticOnly:false};}\nwindow.mytDefaults=mytDefaults;\n\nfunction mytMergeYt(p){\n  var d=mytDefaults();\n  if(p&&p.modeloYt) for(var k in d) if(Object.prototype.hasOwnProperty.call(p.modeloYt,k)) d[k]=p.modeloYt[k];\n  return d;\n}\n\nwindow.mytInitPage=function(){mytFillAnimSel(); mytBindDrop(); mytWireStatic(); var id=PM.getActive(); if(id) mytLoadFromProject(id);};\n\nfunction mytBindDrop(){\n  var dz=document.getElementById(\'myt-dz\'), inp=document.getElementById(\'myt-ref-file\');\n  if(!dz||dz.dataset.bound)return; dz.dataset.bound=\'1\';\n  dz.addEventListener(\'click\',function(e){if(e.target===dz||e.target.id===\'myt-dz-lbl\') inp.click();});\n  inp.addEventListener(\'change\',function(){\n    var f=inp.files&&inp.files[0]; if(!f)return;\n    var r=new FileReader();\n    r.onload=function(){\n      var prev=document.getElementById(\'myt-ref-prev\'), lbl=document.getElementById(\'myt-dz-lbl\'), clr=document.getElementById(\'myt-ref-clear\');\n      prev.src=r.result; prev.style.display=\'block\'; lbl.textContent=f.name.substring(0,28); clr.style.display=\'inline-block\';\n      window.__mytRefData=r.result; window.__mytRefName=f.name;\n    };\n    r.readAsDataURL(f);\n  });\n  dz.addEventListener(\'dragover\',function(e){e.preventDefault(); dz.style.borderColor=\'rgba(124,106,255,.55)\';});\n  dz.addEventListener(\'dragleave\',function(){dz.style.borderColor=\'var(--b2)\';});\n  dz.addEventListener(\'drop\',function(e){e.preventDefault(); dz.style.borderColor=\'var(--b2)\';\n    if(e.dataTransfer.files&&e.dataTransfer.files[0]){inp.files=e.dataTransfer.files; inp.dispatchEvent(new Event(\'change\'));}});\n}\n\nwindow.mytClearRef=function(ev){ev&&ev.stopPropagation();\n  var inp=document.getElementById(\'myt-ref-file\'), prev=document.getElementById(\'myt-ref-prev\'), lbl=document.getElementById(\'myt-dz-lbl\'), clr=document.getElementById(\'myt-ref-clear\');\n  if(inp) inp.value=\'\'; if(prev){prev.src=\'\'; prev.style.display=\'none\';} if(lbl) lbl.textContent=\'Clic o arrastra imagen de estilo / personaje\';\n  if(clr) clr.style.display=\'none\'; window.__mytRefData=null; window.__mytRefName=\'\';\n};\n\nfunction mytWireStatic(){\n  var c=document.getElementById(\'myt-static-only\');\n  if(!c||c.dataset.wired)return; c.dataset.wired=\'1\';\n  c.addEventListener(\'change\',function(){\n    var dis=c.checked;\n    var sel=document.getElementById(\'myt-anim-sel\'), ns=document.getElementById(\'myt-n-start\'), ne=document.getElementById(\'myt-n-end\');\n    if(sel) sel.disabled=dis; if(ns) ns.disabled=dis; if(ne) ne.disabled=dis;\n  });\n}\n\nwindow.mytLoadFromProject=function(pid){\n  var p=PM.get(pid); if(!p)return;\n  var yt=mytMergeYt(p);\n  var u=document.getElementById(\'myt-yt-url\'), ck=document.getElementById(\'myt-yt-cookie\'), ed=document.getElementById(\'myt-script-editor\'), wrap=document.getElementById(\'myt-script-wrap\');\n  if(u) u.value=yt.youtubeUrl||\'\';\n  if(ck) ck.value=yt.ytCookie||\'\';\n  var gtxt=(p.guion&&p.guion.texto)||\'\';\n  if(ed){ ed.value=gtxt; if(gtxt.trim()&&wrap) wrap.style.display=\'block\'; }\n  var st=document.getElementById(\'myt-static-only\'); if(st) st.checked=!!yt.staticOnly;\n  var ns=document.getElementById(\'myt-n-start\'), ne=document.getElementById(\'myt-n-end\');\n  if(ns) ns.value=yt.animCountStart!=null?yt.animCountStart:0;\n  if(ne) ne.value=yt.animCountEnd!=null?yt.animCountEnd:0;\n  mytFillAnimSel();\n  var sel=document.getElementById(\'myt-anim-sel\');\n  if(sel){ Array.prototype.forEach.call(sel.options,function(o){o.selected=false;}); (yt.animRegions||[]).forEach(function(v){ var o=sel.querySelector(\'option[value="\'+v+\'"]\'); if(o) o.selected=true; }); }\n  mytClearRef();\n  if(yt.refImageDataUrl){\n    var prev=document.getElementById(\'myt-ref-prev\'), lbl=document.getElementById(\'myt-dz-lbl\'), clr=document.getElementById(\'myt-ref-clear\');\n    if(prev){ prev.src=yt.refImageDataUrl; prev.style.display=\'block\'; }\n    if(lbl) lbl.textContent=(yt.refImageName||\'referencia\').substring(0,28);\n    if(clr) clr.style.display=\'inline-block\';\n    window.__mytRefData=yt.refImageDataUrl; window.__mytRefName=yt.refImageName||\'\';\n  }\n  if(st) st.dispatchEvent(new Event(\'change\'));\n};\n\nfunction mytReadRegions(){\n  var sel=document.getElementById(\'myt-anim-sel\'); if(!sel)return[];\n  var out=[]; Array.prototype.forEach.call(sel.options,function(o){if(o.selected) out.push(o.value);}); return out;\n}\n\nfunction mytNormalize(regions, staticOnly, ns, ne){\n  if(staticOnly) return {animRegions:[],animCountStart:0,animCountEnd:0};\n  var r=regions.slice();\n  if(r.indexOf(\'whole\')>=0) return {animRegions:[\'whole\'],animCountStart:ns,animCountEnd:ne};\n  return {animRegions:r.filter(function(x){return x===\'half_start\'||x===\'half_end\';}),animCountStart:ns,animCountEnd:ne};\n}\n\nwindow.mytSaveAll=function(){\n  var id=PM.getActive(); if(!id){ alert(\'Selecciona o crea un proyecto.\'); return; }\n  var p=PM.get(id), yt=mytMergeYt(p);\n  var u=(document.getElementById(\'myt-yt-url\')||{}).value||\'\';\n  var ck=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n  var ed=document.getElementById(\'myt-script-editor\');\n  var guionText=ed?ed.value:((p.guion&&p.guion.texto)||\'\');\n  var st=document.getElementById(\'myt-static-only\')&&document.getElementById(\'myt-static-only\').checked;\n  var ns=parseInt((document.getElementById(\'myt-n-start\')||{}).value,10)||0;\n  var ne=parseInt((document.getElementById(\'myt-n-end\')||{}).value,10)||0;\n  var norm=mytNormalize(mytReadRegions(), st, ns, ne);\n  yt.youtubeUrl=u.trim(); yt.ytCookie=ck; yt.staticOnly=st;\n  yt.animRegions=norm.animRegions; yt.animCountStart=norm.animCountStart; yt.animCountEnd=norm.animCountEnd;\n  if(window.__mytRefData){ yt.refImageDataUrl=window.__mytRefData; yt.refImageName=window.__mytRefName||\'ref.png\'; }\n  else { yt.refImageDataUrl=null; yt.refImageName=\'\'; }\n  PM.update(id,{modeloYt:yt,guion:Object.assign({},p.guion||{},{texto:guionText}),pipelineEntry:\'youtube\'});\n  var inp=document.getElementById(\'guion-input\'); if(inp){ inp.value=guionText; inp.dispatchEvent(new Event(\'input\')); }\n  alert(\'Guardado en el proyecto.\');\n  refreshAllTopbars(); renderDashboard();\n};\n\nwindow.mytFetchYoutube=async function(){\n  var id=PM.getActive(); if(!id){ alert(\'Selecciona o crea un proyecto arriba.\'); return; }\n  var url=(document.getElementById(\'myt-yt-url\')||{}).value||\'\'; if(!url.trim()){ alert(\'Pega la URL de YouTube.\'); return; }\n  var btn=document.getElementById(\'myt-yt-btn\'), st=document.getElementById(\'myt-yt-status\'), ed=document.getElementById(\'myt-script-editor\'), wrap=document.getElementById(\'myt-script-wrap\');\n  var ck=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n  if(btn){ btn.disabled=true; btn.textContent=\'Procesando...\'; }\n  if(st){ st.style.display=\'block\'; st.textContent=\'Descargando y modelando guion...\'; }\n  try{\n    var res=await fetch(MYT_WH,{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({youtube_url:url.trim(),yt_cookie:ck})});\n    if(!res.ok) throw new Error(\'http\');\n    var data=await res.json();\n    var guionText=Array.isArray(data)?(data[0]&&data[0].guion):data.guion;\n    if(!guionText) throw new Error(\'no guion\');\n    if(ed) ed.value=guionText; if(wrap) wrap.style.display=\'block\';\n    if(st) st.textContent=\'Listo. Revisa el guion y pulsa Guardar para persistir en el proyecto.\';\n    var p=PM.get(id);\n    PM.update(id,{guion:Object.assign({},p.guion||{},{texto:guionText}),modeloYt:Object.assign(mytMergeYt(p),{youtubeUrl:url.trim(),ytCookie:ck})});\n    var inp=document.getElementById(\'guion-input\'); if(inp){ inp.value=guionText; inp.dispatchEvent(new Event(\'input\')); }\n  }catch(e){ if(st) st.textContent=\'Error: revisa URL, cookies o el servidor n8n.\'; }\n  finally{ if(btn){ btn.disabled=false; btn.textContent=\'⚡ Iniciar pipeline\'; } }\n};\n\nwindow.mytCopyScript=function(){\n  var t=(document.getElementById(\'myt-script-editor\')||{}).value||\'\'; if(!t.trim())return;\n  navigator.clipboard.writeText(t).then(function(){ alert(\'Copiado.\'); }).catch(function(){});\n};\n\nvar _nav=navigate;\nnavigate=function(page){\n  if(page===\'modelo-yt\') setTimeout(function(){ if(typeof mytInitPage===\'function\') mytInitPage(); }, 60);\n  return _nav.apply(this, arguments);\n};\n\nvar _wsk=window.wskInitPage;\nwindow.wskInitPage=function(){\n  if(typeof _wsk===\'function\') _wsk();\n  try{\n    var p=activeProject();\n    if(p&&p.modeloYt&&p.modeloYt.refImageDataUrl&&typeof wskSetSubject===\'function\'){\n      fetch(p.modeloYt.refImageDataUrl).then(function(r){return r.blob();}).then(function(blob){\n        var fn=p.modeloYt.refImageName||\'referencia_yt.png\';\n        var f=new File([blob], fn, {type:blob.type||\'image/png\'});\n        wskSetSubject(f);\n      }).catch(function(){});\n    }\n  }catch(e){}\n};\n\ntry{\n  var _t=TOOL_IDS;\n  if(_t&&_t.indexOf(\'modeloyt\')<0) _t.splice(1,0,\'modeloyt\');\n}catch(e1){}\n\ntry{\n  var _ocp=openModal;\n  openModal=function(type){\n    var r=_ocp.apply(this,arguments);\n    if(type===\'create\'){\n      var rsk=document.getElementById(\'modal-pipeline-sketch\'), ryt=document.getElementById(\'modal-pipeline-youtube\');\n      if(rsk) rsk.checked=true; if(ryt) ryt.checked=false;\n    }\n    return r;\n  };\n}catch(e2){}\n\ntry{\n  var _ccp=confirmCreateProject;\n  confirmCreateProject=function(){\n    var inp=document.getElementById(\'modal-proj-name\');\n    var name=inp&&inp.value&&inp.value.trim();\n    if(!name){ if(inp){ inp.focus(); inp.classList.add(\'shake\'); setTimeout(function(){inp.classList.remove(\'shake\');},400);} return; }\n    var entry=\'sketch\';\n    var ryt=document.getElementById(\'modal-pipeline-youtube\');\n    if(ryt&&ryt.checked) entry=\'youtube\';\n    var proj=PM.create(name);\n    proj.pipelineEntry=entry;\n    PM.update(proj.id,{pipelineEntry:entry});\n    PM.setActive(proj.id);\n    closeModal(\'create\');\n    renderDashboard(); refreshAllTopbars();\n    fetch(\'/api/proyectos/crear\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({nombre:name})}).catch(function(){});\n    if(entry===\'youtube\') navigate(\'modelo-yt\'); else navigate(\'guion\');\n  };\n}catch(e3){}\n\ntry{\n  var _op=openProject;\n  openProject=function(id,e){\n    e&&e.stopPropagation();\n    PM.setActive(id); renderDashboard(); refreshAllTopbars(); loadGuionFromProject(id);\n    var p=PM.get(id);\n    if(p&&p.pipelineEntry===\'youtube\') navigate(\'modelo-yt\');\n    else navigate(\'guion\');\n  };\n}catch(e4){}\n\ntry{\n  var _sp=switchProjectFromTool;\n  switchProjectFromTool=function(id){\n    if(!id)return;\n    _sp.apply(this,arguments);\n    if(typeof mytLoadFromProject===\'function\') mytLoadFromProject(id);\n  };\n}catch(e5){}\n\ntry{\n  var _lg=loadGuionFromProject;\n  loadGuionFromProject=function(id){\n    _lg.apply(this,arguments);\n    if(typeof mytLoadFromProject===\'function\') mytLoadFromProject(id);\n  };\n}catch(e6){}\n\ntry{\n  var _pmc=PM.create;\n  PM.create=function(name){\n    var p=_pmc.call(PM,name);\n    p.pipelineEntry=p.pipelineEntry||\'sketch\';\n    p.modeloYt=p.modeloYt||(typeof mytDefaults===\'function\'?mytDefaults():{youtubeUrl:\'\',ytCookie:\'\',refImageDataUrl:null,refImageName:\'\',animRegions:[],animCountStart:0,animCountEnd:0,staticOnly:false});\n    var arr=PM.getAll(); var i=arr.findIndex(function(x){return x.id===p.id;});\n    if(i>=0){ arr[i]=p; PM.save(arr); }\n    return p;\n  };\n}catch(e7){}\n\n})();\n</script>\n' + "\n</body>", 1)
@@ -2220,7 +2264,7 @@ try:
     _html3 = HTML_BYTES.decode("utf-8", errors="replace")
     if "myt-pipeline-auto" not in _html3:
         _pat_page = r'<div id="page-modelo-yt" class="page-section">[\s\S]*?(?=<div id="page-voz"\s+class="page-section">)'
-        _repl_page = '  <div id="page-modelo-yt" class="page-section">\n  <div class="proj-topbar" id="topbar-modeloyt">\n    <span class="proj-topbar-label">Proyecto</span>\n    <select class="proj-select" id="proj-select-modeloyt" onchange="switchProjectFromTool(this.value)">\n      <option value="">— Sin proyecto —</option>\n    </select>\n    <button class="proj-new-btn" onclick="openModal(\'create\')">\n      <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>\n      Nuevo\n    </button>\n    <div class="proj-topbar-status" id="topbar-status-modeloyt" style="display:none">\n      <span class="proj-status-dot"></span>\n      <span id="topbar-status-label-modeloyt">—</span>\n    </div>\n  </div>\n  <div class="myt3-wrap myt-pipeline-auto">\n    <div class="myt3-hero">\n      <div class="myt3-hero-inner">\n        <p class="myt3-kicker">Pipeline YouTube → MP4</p>\n        <h1 class="myt3-title">Modelado <em>automatizado</em></h1>\n        <p class="myt3-lead">Un solo flujo: guion desde URL → escenas y prompts → voz (merge) → imágenes Whisk con tu referencia → video IA (si aplica) → render final.</p>\n      </div>\n    </div>\n    <div class="myt3-grid">\n      <div class="myt3-panel">\n        <h3 class="myt3-h">1 · Origen</h3>\n        <input type="text" id="myt-yt-url" class="myt3-input" placeholder="https://www.youtube.com/watch?v=…"/>\n        <details class="myt3-details"><summary>Cookies (opcional)</summary>\n          <textarea id="myt-yt-cookie" class="myt3-ta-sm" placeholder="cookies.txt…"></textarea>\n        </details>\n        <h3 class="myt3-h">2 · Referencia visual</h3>\n        <div class="myt3-drop" id="myt-dz">\n          <input type="file" id="myt-ref-file" accept="image/*" style="display:none"/>\n          <img id="myt-ref-prev" class="myt3-prev" alt=""/>\n          <span id="myt-dz-lbl">Arrastra o clic · estilo para Whisk</span>\n          <button type="button" class="myt3-linkbtn" id="myt-ref-clear" style="display:none" onclick="mytClearRef(event)">Quitar</button>\n        </div>\n        <h3 class="myt3-h">3 · Voz</h3>\n        <select id="myt-voice" class="myt3-input"><option value="">Cargando voces…</option></select>\n        <h3 class="myt3-h">4 · Animación (Video IA)</h3>\n        <label class="myt3-check"><input type="checkbox" id="myt-static-only"/> Solo imágenes estáticas</label>\n        <label class="myt3-lbl">Ámbito (Ctrl/Cmd + clic)</label>\n        <select id="myt-anim-sel" class="myt3-mul" multiple size="3"></select>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Animar al inicio</span><input type="number" id="myt-n-start" class="myt3-input" min="0" value="0"/></div>\n          <div><span class="myt3-mini">Animar al final</span><input type="number" id="myt-n-end" class="myt3-input" min="0" value="0"/></div>\n        </div>\n        <h3 class="myt3-h">5 · Whisk</h3>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Slots paralelos</span><input type="number" id="myt-whisk-slots" class="myt3-input" min="1" max="12" value="2"/></div>\n        </div>\n        <h3 class="myt3-h">6 · Grok (si animas)</h3>\n        <input type="text" id="myt-gk-prompt" class="myt3-input" placeholder="Prompt animación" value="Cinematic slow zoom with natural motion"/>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Slots Grok</span><input type="number" id="myt-gk-slots" class="myt3-input" min="1" max="8" value="3"/></div>\n          <div><span class="myt3-mini">Duración clip (s)</span><input type="number" id="myt-gk-len" class="myt3-input" min="2" max="12" value="6"/></div>\n        </div>\n        <button type="button" class="myt3-cta" id="myt-btn-auto" onclick="mytRunFullPipeline()">Ejecutar pipeline completo</button>\n        <button type="button" class="myt3-secondary" onclick="mytSaveAll()">Solo guardar en proyecto</button>\n      </div>\n      <div class="myt3-panel myt3-logpanel">\n        <h3 class="myt3-h">Actividad</h3>\n        <div class="myt3-progress"><div class="myt3-progress-bar" id="myt-pbar"></div></div>\n        <p class="myt3-step" id="myt-step-lbl">Listo</p>\n        <pre class="myt3-log" id="myt-log"></pre>\n        <div id="myt-dl-grok" class="myt3-dlbox" style="display:none"><a class="myt3-dlbtn" id="myt-a-dl-grok" href="#" download>⬇️ Descargar clips Grok (ZIP)</a></div>\n        <div id="myt-dl-final" class="myt3-dlbox" style="display:none"><a class="myt3-dlbtn" id="myt-a-dl-final" href="#" download>⬇️ Descargar video final</a></div>\n        <div id="myt-script-wrap" style="display:none;margin-top:12px">\n          <span class="myt3-mini">Guion (editable durante pausa)</span>\n          <textarea id="myt-script-editor" class="myt3-ta"></textarea>\n        </div>\n      </div>\n    </div>\n  </div>\n  </div>\n'
+        _repl_page = '  <div id="page-modelo-yt" class="page-section">\n  <div class="proj-topbar" id="topbar-modeloyt">\n    <span class="proj-topbar-label">Proyecto</span>\n    <select class="proj-select" id="proj-select-modeloyt" onchange="switchProjectFromTool(this.value)">\n      <option value="">— Sin proyecto —</option>\n    </select>\n    <button class="proj-new-btn" onclick="openModal(\'create\')">\n      <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>\n      Nuevo\n    </button>\n    <div class="proj-topbar-status" id="topbar-status-modeloyt" style="display:none">\n      <span class="proj-status-dot"></span>\n      <span id="topbar-status-label-modeloyt">—</span>\n    </div>\n  </div>\n  <div class="myt3-wrap myt-pipeline-auto">\n    <div class="myt3-hero">\n      <div class="myt3-hero-inner">\n        <p class="myt3-kicker">Pipeline YouTube --> MP4</p>\n        <h1 class="myt3-title">Modelado <em>automatizado</em></h1>\n        <p class="myt3-lead">Un solo flujo: guion desde URL --> escenas y prompts --> voz (merge) --> imágenes Whisk con tu referencia --> video IA (si aplica) --> render final.</p>\n      </div>\n    </div>\n    <div class="myt3-grid">\n      <div class="myt3-panel">\n        <h3 class="myt3-h">1 · Origen</h3>\n        <input type="text" id="myt-yt-url" class="myt3-input" placeholder="https://www.youtube.com/watch?v=…"/>\n        <details class="myt3-details"><summary>Cookies (opcional)</summary>\n          <textarea id="myt-yt-cookie" class="myt3-ta-sm" placeholder="cookies.txt…"></textarea>\n        </details>\n        <h3 class="myt3-h">2 · Referencia visual</h3>\n        <div class="myt3-drop" id="myt-dz">\n          <input type="file" id="myt-ref-file" accept="image/*" style="display:none"/>\n          <img id="myt-ref-prev" class="myt3-prev" alt=""/>\n          <span id="myt-dz-lbl">Arrastra o clic · estilo para Whisk</span>\n          <button type="button" class="myt3-linkbtn" id="myt-ref-clear" style="display:none" onclick="mytClearRef(event)">Quitar</button>\n        </div>\n        <h3 class="myt3-h">3 · Voz</h3>\n        <select id="myt-voice" class="myt3-input"><option value="">Cargando voces…</option></select>\n        <h3 class="myt3-h">4 · Animación (Video IA)</h3>\n        <label class="myt3-check"><input type="checkbox" id="myt-static-only"/> Solo imágenes estáticas</label>\n        <label class="myt3-lbl">Ámbito (Ctrl/Cmd + clic)</label>\n        <select id="myt-anim-sel" class="myt3-mul" multiple size="3"></select>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Animar al inicio</span><input type="number" id="myt-n-start" class="myt3-input" min="0" value="0"/></div>\n          <div><span class="myt3-mini">Animar al final</span><input type="number" id="myt-n-end" class="myt3-input" min="0" value="0"/></div>\n        </div>\n        <h3 class="myt3-h">5 · Whisk</h3>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Slots paralelos</span><input type="number" id="myt-whisk-slots" class="myt3-input" min="1" max="12" value="2"/></div>\n        </div>\n        <h3 class="myt3-h">6 · Grok (si animas)</h3>\n        <input type="text" id="myt-gk-prompt" class="myt3-input" placeholder="Prompt animación" value="Cinematic slow zoom with natural motion"/>\n        <div class="myt3-row2">\n          <div><span class="myt3-mini">Slots Grok</span><input type="number" id="myt-gk-slots" class="myt3-input" min="1" max="8" value="3"/></div>\n          <div><span class="myt3-mini">Duración clip (s)</span><input type="number" id="myt-gk-len" class="myt3-input" min="2" max="12" value="6"/></div>\n        </div>\n        <button type="button" class="myt3-cta" id="myt-btn-auto" onclick="mytRunFullPipeline()">Ejecutar pipeline completo</button>\n        <button type="button" class="myt3-secondary" onclick="mytSaveAll()">Solo guardar en proyecto</button>\n      </div>\n      <div class="myt3-panel myt3-logpanel">\n        <h3 class="myt3-h">Actividad</h3>\n        <div class="myt3-progress"><div class="myt3-progress-bar" id="myt-pbar"></div></div>\n        <p class="myt3-step" id="myt-step-lbl">Listo</p>\n        <pre class="myt3-log" id="myt-log"></pre>\n        <div id="myt-dl-grok" class="myt3-dlbox" style="display:none"><a class="myt3-dlbtn" id="myt-a-dl-grok" href="#" download>⬇️ Descargar clips Grok (ZIP)</a></div>\n        <div id="myt-dl-final" class="myt3-dlbox" style="display:none"><a class="myt3-dlbtn" id="myt-a-dl-final" href="#" download>⬇️ Descargar video final</a></div>\n        <div id="myt-script-wrap" style="display:none;margin-top:12px">\n          <span class="myt3-mini">Guion (editable durante pausa)</span>\n          <textarea id="myt-script-editor" class="myt3-ta"></textarea>\n        </div>\n      </div>\n    </div>\n  </div>\n  </div>\n'
         _html3 = _re_myt3.sub(_pat_page, _repl_page, _html3, count=1, flags=_re_myt3.DOTALL)
         _html3 = _re_myt3.sub(
             r'<style id="vf-myt-style">[\s\S]*?</style>\s*',
@@ -2234,7 +2278,7 @@ try:
             _html3,
             count=1,
         )
-        _html3 = _html3.replace("</body>", '<style id="vf-myt3-style">\n.myt3-wrap{max-width:1120px;margin:0 auto;padding:0 24px 48px}\n.myt3-hero{background:linear-gradient(135deg,rgba(124,106,255,.18),rgba(168,85,247,.08));border:1px solid rgba(124,106,255,.25);border-radius:20px;padding:28px 32px;margin-bottom:28px;box-shadow:0 20px 50px rgba(0,0,0,.35)}\n.myt3-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--c2);margin:0 0 8px}\n.myt3-title{font-size:clamp(1.5rem,3vw,2rem);font-weight:700;margin:0;color:var(--t)}\n.myt3-title em{font-style:normal;background:linear-gradient(90deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}\n.myt3-lead{margin:12px 0 0;font-size:14px;line-height:1.55;color:var(--m);max-width:52ch}\n.myt3-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}\n@media(max-width:900px){.myt3-grid{grid-template-columns:1fr}}\n.myt3-panel{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:20px 22px}\n.myt3-logpanel{min-height:420px;display:flex;flex-direction:column}\n.myt3-h{font-family:var(--mono);font-size:11px;color:var(--c2);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 10px}\n.myt3-h:first-child{margin-top:0}\n.myt3-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;padding:10px 12px;color:var(--t);font-size:13px}\n.myt3-ta,.myt3-ta-sm{width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:10px;padding:10px;color:var(--t);font-size:12px;resize:vertical;font-family:var(--mono)}\n.myt3-ta-sm{min-height:64px;font-size:10px}\n.myt3-details{margin:10px 0;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:rgba(0,0,0,.15)}\n.myt3-details summary{cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--m2)}\n.myt3-drop{border:2px dashed rgba(124,106,255,.35);border-radius:14px;padding:20px;text-align:center;cursor:pointer;background:rgba(124,106,255,.05);transition:border-color .2s}\n.myt3-drop:hover{border-color:rgba(168,85,247,.55)}\n.myt3-prev{max-height:100px;max-width:100%;border-radius:8px;display:none;margin:0 auto 8px}\n.myt3-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m);margin:8px 0;cursor:pointer}\n.myt3-lbl{font-size:10px;color:var(--m2);display:block;margin:8px 0 4px;font-family:var(--mono)}\n.myt3-mul{width:100%;min-height:88px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;color:var(--t);padding:8px;font-family:var(--mono);font-size:11px}\n.myt3-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}\n.myt3-mini{font-size:9px;color:var(--m2);font-family:var(--mono);display:block;margin-bottom:4px}\n.myt3-cta{width:100%;margin-top:20px;padding:14px;border:none;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;\n  background:linear-gradient(135deg,#7c6aff,#c026d3);color:#fff;box-shadow:0 8px 28px rgba(124,106,255,.35)}\n.myt3-cta:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}\n.myt3-secondary{width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid var(--b2);background:transparent;color:var(--m);cursor:pointer;font-size:12px}\n.myt3-linkbtn{background:none;border:none;color:var(--c2);cursor:pointer;font-size:11px;margin-top:6px}\n.myt3-progress{height:6px;background:var(--b);border-radius:99px;overflow:hidden;margin-bottom:10px}\n.myt3-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#7c6aff,#22d3a0);transition:width .4s ease}\n.myt3-step{font-family:var(--mono);font-size:11px;color:var(--c5);margin:0 0 8px}\n.myt3-log{flex:1;overflow:auto;background:rgba(0,0,0,.25);border:1px solid var(--b);border-radius:10px;padding:12px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--m);margin:0;white-space:pre-wrap;max-height:360px}\n.myt3-dlbox{margin-top:14px;display:none}\n.myt3-dlbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px 16px;background:#22d3a0;border-radius:12px;color:#06130f;font-family:var(--mono);font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s}\n.myt3-dlbtn:hover{background:#1db88a;transform:translateY(-1px);box-shadow:0 6px 24px rgba(34,211,160,.35)}\n#modal-create .modal-pipeline-row{display:flex;gap:12px;margin:12px 0 8px;flex-wrap:wrap}\n#modal-create .modal-pipeline-opt{flex:1;min-width:158px;border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.03);cursor:pointer;text-align:left}\n</style>' + "\n" + '<script id="vf-myt3-script">\n(function(){\nif(window.__vfMyt3)return; window.__vfMyt3=1;\nvar MYT_WH=\'https://n8n-n8n.y9c1cn.easypanel.host/webhook/9769fc05-0170-4d76-931f-a2467f44e2de\';\n\nfunction mytLog(m){var el=document.getElementById(\'myt-log\');if(el){el.textContent+=(el.textContent?\'\\n\':\'\')+m;el.scrollTop=el.scrollHeight;}}\nfunction mytStep(t,p){var s=document.getElementById(\'myt-step-lbl\'),b=document.getElementById(\'myt-pbar\');if(s)s.textContent=t;if(b)b.style.width=(p==null?\'0\':Math.min(100,p))+\'%\';}\nfunction mytDefaults(){return{youtubeUrl:\'\',ytCookie:\'\',refImageDataUrl:null,refImageName:\'\',animRegions:[],animCountStart:0,animCountEnd:0,staticOnly:false};}\nwindow.mytDefaults=mytDefaults;\nfunction mytMergeYt(p){var d=mytDefaults();if(p&&p.modeloYt)for(var k in d)if(Object.prototype.hasOwnProperty.call(p.modeloYt,k))d[k]=p.modeloYt[k];return d;}\n\nfunction mytFillAnimSel(){var sel=document.getElementById(\'myt-anim-sel\');if(!sel||sel.dataset.ready)return;sel.innerHTML=\'<option value="whole">Todo el video</option><option value="half_start">Mitad inicial</option><option value="half_end">Mitad final</option>\';sel.dataset.ready=1;}\n\nfunction mytBindDrop(){\n var dz=document.getElementById(\'myt-dz\'),inp=document.getElementById(\'myt-ref-file\');\n if(!dz||dz.dataset.b)return;dz.dataset.b=1;\n dz.addEventListener(\'click\',function(e){if(e.target!==document.getElementById(\'myt-ref-clear\'))inp.click();});\n inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){\n  var prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n  prev.src=r.result;prev.style.display=\'block\';lbl.textContent=f.name.substring(0,24);clr.style.display=\'inline-block\';\n  window.__mytRefData=r.result;window.__mytRefName=f.name;};r.readAsDataURL(f);};\n dz.ondragover=function(e){e.preventDefault();dz.style.borderColor=\'#a78bfa\';};\n dz.ondragleave=function(){dz.style.borderColor=\'rgba(124,106,255,.35)\';};\n dz.ondrop=function(e){e.preventDefault();dz.style.borderColor=\'rgba(124,106,255,.35)\';if(e.dataTransfer.files[0]){inp.files=e.dataTransfer.files;inp.onchange();}};\n}\nwindow.mytClearRef=function(ev){ev&&ev.stopPropagation();\n var inp=document.getElementById(\'myt-ref-file\'),prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n if(inp)inp.value=\'\';if(prev){prev.src=\'\';prev.style.display=\'none\';}if(lbl)lbl.textContent=\'Arrastra o clic · estilo para Whisk\';\n if(clr)clr.style.display=\'none\';window.__mytRefData=window.__mytRefName=null;\n};\nfunction mytWireStatic(){var c=document.getElementById(\'myt-static-only\');if(!c||c.dataset.w)return;c.dataset.w=1;\n c.onchange=function(){var d=c.checked,sel=document.getElementById(\'myt-anim-sel\'),a=document.getElementById(\'myt-n-start\'),b=document.getElementById(\'myt-n-end\');\n  if(sel)sel.disabled=d;if(a)a.disabled=d;if(b)b.disabled=d;};}\n\nasync function mytLoadVoices(){\n var sel=document.getElementById(\'myt-voice\');if(!sel)return;\n try{var r=await fetch(\'/api/voz/voces?t=\'+Date.now());var raw=await r.json();var data=Array.isArray(raw)?raw:(raw.data||[raw]);\n  sel.innerHTML=\'<option value="">— Voz —</option>\';\n  data.forEach(function(v){if(v[\'ID Voz\'])sel.innerHTML+=\'<option value="\'+v[\'ID Voz\']+\'">\'+(v[\'Nombre Voz\']||v[\'ID Voz\'])+\'</option>\';});\n }catch(e){sel.innerHTML=\'<option value="">Error voces</option>\';}\n}\n\nwindow.mytLoadFromProject=function(pid){\n var p=PM.get(pid);if(!p)return;var yt=mytMergeYt(p);\n var u=document.getElementById(\'myt-yt-url\'),ck=document.getElementById(\'myt-yt-cookie\'),ed=document.getElementById(\'myt-script-editor\'),w=document.getElementById(\'myt-script-wrap\');\n if(u)u.value=yt.youtubeUrl||\'\';if(ck)ck.value=yt.ytCookie||\'\';\n var g=(p.guion&&p.guion.texto)||\'\';if(ed){ed.value=g;if(g.trim()&&w)w.style.display=\'block\';}\n var st=document.getElementById(\'myt-static-only\');if(st)st.checked=!!yt.staticOnly;\n var ns=document.getElementById(\'myt-n-start\'),ne=document.getElementById(\'myt-n-end\');\n if(ns)ns.value=yt.animCountStart!=null?yt.animCountStart:0;if(ne)ne.value=yt.animCountEnd!=null?yt.animCountEnd:0;\n mytFillAnimSel();var sel=document.getElementById(\'myt-anim-sel\');\n if(sel){[].forEach.call(sel.options,function(o){o.selected=false;});(yt.animRegions||[]).forEach(function(v){var o=sel.querySelector(\'option[value="\'+v+\'"]\');if(o)o.selected=true;});}\n mytClearRef();\n if(yt.refImageDataUrl){var prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n  if(prev){prev.src=yt.refImageDataUrl;prev.style.display=\'block\';}if(lbl)lbl.textContent=(yt.refImageName||\'ref\').substring(0,24);\n  if(clr)clr.style.display=\'inline-block\';window.__mytRefData=yt.refImageDataUrl;window.__mytRefName=yt.refImageName||\'\';}\n if(st)st.dispatchEvent(new Event(\'change\'));\n if(p.voz&&p.voz.voiceId){var vs=document.getElementById(\'myt-voice\');if(vs)vs.value=p.voz.voiceId;}\n};\n\nwindow.mytInitPage=function(){\n mytFillAnimSel();mytBindDrop();mytWireStatic();mytLoadVoices();\n var id=PM.getActive();if(id)mytLoadFromProject(id);\n};\n\nfunction mytReadRegions(){var sel=document.getElementById(\'myt-anim-sel\');if(!sel)return[];var o=[];[].forEach.call(sel.options,function(x){if(x.selected)o.push(x.value);});return o;}\nfunction mytNormalize(reg,st,ns,ne){if(st)return{animRegions:[],animCountStart:0,animCountEnd:0};var r=reg.slice();if(r.indexOf(\'whole\')>=0)return{animRegions:[\'whole\'],animCountStart:ns,animCountEnd:ne};return{animRegions:r.filter(function(x){return x===\'half_start\'||x===\'half_end\';}),animCountStart:ns,animCountEnd:ne};}\n\nwindow.mytPersist=function(silent){\n var id=PM.getActive();if(!id){if(!silent)alert(\'Selecciona proyecto\');return false;}\n var p=PM.get(id),yt=mytMergeYt(p),ed=document.getElementById(\'myt-script-editor\');\n var guionText=ed?ed.value:((p.guion&&p.guion.texto)||\'\');\n var st=document.getElementById(\'myt-static-only\')&&document.getElementById(\'myt-static-only\').checked;\n var ns=parseInt((document.getElementById(\'myt-n-start\')||{}).value,10)||0,ne=parseInt((document.getElementById(\'myt-n-end\')||{}).value,10)||0;\n var norm=mytNormalize(mytReadRegions(),st,ns,ne);\n yt.youtubeUrl=(document.getElementById(\'myt-yt-url\')||{}).value||\'\';yt.ytCookie=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n yt.staticOnly=st;yt.animRegions=norm.animRegions;yt.animCountStart=norm.animCountStart;yt.animCountEnd=norm.animCountEnd;\n if(window.__mytRefData){yt.refImageDataUrl=window.__mytRefData;yt.refImageName=window.__mytRefName||\'ref.png\';}else{yt.refImageDataUrl=null;yt.refImageName=\'\';}\n var vid=(document.getElementById(\'myt-voice\')||{}).value||\'\';\n PM.update(id,{modeloYt:yt,guion:Object.assign({},p.guion||{},{texto:guionText}),pipelineEntry:\'youtube\',voz:Object.assign({},p.voz||{},{voiceId:vid})});\n var inp=document.getElementById(\'guion-input\');if(inp){inp.value=guionText;inp.dispatchEvent(new Event(\'input\'));}\n refreshAllTopbars();renderDashboard();if(!silent)alert(\'Guardado\');return true;\n};\nwindow.mytSaveAll=function(){mytPersist(false);};\n\nfunction mytB64FromDataUrl(u){if(!u)return null;var i=u.indexOf(\',\');return i>0?u.slice(i+1):null;}\nfunction mytMimeFromDataUrl(u){if(!u||u.indexOf(\'data:\')!==0)return\'image/png\';return(u.split(\';\')[0]||\'data:image/png\').slice(5);}\n\nasync function mytPollWhisk(){ var seenRun=false; for(var t=0;t<7200;t++){  try{var d=await(await fetch(\'/api/whisk/status\')).json();   if(d.running)seenRun=true;   if(!d.running&&seenRun){    if(d.step===\'done\')return{ok:true,images:d.images_saved||0};    if(d.step===\'idle\'){     if(d.last_error)return{ok:false,msg:d.last_error};     var msg=\'Whisk se detuvo sin completar. Revisa la pestaña Whisk y la consola del servidor.\',log=d.log||[],tail=log.slice(-12).join(String.fromCharCode(10));     if(tail.indexOf(\'401\')>=0||tail.indexOf(\'Unauthorized\')>=0)msg=\'Whisk: sesión expirada (HTTP 401). Vuelve a iniciar sesión en Google Labs / Whisk y actualiza las cookies (pestaña Whisk o cookies/account_*.txt).\';     else if(tail.indexOf(\'Ningún slot\')>=0||tail.indexOf(\'ningún slot\')>=0)msg=\'Whisk: no se pudo crear ningún proyecto — cookies inválidas o sin acceso. Actualiza la sesión.\';     else if(tail.indexOf(\'No hay cuentas\')>=0)msg=\'Whisk: no hay cookies guardadas en Studio IVR/cookies/.\';     return{ok:false,msg:msg};    }   }   if(!seenRun&&t>45&&!d.running)return{ok:false,msg:\'Whisk no arrancó (sigue idle). Reintenta o revisa si otra corrida bloqueó la cola.\'};   if(d.total>0)mytStep(\'Imágenes Whisk… \'+(d.progress||0)+\'/\'+(d.total||0),40+60*(d.progress||0)/Math.max(1,d.total||1));  }catch(e){}  await new Promise(function(r){setTimeout(r,2000);}); } return{ok:false,msg:\'Timeout esperando Whisk\'};}async function mytPollGrok(){\n var off=0;\n for(var t=0;t<14400;t++){\n  try{var d=await(await fetch(\'/api/grok/log?offset=\'+off)).json();\n   off=d.next_offset||off;if(d.lines&&d.lines.length)mytLog(d.lines.join(\'\\n\'));\n   if(d.finished)return true;\n  }catch(e){}\n  await new Promise(function(r){setTimeout(r,3000);});\n }\n return false;\n}\n\nasync function mytPollRender(jid){\n for(var t=0;t<7200;t++){\n  try{var d=await(await fetch(\'/api/estado/\'+encodeURIComponent(jid))).json();\n   if(d.estado===\'completado\')return d;if(d.estado===\'error\')throw new Error(d.error||\'render error\');\n   mytStep(d.mensaje||\'Render…\',70+(d.progreso||0)*0.25);\n  }catch(e){if(e.message&&e.message.indexOf(\'fetch\')<0)throw e;}\n  await new Promise(function(r){setTimeout(r,2000);});\n }\n throw new Error(\'Timeout render\');\n}\n\nfunction mytGrokIndices(scenes,yt){\n var names=scenes.filter(function(s){return s.image;}).map(function(s){return s.image;});\n var n=names.length;if(!n||yt.staticOnly)return[];\n var want={},regions=yt.animRegions||[],mid=Math.floor(n/2);\n if(regions.indexOf(\'whole\')>=0){for(var i=0;i<n;i++)want[i]=1;}\n else{if(regions.indexOf(\'half_start\')>=0)for(var a=0;a<mid;a++)want[a]=1;if(regions.indexOf(\'half_end\')>=0)for(var b=mid;b<n;b++)want[b]=1;}\n var ns=yt.animCountStart|0,ne=yt.animCountEnd|0;\n if(ns>0)for(var c=0;c<Math.min(ns,n);c++)want[c]=1;\n if(ne>0)for(var d=Math.max(0,n-ne);d<n;d++)want[d]=1;\n var keys=Object.keys(want).map(Number).sort(function(a,b){return a-b;});\n if(!keys.length&&regions.length&&!yt.staticOnly)for(var e=0;e<n;e++)keys.push(e);\n return keys;\n}\n\nwindow.mytRunFullPipeline=async function(){\n var btn=document.getElementById(\'myt-btn-auto\');if(btn)btn.disabled=true;\n document.getElementById(\'myt-log\').textContent=\'\';\n try{var _hg=document.getElementById(\'myt-dl-grok\'),_hf=document.getElementById(\'myt-dl-final\');if(_hg)_hg.style.display=\'none\';if(_hf)_hf.style.display=\'none\';var _ag=document.getElementById(\'myt-a-dl-grok\'),_af=document.getElementById(\'myt-a-dl-final\');if(_ag)_ag.href=\'#\';if(_af)_af.href=\'#\';}catch(_hd){}\n try{\n  var id=PM.getActive();if(!id){alert(\'Selecciona o crea un proyecto\');return;}\n  if(!mytPersist(true)){return;}id=PM.getActive();\n  var folder=getProjectFolderName(id);if(!folder){alert(\'Nombre de proyecto inválido\');return;}\n  var p=PM.get(id),yt=mytMergeYt(p);\n  var ed=document.getElementById(\'myt-script-editor\'),wrap=document.getElementById(\'myt-script-wrap\');\n  var guionRaw=(ed&&ed.value)?ed.value.trim():((p.guion&&p.guion.texto)||\'\').trim();\n  if(!guionRaw){\n   mytStep(\'Descargando guion YouTube…\',5);mytLog(\'YouTube…\');\n   var url=(document.getElementById(\'myt-yt-url\')||{}).value||\'\',ck=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n   if(!url.trim()){alert(\'URL YouTube o pega guion\');return;}\n   var res=await fetch(MYT_WH,{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({youtube_url:url.trim(),yt_cookie:ck})});\n   if(!res.ok)throw new Error(\'YouTube n8n HTTP \'+res.status);\n   var _rt=await res.text();var data;try{data=JSON.parse(_rt);}catch(_je){throw new Error(\'Respuesta invalida de n8n (no es JSON). Verifica que el webhook este activo: \'+ _rt.substring(0,120));}guionRaw=(Array.isArray(data)?data[0].guion:data.guion)||\'\';if(!guionRaw)throw new Error(\'Sin guion\');\n   if(ed)ed.value=guionRaw;if(wrap)wrap.style.display=\'block\';\n   PM.update(id,{guion:Object.assign({},p.guion||{},{texto:guionRaw}),modeloYt:Object.assign(yt,{youtubeUrl:url.trim(),ytCookie:ck})});yt=mytMergeYt(PM.get(id));p=PM.get(id);\n  }\n  mytStep(\'Fragmentando y generando prompts (OpenRouter)…\',12);mytLog(\'→ /api/guion/n8n_proxy\');\n  var n8b={guion:guionRaw,output_mode:\'con_prompts\'};var b64=mytB64FromDataUrl(window.__mytRefData);if(b64){n8b.image_base64=b64;n8b.mime_type=mytMimeFromDataUrl(window.__mytRefData);}\n  var n8r=await fetch(\'/api/guion/n8n_proxy\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify(n8b)});\n  var n8j=await n8r.json();if(!n8r.ok)throw new Error(n8j.error||\'n8n_proxy\');\n  var escenas=n8j.escenas||[];var lines=escenas.map(function(e){return(e.texto_original||\'\').trim();}).filter(Boolean);\n  var prompts=escenas.map(function(e){return(e.prompt_imagen||\'\').trim();}).filter(Boolean);\n  var textoEsc=lines.join(\'\\n\'),promptStr=prompts.join(\'\\n\');\n  mytLog(\'Escenas: \'+lines.length+\' · prompts: \'+prompts.length);\n  await fetch(\'/api/guion/guardar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({project_name:folder,texto:textoEsc,prompts:promptStr})});\n  mytStep(\'Generando voz…\',22);\n  var vid=(document.getElementById(\'myt-voice\')||{}).value||\'\';if(!vid)throw new Error(\'Elige una voz\');\n  PM.update(id,{voz:Object.assign({},p.voz||{},{voiceId:vid})});\n  var vres=await fetch(\'/api/voz/generar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({data:textoEsc,voice_id:vid})});\n  var vj=await vres.json();if(!vres.ok||!vj.fragments)throw new Error(vj.error||\'voz\');\n  mytLog(\'Fragmentos voz: \'+vj.fragments.length+\' → fusionando…\');\n  mytStep(\'Fusionando audio…\',28);\n  var mres=await fetch(\'/api/voz/fusionar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({fragments:vj.fragments,project_name:folder})});\n  if(!mres.ok)throw new Error(\'merge audio\');\n  mytLog(\'Audio guardado en proyecto/audio\');\n  if(b64){\n   mytStep(\'Referencia Whisk…\',32);\n   var ext=(window.__mytRefName||\'ref.jpg\').split(\'.\').pop()||\'jpg\';\n   await fetch(\'/api/whisk/set-subject\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({image:b64,ext:\'.\'+ext})});\n  }\n  var cr=await fetch(\'/api/proyectos/contenido?project=\'+encodeURIComponent(folder));var cd=await cr.json();\n  var outDir=cd.debug&&cd.debug.img_dir;if(!outDir)throw new Error(\'Sin carpeta imagen\');\n  var slots=parseInt((document.getElementById(\'myt-whisk-slots\')||{}).value,10)||2;\n  mytStep(\'Cola Whisk (\'+prompts.length+\' prompts)…\',35);\n  var wr=await fetch(\'/api/whisk/run-prompts\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({prompts:prompts,slots:slots,repeat:1,output_dir:outDir})});\n  var wj=await wr.json();if(!wr.ok)throw new Error(wj.error||\'whisk run\');\n  var _wp=await mytPollWhisk();if(!_wp||!_wp.ok)throw new Error(_wp&&_wp.msg?_wp.msg:\'Whisk falló\');mytLog(\'Whisk OK — \'+(_wp.images||0)+\' imágenes guardadas\');if((_wp.images||0)<prompts.length)mytLog(\'Aviso: faltan \'+(prompts.length-(_wp.images||0))+\' imagenes (bloqueo Whisk / reintentos). El render usa las que existen.\');if(!((_wp.images||0)>0))throw new Error(\'Whisk no generó ninguna imagen — no hay qué renderizar.\');\n  yt=mytMergeYt(PM.get(id));\n  if(!yt.staticOnly){\n   var cr2=await fetch(\'/api/proyectos/contenido?project=\'+encodeURIComponent(folder));var cd2=await cr2.json();\n   var idxs=mytGrokIndices(cd2.scenes||[],yt);\n   if(idxs.length){\n    mytStep(\'Video IA (Grok)…\',55);\n    var fd=new FormData();fd.append(\'project_name\',folder);\n    fd.append(\'prompt\',(document.getElementById(\'myt-gk-prompt\')||{}).value||\'Cinematic slow zoom\');\n    fd.append(\'slots\',String(parseInt((document.getElementById(\'myt-gk-slots\')||{}).value,10)||3));\n    fd.append(\'aspect_ratio\',\'2:3\');fd.append(\'video_length\',String(parseInt((document.getElementById(\'myt-gk-len\')||{}).value,10)||6));fd.append(\'resolution\',\'480p\');\n    var sc=cd2.scenes||[],names=sc.filter(function(s){return s.image;}).map(function(s){return s.image;});\n    var k=1;for(var i=0;i<idxs.length;i++){\n     var ix=idxs[i];if(ix<0||ix>=names.length)continue;var nm=names[ix];\n     var blob=await(await fetch(\'/api/proyectos/imagen_file?project=\'+encodeURIComponent(folder)+\'&file=\'+encodeURIComponent(nm))).blob();\n     fd.append(\'imagen_\'+k,blob,nm);k++;\n    }\n    if(k===1)mytLog(\'Grok: sin imágenes seleccionadas\');else{\n     var gr=await fetch(\'/api/grok/iniciar\',{method:\'POST\',body:fd});var gj=await gr.json();if(!gr.ok)throw new Error(gj.error||\'grok\');\n     await mytPollGrok();var _gz=(window.location.origin||\'\')+\'/api/grok/descargar_todas?project=\'+encodeURIComponent(folder);mytStep(\'Video listo ✓\',68);mytLog(\'Clips listos — pulsa «Descargar clips Grok (ZIP)».\');var _gzel=document.getElementById(\'myt-dl-grok\'),_gzla=document.getElementById(\'myt-a-dl-grok\');if(_gzla)_gzla.href=_gz;if(_gzel)_gzel.style.display=\'block\';\n    }\n   }else mytLog(\'Sin animación (solo estáticas o sin selección)\');\n  }else mytLog(\'Animación omitida (solo estáticas)\');\n  mytStep(\'Render final FFmpeg…\',75);\n  var rfd=new FormData();rfd.append(\'project_name\',folder);rfd.append(\'guion\',textoEsc);rfd.append(\'render_mode\',\'smart\');\n  rfd.append(\'resolucion\',\'1920x1080\');rfd.append(\'modelo\',\'base\');rfd.append(\'whisper_backend\',\'whisperx\');\n  rfd.append(\'transicion\',\'xfade\');rfd.append(\'trans_dur\',\'0.6\');rfd.append(\'movimiento\',\'none\');rfd.append(\'shake\',\'false\');\n  var rr=await fetch(\'/api/render_inteligente\',{method:\'POST\',body:rfd});var rj=await rr.json();if(!rr.ok||!rj.job_id)throw new Error(rj.error||\'render\');\n  var done=await mytPollRender(rj.job_id);\n  mytStep(\'Completado ✓\',100);var _vu=done.video_url||\'\';mytLog(\'Video final listo — pulsa «Descargar video final».\');var _vuAbs=_vu?(_vu.indexOf(\'http\')===0?_vu:((window.location.origin||\'\')+_vu)):\'\';var _fel=document.getElementById(\'myt-dl-final\'),_fa=document.getElementById(\'myt-a-dl-final\');if(_fa&&_vuAbs)_fa.href=_vuAbs;if(_fel&&_vuAbs)_fel.style.display=\'block\';alert(\'Pipeline listo.\');\n }catch(err){mytStep(\'Error\',0);mytLog(\'ERROR: \'+(err&&err.message?err.message:String(err)));alert(\'Error en pipeline: \'+err.message);}\n finally{if(btn)btn.disabled=false;}\n};\n\nvar _nav=navigate;navigate=function(page){if(page===\'modelo-yt\')setTimeout(function(){if(window.mytInitPage)mytInitPage();},60);return _nav.apply(this,arguments);};\nvar _wsk=window.wskInitPage;window.wskInitPage=function(){if(typeof _wsk===\'function\')_wsk();try{var p=activeProject();if(p&&p.modeloYt&&p.modeloYt.refImageDataUrl&&typeof wskSetSubject===\'function\'){fetch(p.modeloYt.refImageDataUrl).then(function(r){return r.blob();}).then(function(blob){var fn=p.modeloYt.refImageName||\'ref.png\';wskSetSubject(new File([blob],fn,{type:blob.type||\'image/png\'}));}).catch(function(){});}}catch(e){}};\ntry{var _t=TOOL_IDS;if(_t&&_t.indexOf(\'modeloyt\')<0)_t.splice(1,0,\'modeloyt\');}catch(e1){}\ntry{var _ocp=openModal;openModal=function(type){var r=_ocp.apply(this,arguments);if(type===\'create\'){var a=document.getElementById(\'modal-pipeline-sketch\'),b=document.getElementById(\'modal-pipeline-youtube\');if(a)a.checked=true;if(b)b.checked=false;}return r;};}catch(e2){}\ntry{var _ccp=confirmCreateProject;confirmCreateProject=function(){var inp=document.getElementById(\'modal-proj-name\'),name=inp&&inp.value&&inp.value.trim();if(!name){if(inp){inp.focus();inp.classList.add(\'shake\');setTimeout(function(){inp.classList.remove(\'shake\');},400);}return;}var entry=\'sketch\',ry=document.getElementById(\'modal-pipeline-youtube\');if(ry&&ry.checked)entry=\'youtube\';var proj=PM.create(name);PM.update(proj.id,{pipelineEntry:entry});PM.setActive(proj.id);closeModal(\'create\');renderDashboard();refreshAllTopbars();fetch(\'/api/proyectos/crear\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({nombre:name})}).catch(function(){});if(entry===\'youtube\')navigate(\'modelo-yt\');else navigate(\'guion\');};}catch(e3){}\ntry{var _op=openProject;openProject=function(id,e){e&&e.stopPropagation();PM.setActive(id);renderDashboard();refreshAllTopbars();loadGuionFromProject(id);var p=PM.get(id);if(p&&p.pipelineEntry===\'youtube\')navigate(\'modelo-yt\');else navigate(\'guion\');};}catch(e4){}\ntry{var _sp=switchProjectFromTool;switchProjectFromTool=function(id){if(!id)return;_sp.apply(this,arguments);if(window.mytLoadFromProject)mytLoadFromProject(id);};}catch(e5){}\ntry{var _lg=loadGuionFromProject;loadGuionFromProject=function(id){_lg.apply(this,arguments);if(window.mytLoadFromProject)mytLoadFromProject(id);};}catch(e6){}\ntry{var _pmc=PM.create;PM.create=function(name){var p=_pmc.call(PM,name);p.pipelineEntry=p.pipelineEntry||\'sketch\';p.modeloYt=p.modeloYt||(typeof mytDefaults===\'function\'?mytDefaults():{});var arr=PM.getAll(),i=arr.findIndex(function(x){return x.id===p.id;});if(i>=0){arr[i]=p;PM.save(arr);}return p;};}catch(e7){}\n})();\n</script>' + "\n</body>", 1)
+        _html3 = _html3.replace("</body>", '<style id="vf-myt3-style">\n.myt3-wrap{max-width:1120px;margin:0 auto;padding:0 24px 48px}\n.myt3-hero{background:linear-gradient(135deg,rgba(124,106,255,.18),rgba(168,85,247,.08));border:1px solid rgba(124,106,255,.25);border-radius:20px;padding:28px 32px;margin-bottom:28px;box-shadow:0 20px 50px rgba(0,0,0,.35)}\n.myt3-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--c2);margin:0 0 8px}\n.myt3-title{font-size:clamp(1.5rem,3vw,2rem);font-weight:700;margin:0;color:var(--t)}\n.myt3-title em{font-style:normal;background:linear-gradient(90deg,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}\n.myt3-lead{margin:12px 0 0;font-size:14px;line-height:1.55;color:var(--m);max-width:52ch}\n.myt3-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}\n@media(max-width:900px){.myt3-grid{grid-template-columns:1fr}}\n.myt3-panel{background:var(--s);border:1px solid var(--b);border-radius:16px;padding:20px 22px}\n.myt3-logpanel{min-height:420px;display:flex;flex-direction:column}\n.myt3-h{font-family:var(--mono);font-size:11px;color:var(--c2);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 10px}\n.myt3-h:first-child{margin-top:0}\n.myt3-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;padding:10px 12px;color:var(--t);font-size:13px}\n.myt3-ta,.myt3-ta-sm{width:100%;box-sizing:border-box;min-height:140px;background:rgba(255,255,255,.03);border:1px solid var(--b);border-radius:10px;padding:10px;color:var(--t);font-size:12px;resize:vertical;font-family:var(--mono)}\n.myt3-ta-sm{min-height:64px;font-size:10px}\n.myt3-details{margin:10px 0;border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:rgba(0,0,0,.15)}\n.myt3-details summary{cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--m2)}\n.myt3-drop{border:2px dashed rgba(124,106,255,.35);border-radius:14px;padding:20px;text-align:center;cursor:pointer;background:rgba(124,106,255,.05);transition:border-color .2s}\n.myt3-drop:hover{border-color:rgba(168,85,247,.55)}\n.myt3-prev{max-height:100px;max-width:100%;border-radius:8px;display:none;margin:0 auto 8px}\n.myt3-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--m);margin:8px 0;cursor:pointer}\n.myt3-lbl{font-size:10px;color:var(--m2);display:block;margin:8px 0 4px;font-family:var(--mono)}\n.myt3-mul{width:100%;min-height:88px;background:rgba(255,255,255,.04);border:1px solid var(--b);border-radius:10px;color:var(--t);padding:8px;font-family:var(--mono);font-size:11px}\n.myt3-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}\n.myt3-mini{font-size:9px;color:var(--m2);font-family:var(--mono);display:block;margin-bottom:4px}\n.myt3-cta{width:100%;margin-top:20px;padding:14px;border:none;border-radius:12px;font-weight:700;font-size:13px;cursor:pointer;\n  background:linear-gradient(135deg,#7c6aff,#c026d3);color:#fff;box-shadow:0 8px 28px rgba(124,106,255,.35)}\n.myt3-cta:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}\n.myt3-secondary{width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid var(--b2);background:transparent;color:var(--m);cursor:pointer;font-size:12px}\n.myt3-linkbtn{background:none;border:none;color:var(--c2);cursor:pointer;font-size:11px;margin-top:6px}\n.myt3-progress{height:6px;background:var(--b);border-radius:99px;overflow:hidden;margin-bottom:10px}\n.myt3-progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#7c6aff,#22d3a0);transition:width .4s ease}\n.myt3-step{font-family:var(--mono);font-size:11px;color:var(--c5);margin:0 0 8px}\n.myt3-log{flex:1;overflow:auto;background:rgba(0,0,0,.25);border:1px solid var(--b);border-radius:10px;padding:12px;font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--m);margin:0;white-space:pre-wrap;max-height:360px}\n.myt3-dlbox{margin-top:14px;display:none}\n.myt3-dlbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px 16px;background:#22d3a0;border-radius:12px;color:#06130f;font-family:var(--mono);font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;transition:all .2s}\n.myt3-dlbtn:hover{background:#1db88a;transform:translateY(-1px);box-shadow:0 6px 24px rgba(34,211,160,.35)}\n#modal-create .modal-pipeline-row{display:flex;gap:12px;margin:12px 0 8px;flex-wrap:wrap}\n#modal-create .modal-pipeline-opt{flex:1;min-width:158px;border:1px solid var(--b);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.03);cursor:pointer;text-align:left}\n</style>' + "\n" + '<script id="vf-myt3-script">\n(function(){\nif(window.__vfMyt3)return; window.__vfMyt3=1;\nvar MYT_WH=\'https://n8n-n8n.y9c1cn.easypanel.host/webhook/9769fc05-0170-4d76-931f-a2467f44e2de\';\n\nfunction mytLog(m){var el=document.getElementById(\'myt-log\');if(el){el.textContent+=(el.textContent?\'\\n\':\'\')+m;el.scrollTop=el.scrollHeight;}}\nfunction mytStep(t,p){var s=document.getElementById(\'myt-step-lbl\'),b=document.getElementById(\'myt-pbar\');if(s)s.textContent=t;if(b)b.style.width=(p==null?\'0\':Math.min(100,p))+\'%\';}\nfunction mytDefaults(){return{youtubeUrl:\'\',ytCookie:\'\',refImageDataUrl:null,refImageName:\'\',animRegions:[],animCountStart:0,animCountEnd:0,staticOnly:false};}\nwindow.mytDefaults=mytDefaults;\nfunction mytMergeYt(p){var d=mytDefaults();if(p&&p.modeloYt)for(var k in d)if(Object.prototype.hasOwnProperty.call(p.modeloYt,k))d[k]=p.modeloYt[k];return d;}\n\nfunction mytFillAnimSel(){var sel=document.getElementById(\'myt-anim-sel\');if(!sel||sel.dataset.ready)return;sel.innerHTML=\'<option value="whole">Todo el video</option><option value="half_start">Mitad inicial</option><option value="half_end">Mitad final</option>\';sel.dataset.ready=1;}\n\nfunction mytBindDrop(){\n var dz=document.getElementById(\'myt-dz\'),inp=document.getElementById(\'myt-ref-file\');\n if(!dz||dz.dataset.b)return;dz.dataset.b=1;\n dz.addEventListener(\'click\',function(e){if(e.target!==document.getElementById(\'myt-ref-clear\'))inp.click();});\n inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){\n  var prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n  prev.src=r.result;prev.style.display=\'block\';lbl.textContent=f.name.substring(0,24);clr.style.display=\'inline-block\';\n  window.__mytRefData=r.result;window.__mytRefName=f.name;};r.readAsDataURL(f);};\n dz.ondragover=function(e){e.preventDefault();dz.style.borderColor=\'#a78bfa\';};\n dz.ondragleave=function(){dz.style.borderColor=\'rgba(124,106,255,.35)\';};\n dz.ondrop=function(e){e.preventDefault();dz.style.borderColor=\'rgba(124,106,255,.35)\';if(e.dataTransfer.files[0]){inp.files=e.dataTransfer.files;inp.onchange();}};\n}\nwindow.mytClearRef=function(ev){ev&&ev.stopPropagation();\n var inp=document.getElementById(\'myt-ref-file\'),prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n if(inp)inp.value=\'\';if(prev){prev.src=\'\';prev.style.display=\'none\';}if(lbl)lbl.textContent=\'Arrastra o clic · estilo para Whisk\';\n if(clr)clr.style.display=\'none\';window.__mytRefData=window.__mytRefName=null;\n};\nfunction mytWireStatic(){var c=document.getElementById(\'myt-static-only\');if(!c||c.dataset.w)return;c.dataset.w=1;\n c.onchange=function(){var d=c.checked,sel=document.getElementById(\'myt-anim-sel\'),a=document.getElementById(\'myt-n-start\'),b=document.getElementById(\'myt-n-end\');\n  if(sel)sel.disabled=d;if(a)a.disabled=d;if(b)b.disabled=d;};}\n\nasync function mytLoadVoices(){\n var sel=document.getElementById(\'myt-voice\');if(!sel)return;\n try{var r=await fetch(\'/api/voz/voces?t=\'+Date.now());var raw=await r.json();var data=Array.isArray(raw)?raw:(raw.data||[raw]);\n  sel.innerHTML=\'<option value="">— Voz —</option>\';\n  data.forEach(function(v){if(v[\'ID Voz\'])sel.innerHTML+=\'<option value="\'+v[\'ID Voz\']+\'">\'+(v[\'Nombre Voz\']||v[\'ID Voz\'])+\'</option>\';});\n }catch(e){sel.innerHTML=\'<option value="">Error voces</option>\';}\n}\n\nwindow.mytLoadFromProject=function(pid){\n var p=PM.get(pid);if(!p)return;var yt=mytMergeYt(p);\n var u=document.getElementById(\'myt-yt-url\'),ck=document.getElementById(\'myt-yt-cookie\'),ed=document.getElementById(\'myt-script-editor\'),w=document.getElementById(\'myt-script-wrap\');\n if(u)u.value=yt.youtubeUrl||\'\';if(ck)ck.value=yt.ytCookie||\'\';\n var g=(p.guion&&p.guion.texto)||\'\';if(ed){ed.value=g;if(g.trim()&&w)w.style.display=\'block\';}\n var st=document.getElementById(\'myt-static-only\');if(st)st.checked=!!yt.staticOnly;\n var ns=document.getElementById(\'myt-n-start\'),ne=document.getElementById(\'myt-n-end\');\n if(ns)ns.value=yt.animCountStart!=null?yt.animCountStart:0;if(ne)ne.value=yt.animCountEnd!=null?yt.animCountEnd:0;\n mytFillAnimSel();var sel=document.getElementById(\'myt-anim-sel\');\n if(sel){[].forEach.call(sel.options,function(o){o.selected=false;});(yt.animRegions||[]).forEach(function(v){var o=sel.querySelector(\'option[value="\'+v+\'"]\');if(o)o.selected=true;});}\n mytClearRef();\n if(yt.refImageDataUrl){var prev=document.getElementById(\'myt-ref-prev\'),lbl=document.getElementById(\'myt-dz-lbl\'),clr=document.getElementById(\'myt-ref-clear\');\n  if(prev){prev.src=yt.refImageDataUrl;prev.style.display=\'block\';}if(lbl)lbl.textContent=(yt.refImageName||\'ref\').substring(0,24);\n  if(clr)clr.style.display=\'inline-block\';window.__mytRefData=yt.refImageDataUrl;window.__mytRefName=yt.refImageName||\'\';}\n if(st)st.dispatchEvent(new Event(\'change\'));\n if(p.voz&&p.voz.voiceId){var vs=document.getElementById(\'myt-voice\');if(vs)vs.value=p.voz.voiceId;}\n};\n\nwindow.mytInitPage=function(){\n mytFillAnimSel();mytBindDrop();mytWireStatic();mytLoadVoices();\n var id=PM.getActive();if(id)mytLoadFromProject(id);\n};\n\nfunction mytReadRegions(){var sel=document.getElementById(\'myt-anim-sel\');if(!sel)return[];var o=[];[].forEach.call(sel.options,function(x){if(x.selected)o.push(x.value);});return o;}\nfunction mytNormalize(reg,st,ns,ne){if(st)return{animRegions:[],animCountStart:0,animCountEnd:0};var r=reg.slice();if(r.indexOf(\'whole\')>=0)return{animRegions:[\'whole\'],animCountStart:ns,animCountEnd:ne};return{animRegions:r.filter(function(x){return x===\'half_start\'||x===\'half_end\';}),animCountStart:ns,animCountEnd:ne};}\n\nwindow.mytPersist=function(silent){\n var id=PM.getActive();if(!id){if(!silent)alert(\'Selecciona proyecto\');return false;}\n var p=PM.get(id),yt=mytMergeYt(p),ed=document.getElementById(\'myt-script-editor\');\n var guionText=ed?ed.value:((p.guion&&p.guion.texto)||\'\');\n var st=document.getElementById(\'myt-static-only\')&&document.getElementById(\'myt-static-only\').checked;\n var ns=parseInt((document.getElementById(\'myt-n-start\')||{}).value,10)||0,ne=parseInt((document.getElementById(\'myt-n-end\')||{}).value,10)||0;\n var norm=mytNormalize(mytReadRegions(),st,ns,ne);\n yt.youtubeUrl=(document.getElementById(\'myt-yt-url\')||{}).value||\'\';yt.ytCookie=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n yt.staticOnly=st;yt.animRegions=norm.animRegions;yt.animCountStart=norm.animCountStart;yt.animCountEnd=norm.animCountEnd;\n if(window.__mytRefData){yt.refImageDataUrl=window.__mytRefData;yt.refImageName=window.__mytRefName||\'ref.png\';}else{yt.refImageDataUrl=null;yt.refImageName=\'\';}\n var vid=(document.getElementById(\'myt-voice\')||{}).value||\'\';\n PM.update(id,{modeloYt:yt,guion:Object.assign({},p.guion||{},{texto:guionText}),pipelineEntry:\'youtube\',voz:Object.assign({},p.voz||{},{voiceId:vid})});\n var inp=document.getElementById(\'guion-input\');if(inp){inp.value=guionText;inp.dispatchEvent(new Event(\'input\'));}\n refreshAllTopbars();renderDashboard();if(!silent)alert(\'Guardado\');return true;\n};\nwindow.mytSaveAll=function(){mytPersist(false);};\n\nfunction mytB64FromDataUrl(u){if(!u)return null;var i=u.indexOf(\',\');return i>0?u.slice(i+1):null;}\nfunction mytMimeFromDataUrl(u){if(!u||u.indexOf(\'data:\')!==0)return\'image/png\';return(u.split(\';\')[0]||\'data:image/png\').slice(5);}\n\nasync function mytPollWhisk(){ var seenRun=false; for(var t=0;t<7200;t++){  try{var d=await(await fetch(\'/api/whisk/status\')).json();   if(d.running)seenRun=true;   if(!d.running&&seenRun){    if(d.step===\'done\')return{ok:true,images:d.images_saved||0};    if(d.step===\'idle\'){     if(d.last_error)return{ok:false,msg:d.last_error};     var msg=\'Whisk se detuvo sin completar. Revisa la pestaña Whisk y la consola del servidor.\',log=d.log||[],tail=log.slice(-12).join(String.fromCharCode(10));     if(tail.indexOf(\'401\')>=0||tail.indexOf(\'Unauthorized\')>=0)msg=\'Whisk: sesión expirada (HTTP 401). Vuelve a iniciar sesión en Google Labs / Whisk y actualiza las cookies (pestaña Whisk o cookies/account_*.txt).\';     else if(tail.indexOf(\'Ningún slot\')>=0||tail.indexOf(\'ningún slot\')>=0)msg=\'Whisk: no se pudo crear ningún proyecto — cookies inválidas o sin acceso. Actualiza la sesión.\';     else if(tail.indexOf(\'No hay cuentas\')>=0)msg=\'Whisk: no hay cookies guardadas en Studio IVR/cookies/.\';     return{ok:false,msg:msg};    }   }   if(!seenRun&&t>45&&!d.running)return{ok:false,msg:\'Whisk no arrancó (sigue idle). Reintenta o revisa si otra corrida bloqueó la cola.\'};   if(d.total>0)mytStep(\'Imágenes Whisk… \'+(d.progress||0)+\'/\'+(d.total||0),40+60*(d.progress||0)/Math.max(1,d.total||1));  }catch(e){}  await new Promise(function(r){setTimeout(r,2000);}); } return{ok:false,msg:\'Timeout esperando Whisk\'};}async function mytPollGrok(){\n var off=0;\n for(var t=0;t<14400;t++){\n  try{var d=await(await fetch(\'/api/grok/log?offset=\'+off)).json();\n   off=d.next_offset||off;if(d.lines&&d.lines.length)mytLog(d.lines.join(\'\\n\'));\n   if(d.finished)return true;\n  }catch(e){}\n  await new Promise(function(r){setTimeout(r,3000);});\n }\n return false;\n}\n\nasync function mytPollRender(jid){\n for(var t=0;t<7200;t++){\n  try{var d=await(await fetch(\'/api/estado/\'+encodeURIComponent(jid))).json();\n   if(d.estado===\'completado\')return d;if(d.estado===\'error\')throw new Error(d.error||\'render error\');\n   mytStep(d.mensaje||\'Render…\',70+(d.progreso||0)*0.25);\n  }catch(e){if(e.message&&e.message.indexOf(\'fetch\')<0)throw e;}\n  await new Promise(function(r){setTimeout(r,2000);});\n }\n throw new Error(\'Timeout render\');\n}\n\nfunction mytGrokIndices(scenes,yt){\n var names=scenes.filter(function(s){return s.image;}).map(function(s){return s.image;});\n var n=names.length;if(!n||yt.staticOnly)return[];\n var want={},regions=yt.animRegions||[],mid=Math.floor(n/2);\n if(regions.indexOf(\'whole\')>=0){for(var i=0;i<n;i++)want[i]=1;}\n else{if(regions.indexOf(\'half_start\')>=0)for(var a=0;a<mid;a++)want[a]=1;if(regions.indexOf(\'half_end\')>=0)for(var b=mid;b<n;b++)want[b]=1;}\n var ns=yt.animCountStart|0,ne=yt.animCountEnd|0;\n if(ns>0)for(var c=0;c<Math.min(ns,n);c++)want[c]=1;\n if(ne>0)for(var d=Math.max(0,n-ne);d<n;d++)want[d]=1;\n var keys=Object.keys(want).map(Number).sort(function(a,b){return a-b;});\n if(!keys.length&&regions.length&&!yt.staticOnly)for(var e=0;e<n;e++)keys.push(e);\n return keys;\n}\n\nwindow.mytRunFullPipeline=async function(){\n var btn=document.getElementById(\'myt-btn-auto\');if(btn)btn.disabled=true;\n document.getElementById(\'myt-log\').textContent=\'\';\n try{var _hg=document.getElementById(\'myt-dl-grok\'),_hf=document.getElementById(\'myt-dl-final\');if(_hg)_hg.style.display=\'none\';if(_hf)_hf.style.display=\'none\';var _ag=document.getElementById(\'myt-a-dl-grok\'),_af=document.getElementById(\'myt-a-dl-final\');if(_ag)_ag.href=\'#\';if(_af)_af.href=\'#\';}catch(_hd){}\n try{\n  var id=PM.getActive();if(!id){alert(\'Selecciona o crea un proyecto\');return;}\n  if(!mytPersist(true)){return;}id=PM.getActive();\n  var folder=getProjectFolderName(id);if(!folder){alert(\'Nombre de proyecto inválido\');return;}\n  var p=PM.get(id),yt=mytMergeYt(p);\n  var ed=document.getElementById(\'myt-script-editor\'),wrap=document.getElementById(\'myt-script-wrap\');\n  var guionRaw=(ed&&ed.value)?ed.value.trim():((p.guion&&p.guion.texto)||\'\').trim();\n  if(!guionRaw){\n   mytStep(\'Descargando guion YouTube…\',5);mytLog(\'YouTube…\');\n   var url=(document.getElementById(\'myt-yt-url\')||{}).value||\'\',ck=(document.getElementById(\'myt-yt-cookie\')||{}).value||\'\';\n   if(!url.trim()){alert(\'URL YouTube o pega guion\');return;}\n   var res=await fetch(MYT_WH,{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({youtube_url:url.trim(),yt_cookie:ck})});\n   if(!res.ok)throw new Error(\'YouTube n8n HTTP \'+res.status);\n   var _rt=await res.text();var data;try{data=JSON.parse(_rt);}catch(_je){throw new Error(\'Respuesta invalida de n8n (no es JSON). Verifica que el webhook este activo: \'+ _rt.substring(0,120));}guionRaw=(Array.isArray(data)?data[0].guion:data.guion)||\'\';if(!guionRaw)throw new Error(\'Sin guion\');\n   if(ed)ed.value=guionRaw;if(wrap)wrap.style.display=\'block\';\n   PM.update(id,{guion:Object.assign({},p.guion||{},{texto:guionRaw}),modeloYt:Object.assign(yt,{youtubeUrl:url.trim(),ytCookie:ck})});yt=mytMergeYt(PM.get(id));p=PM.get(id);\n  }\n  mytStep(\'Fragmentando y generando prompts (OpenRouter)…\',12);mytLog(\'--> /api/guion/n8n_proxy\');\n  var n8b={guion:guionRaw,output_mode:\'con_prompts\'};var b64=mytB64FromDataUrl(window.__mytRefData);if(b64){n8b.image_base64=b64;n8b.mime_type=mytMimeFromDataUrl(window.__mytRefData);}\n  var n8r=await fetch(\'/api/guion/n8n_proxy\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify(n8b)});\n  var n8j=await n8r.json();if(!n8r.ok)throw new Error(n8j.error||\'n8n_proxy\');\n  var escenas=n8j.escenas||[];var lines=escenas.map(function(e){return(e.texto_original||\'\').trim();}).filter(Boolean);\n  var prompts=escenas.map(function(e){return(e.prompt_imagen||\'\').trim();}).filter(Boolean);\n  var textoEsc=lines.join(\'\\n\'),promptStr=prompts.join(\'\\n\');\n  mytLog(\'Escenas: \'+lines.length+\' · prompts: \'+prompts.length);\n  await fetch(\'/api/guion/guardar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({project_name:folder,texto:textoEsc,prompts:promptStr})});\n  mytStep(\'Generando voz…\',22);\n  var vid=(document.getElementById(\'myt-voice\')||{}).value||\'\';if(!vid)throw new Error(\'Elige una voz\');\n  PM.update(id,{voz:Object.assign({},p.voz||{},{voiceId:vid})});\n  var vres=await fetch(\'/api/voz/generar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({data:textoEsc,voice_id:vid})});\n  var vj=await vres.json();if(!vres.ok||!vj.fragments)throw new Error(vj.error||\'voz\');\n  mytLog(\'Fragmentos voz: \'+vj.fragments.length+\' --> fusionando…\');\n  mytStep(\'Fusionando audio…\',28);\n  var mres=await fetch(\'/api/voz/fusionar\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({fragments:vj.fragments,project_name:folder})});\n  if(!mres.ok)throw new Error(\'merge audio\');\n  mytLog(\'Audio guardado en proyecto/audio\');\n  if(b64){\n   mytStep(\'Referencia Whisk…\',32);\n   var ext=(window.__mytRefName||\'ref.jpg\').split(\'.\').pop()||\'jpg\';\n   await fetch(\'/api/whisk/set-subject\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({image:b64,ext:\'.\'+ext})});\n  }\n  var cr=await fetch(\'/api/proyectos/contenido?project=\'+encodeURIComponent(folder));var cd=await cr.json();\n  var outDir=cd.debug&&cd.debug.img_dir;if(!outDir)throw new Error(\'Sin carpeta imagen\');\n  var slots=parseInt((document.getElementById(\'myt-whisk-slots\')||{}).value,10)||2;\n  mytStep(\'Cola Whisk (\'+prompts.length+\' prompts)…\',35);\n  var wr=await fetch(\'/api/whisk/run-prompts\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({prompts:prompts,slots:slots,repeat:1,output_dir:outDir})});\n  var wj=await wr.json();if(!wr.ok)throw new Error(wj.error||\'whisk run\');\n  var _wp=await mytPollWhisk();if(!_wp||!_wp.ok)throw new Error(_wp&&_wp.msg?_wp.msg:\'Whisk falló\');mytLog(\'Whisk OK — \'+(_wp.images||0)+\' imágenes guardadas\');if((_wp.images||0)<prompts.length)mytLog(\'Aviso: faltan \'+(prompts.length-(_wp.images||0))+\' imagenes (bloqueo Whisk / reintentos). El render usa las que existen.\');if(!((_wp.images||0)>0))throw new Error(\'Whisk no generó ninguna imagen — no hay qué renderizar.\');\n  yt=mytMergeYt(PM.get(id));\n  if(!yt.staticOnly){\n   var cr2=await fetch(\'/api/proyectos/contenido?project=\'+encodeURIComponent(folder));var cd2=await cr2.json();\n   var idxs=mytGrokIndices(cd2.scenes||[],yt);\n   if(idxs.length){\n    mytStep(\'Video IA (Grok)…\',55);\n    var fd=new FormData();fd.append(\'project_name\',folder);\n    fd.append(\'prompt\',(document.getElementById(\'myt-gk-prompt\')||{}).value||\'Cinematic slow zoom\');\n    fd.append(\'slots\',String(parseInt((document.getElementById(\'myt-gk-slots\')||{}).value,10)||3));\n    fd.append(\'aspect_ratio\',\'2:3\');fd.append(\'video_length\',String(parseInt((document.getElementById(\'myt-gk-len\')||{}).value,10)||6));fd.append(\'resolution\',\'480p\');\n    var sc=cd2.scenes||[],names=sc.filter(function(s){return s.image;}).map(function(s){return s.image;});\n    var k=1;for(var i=0;i<idxs.length;i++){\n     var ix=idxs[i];if(ix<0||ix>=names.length)continue;var nm=names[ix];\n     var blob=await(await fetch(\'/api/proyectos/imagen_file?project=\'+encodeURIComponent(folder)+\'&file=\'+encodeURIComponent(nm))).blob();\n     fd.append(\'imagen_\'+k,blob,nm);k++;\n    }\n    if(k===1)mytLog(\'Grok: sin imágenes seleccionadas\');else{\n     var gr=await fetch(\'/api/grok/iniciar\',{method:\'POST\',body:fd});var gj=await gr.json();if(!gr.ok)throw new Error(gj.error||\'grok\');\n     await mytPollGrok();var _gz=(window.location.origin||\'\')+\'/api/grok/descargar_todas?project=\'+encodeURIComponent(folder);mytStep(\'Video listo ✓\',68);mytLog(\'Clips listos — pulsa «Descargar clips Grok (ZIP)».\');var _gzel=document.getElementById(\'myt-dl-grok\'),_gzla=document.getElementById(\'myt-a-dl-grok\');if(_gzla)_gzla.href=_gz;if(_gzel)_gzel.style.display=\'block\';\n    }\n   }else mytLog(\'Sin animación (solo estáticas o sin selección)\');\n  }else mytLog(\'Animación omitida (solo estáticas)\');\n  mytStep(\'Render final FFmpeg…\',75);\n  var rfd=new FormData();rfd.append(\'project_name\',folder);rfd.append(\'guion\',textoEsc);rfd.append(\'render_mode\',\'smart\');\n  rfd.append(\'resolucion\',\'1920x1080\');rfd.append(\'modelo\',\'base\');rfd.append(\'whisper_backend\',\'whisperx\');\n  rfd.append(\'transicion\',\'xfade\');rfd.append(\'trans_dur\',\'0.6\');rfd.append(\'movimiento\',\'none\');rfd.append(\'shake\',\'false\');\n  var rr=await fetch(\'/api/render_inteligente\',{method:\'POST\',body:rfd});var rj=await rr.json();if(!rr.ok||!rj.job_id)throw new Error(rj.error||\'render\');\n  var done=await mytPollRender(rj.job_id);\n  mytStep(\'Completado ✓\',100);var _vu=done.video_url||\'\';mytLog(\'Video final listo — pulsa «Descargar video final».\');var _vuAbs=_vu?(_vu.indexOf(\'http\')===0?_vu:((window.location.origin||\'\')+_vu)):\'\';var _fel=document.getElementById(\'myt-dl-final\'),_fa=document.getElementById(\'myt-a-dl-final\');if(_fa&&_vuAbs)_fa.href=_vuAbs;if(_fel&&_vuAbs)_fel.style.display=\'block\';alert(\'Pipeline listo.\');\n }catch(err){mytStep(\'Error\',0);mytLog(\'ERROR: \'+(err&&err.message?err.message:String(err)));alert(\'Error en pipeline: \'+err.message);}\n finally{if(btn)btn.disabled=false;}\n};\n\nvar _nav=navigate;navigate=function(page){if(page===\'modelo-yt\')setTimeout(function(){if(window.mytInitPage)mytInitPage();},60);return _nav.apply(this,arguments);};\nvar _wsk=window.wskInitPage;window.wskInitPage=function(){if(typeof _wsk===\'function\')_wsk();try{var p=activeProject();if(p&&p.modeloYt&&p.modeloYt.refImageDataUrl&&typeof wskSetSubject===\'function\'){fetch(p.modeloYt.refImageDataUrl).then(function(r){return r.blob();}).then(function(blob){var fn=p.modeloYt.refImageName||\'ref.png\';wskSetSubject(new File([blob],fn,{type:blob.type||\'image/png\'}));}).catch(function(){});}}catch(e){}};\ntry{var _t=TOOL_IDS;if(_t&&_t.indexOf(\'modeloyt\')<0)_t.splice(1,0,\'modeloyt\');}catch(e1){}\ntry{var _ocp=openModal;openModal=function(type){var r=_ocp.apply(this,arguments);if(type===\'create\'){var a=document.getElementById(\'modal-pipeline-sketch\'),b=document.getElementById(\'modal-pipeline-youtube\');if(a)a.checked=true;if(b)b.checked=false;}return r;};}catch(e2){}\ntry{var _ccp=confirmCreateProject;confirmCreateProject=function(){var inp=document.getElementById(\'modal-proj-name\'),name=inp&&inp.value&&inp.value.trim();if(!name){if(inp){inp.focus();inp.classList.add(\'shake\');setTimeout(function(){inp.classList.remove(\'shake\');},400);}return;}var entry=\'sketch\',ry=document.getElementById(\'modal-pipeline-youtube\');if(ry&&ry.checked)entry=\'youtube\';var proj=PM.create(name);PM.update(proj.id,{pipelineEntry:entry});PM.setActive(proj.id);closeModal(\'create\');renderDashboard();refreshAllTopbars();fetch(\'/api/proyectos/crear\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({nombre:name})}).catch(function(){});if(entry===\'youtube\')navigate(\'modelo-yt\');else navigate(\'guion\');};}catch(e3){}\ntry{var _op=openProject;openProject=function(id,e){e&&e.stopPropagation();PM.setActive(id);renderDashboard();refreshAllTopbars();loadGuionFromProject(id);var p=PM.get(id);if(p&&p.pipelineEntry===\'youtube\')navigate(\'modelo-yt\');else navigate(\'guion\');};}catch(e4){}\ntry{var _sp=switchProjectFromTool;switchProjectFromTool=function(id){if(!id)return;_sp.apply(this,arguments);if(window.mytLoadFromProject)mytLoadFromProject(id);};}catch(e5){}\ntry{var _lg=loadGuionFromProject;loadGuionFromProject=function(id){_lg.apply(this,arguments);if(window.mytLoadFromProject)mytLoadFromProject(id);};}catch(e6){}\ntry{var _pmc=PM.create;PM.create=function(name){var p=_pmc.call(PM,name);p.pipelineEntry=p.pipelineEntry||\'sketch\';p.modeloYt=p.modeloYt||(typeof mytDefaults===\'function\'?mytDefaults():{});var arr=PM.getAll(),i=arr.findIndex(function(x){return x.id===p.id;});if(i>=0){arr[i]=p;PM.save(arr);}return p;};}catch(e7){}\n})();\n</script>' + "\n</body>", 1)
         HTML_BYTES = _html3.encode("utf-8")
 except Exception:
     pass
@@ -2842,7 +2886,7 @@ try:
   pointer-events:none;z-index:0
 }
 #page-modelo-yt .myt3-hero-inner{position:relative!important;z-index:1!important;flex:1!important;min-width:0!important}
-/* ── Kicker → eyebrow pill matching tool-eyebrow style ── */
+/* ── Kicker --> eyebrow pill matching tool-eyebrow style ── */
 #page-modelo-yt .myt3-kicker{
   display:inline-flex!important;align-items:center!important;gap:6px!important;
   font-family:var(--mono)!important;font-size:9.5px!important;
@@ -2874,7 +2918,7 @@ try:
 }
 /* ── Grid: padding matching guion/VS ── */
 #page-modelo-yt .myt3-grid{padding:28px 52px 56px!important;gap:20px!important}
-/* ── Panels → glassmorphism cards ── */
+/* ── Panels --> glassmorphism cards ── */
 #page-modelo-yt .myt3-panel{
   background:linear-gradient(165deg,rgba(18,22,34,.85),rgba(10,14,24,.9))!important;
   border-color:rgba(124,106,255,.15)!important;
@@ -3052,7 +3096,7 @@ try:
 
     if 'vf-np2-done' not in _hnp2_src:
 
-        # 1. Reemplazar el interior del modal (título → justo antes del input)
+        # 1. Reemplazar el interior del modal (título --> justo antes del input)
         _NP2_OLD = _re_np2.compile(
             r'<div class="modal-title">Nuevo Proyecto</div>'
             r'[\s\S]*?'
@@ -4031,7 +4075,7 @@ try:
             '#page-voz.page-section.active .vs-studio-wrap{padding:18px 20px 40px!important;gap:0!important}\n'
             '#page-voz #vsP0,#page-voz #vsP1{width:100%!important;box-sizing:border-box!important;padding:20px 0 40px!important;gap:0!important;margin:0!important}\n'
             '#page-voz #vsS0,#page-voz #vsS1,#page-voz #vsS2{width:100%!important;box-sizing:border-box!important}\n'
-            '/* Step bar → pill-card style (matches reference) */\n'
+            '/* Step bar --> pill-card style (matches reference) */\n'
             '#page-voz .vs-steps-bar{background:rgba(11,11,24,.85)!important;border:1px solid rgba(124,106,255,.14)!important;border-radius:12px!important;padding:5px!important;gap:2px!important;margin-bottom:20px!important}\n'
             '#page-voz .vs-step-line{display:none!important}\n'
             '#page-voz .vs-step-item{flex:1!important;justify-content:center!important;padding:10px 8px!important;cursor:pointer!important;border-radius:8px!important;transition:background .18s,color .18s!important;position:relative!important}\n'
@@ -5628,7 +5672,7 @@ setTimeout(_run,2500);
 except Exception:
     pass
 
-# Hotfix Render wizard: «Solo imágenes» con proyecto → /api/render_inteligente (imágenes en disco + Whisper según selector).
+# Hotfix Render wizard: «Solo imágenes» con proyecto --> /api/render_inteligente (imágenes en disco + Whisper según selector).
 try:
     import re as _vf_re_render
 
@@ -5829,8 +5873,8 @@ try:
         "      data.logs.slice(lastLogLen).forEach(line => {\n"
         "        const div = document.createElement('div');\n"
         "        div.className = 'log-line new';\n"
-        "        if (line.startsWith('✓')||line.startsWith('✅')) div.className += ' ok';\n"
-        "        if (line.startsWith('❌')) div.className += ' err';\n"
+        "        if (line.startsWith('✓')||line.startsWith('[OK]')) div.className += ' ok';\n"
+        "        if (line.startsWith('[ERROR]')) div.className += ' err';\n"
         "        div.textContent = line; terminal.appendChild(div);\n"
         "      });\n"
         "      terminal.scrollTop = terminal.scrollHeight;\n"
@@ -5843,8 +5887,8 @@ try:
         "      terminal.innerHTML = '';\n"
         "      const div = document.createElement('div');\n"
         "      div.className = 'log-line new';\n"
-        "      if (line.startsWith('✓')||line.startsWith('✅')) div.className += ' ok';\n"
-        "      if (line.startsWith('❌')) div.className += ' err';\n"
+        "      if (line.startsWith('✓')||line.startsWith('[OK]')) div.className += ' ok';\n"
+        "      if (line.startsWith('[ERROR]')) div.className += ' err';\n"
         "      div.textContent = line;\n"
         "      terminal.appendChild(div);\n"
         "      lastLogLen = data.logs.length;\n"
@@ -5876,7 +5920,7 @@ try:
         "function buildSummaryPills() {\n"
         "  var el = document.getElementById('summaryPills');\n"
         "  if (!el) return;\n"
-        "  // Mapa tipo → {etiqueta, color fondo, color texto}\n"
+        "  // Mapa tipo --> {etiqueta, color fondo, color texto}\n"
         "  var TM = {\n"
         "    'intro_dinamica':   {l:'INTRO',  bg:'#7c6aff',                 fg:'#fff'},\n"
         "    'normal':           {l:'·',      bg:'rgba(255,255,255,.07)',    fg:'rgba(180,180,200,.6)'},\n"
@@ -6141,7 +6185,7 @@ try:
 except Exception:
     pass
 
-# GenTube: el bundle tenía el JS y `applyImagenEngine` pero no el `<div id="imagen-panel-gentube">` → pantalla negra.
+# GenTube: el bundle tenía el JS y `applyImagenEngine` pero no el `<div id="imagen-panel-gentube">` --> pantalla negra.
 try:
     _html = HTML_BYTES.decode("utf-8", errors="replace")
     _vf_gt_flow_anchor = '\n\n  <div id="imagen-panel-flow" style="display:none">'
@@ -6937,7 +6981,7 @@ try:
         "  if (!grokFiles.length) return;\n"
         "  var filesToRun = applyGrokAnimScopeFilter(grokFiles);\n"
         "  if (!filesToRun.length) {\n"
-        "    appendLog('❌ El ámbito y límites elegidos no dejan ninguna imagen. Revisa el multiselector y los máximos por mitad.', 'error');\n"
+        "    appendLog('[ERROR] El ámbito y límites elegidos no dejan ninguna imagen. Revisa el multiselector y los máximos por mitad.', 'error');\n"
         "    return;\n"
         "  }\n"
     )
@@ -7157,7 +7201,7 @@ try:
 except Exception:
     pass
 
-# Hotfix Flow: Imagen4 sin referencia → solo advertencia visual, NO bloquea (modo texto-a-imagen)
+# Hotfix Flow: Imagen4 sin referencia --> solo advertencia visual, NO bloquea (modo texto-a-imagen)
 try:
     _html = HTML_BYTES.decode("utf-8", errors="replace")
     _flow_validate_old = "function flowStart(){"
@@ -7286,7 +7330,7 @@ try:
       fetch('/api/flow/reset-chromium',{method:'POST'})
         .then(function(r){return r.json();})
         .then(function(){
-          _btn.innerHTML='✅ Listo';
+          _btn.innerHTML='[OK] Listo';
           setTimeout(function(){
             _btn.disabled=false;
             _btn.innerHTML='<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">'
@@ -7330,7 +7374,7 @@ try:
               method:'POST',headers:{'Content-Type':'application/json'},
               body:JSON.stringify({idx:idx})
             }).then(function(r){return r.json();})
-              .then(function(){d.textContent='✅';setTimeout(function(){d.disabled=false;d.innerHTML='🗑';},2000);})
+              .then(function(){d.textContent='[OK]';setTimeout(function(){d.disabled=false;d.innerHTML='🗑';},2000);})
               .catch(function(){d.disabled=false;d.innerHTML='🗑';});
           };})(prof.index);
           row.appendChild(d);
@@ -7887,7 +7931,7 @@ def _transcribir_whisperx_runpod(audio_path, language="es"):
 
     print(f"[WhisperX Replicate] Predicción completada.")
 
-    # ── Parsear output → segmentos + all_words ────────────────────────────
+    # ── Parsear output --> segmentos + all_words ────────────────────────────
     _segs_raw = (
         _output.get("segments")
         or (_output.get("results") or {}).get("segments")
@@ -7920,7 +7964,7 @@ def _vf_install_dir():
 
 
 def resolve_openai_api_key():
-    """INLINE → OPENAI_API_KEY (env) → openai_api_key.txt → OPENAI_WHISPER_KEY."""
+    """INLINE --> OPENAI_API_KEY (env) --> openai_api_key.txt --> OPENAI_WHISPER_KEY."""
     k = (OPENAI_API_KEY_INLINE or "").strip()
     if k:
         return k
@@ -7956,7 +8000,7 @@ def index():
     if _user:
         try:
             _now = _time_idx.time()
-            # 1) Caché del HTML completo ya renderizado → respuesta en <1ms
+            # 1) Caché del HTML completo ya renderizado --> respuesta en <1ms
             _hcached = _vf_html_cache.get(_user)
             if _hcached and (_now - _hcached[0]) < _VF_CACHE_TTL:
                 _resp = Response(_hcached[1], mimetype="text/html; charset=utf-8")
@@ -8057,7 +8101,7 @@ def index():
                 _html = HTML_BYTES.decode("utf-8", errors="replace")
                 _html = _html.replace("</head>", _tag + "\n</head>", 1)
                 _html_bytes = _html.encode("utf-8")
-                # Guardar HTML renderizado en caché → próximas requests son <1ms
+                # Guardar HTML renderizado en caché --> próximas requests son <1ms
                 _vf_html_cache[_user] = (_now, _html_bytes)
                 print(f"[VF] _VF_PROFILE inyectado: {_user} plan={_pkey}", flush=True)
                 _resp = Response(_html_bytes, mimetype="text/html; charset=utf-8")
@@ -8812,11 +8856,11 @@ def _vf_final_mux_aligned(concat_out, audio_path_mix, video_final, duracion_tota
     if v_dur + eps < dt:
         gap = dt - v_dur
         v_parts.append(f"tpad=stop_mode=clone:stop_duration={gap:.6f}")
-        _lg(f"🎵 Mux final: vídeo {v_dur:.2f}s < objetivo {dt:.2f}s → tpad +{gap:.2f}s")
+        _lg(f"🎵 Mux final: vídeo {v_dur:.2f}s < objetivo {dt:.2f}s --> tpad +{gap:.2f}s")
     elif v_dur - eps > dt:
         v_parts.append(f"trim=duration={dt:.6f}")
         v_parts.append("setpts=PTS-STARTPTS")
-        _lg(f"🎵 Mux final: vídeo {v_dur:.2f}s > objetivo {dt:.2f}s → trim")
+        _lg(f"🎵 Mux final: vídeo {v_dur:.2f}s > objetivo {dt:.2f}s --> trim")
     vf = ",".join(v_parts)
     fc = f"[0:v]{vf}[vout];[1:a]{af}[aout]"
     _lg("🎵 Mux final: re-encode de vídeo para alinear duración (libx264 ultrafast por defecto)")
@@ -8835,7 +8879,7 @@ def _vf_final_mux_aligned(concat_out, audio_path_mix, video_final, duracion_tota
     if res.returncode != 0:
         err = (res.stderr or res.stdout or "")[-1400:]
         _lg(
-            "⚠️ Mux final: falló el encoder elegido (p. ej. NVENC sin GPU/driver); "
+            "[WARNING] Mux final: falló el encoder elegido (p. ej. NVENC sin GPU/driver); "
             "reintentando con libx264 (CPU)..."
         )
         res = _run_mux("fallback", _vf_libx264_encode_args_only())
@@ -8963,7 +9007,7 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
                         _all_words.append({"word": _w.word, "start": float(_w.start), "end": float(_w.end)})
             segmentos = _split_api_segmentos(_all_words, _tr.segments)
             _pv_all_words = _all_words
-            log(f"✓ {len(_all_words)} words → {len(segmentos)} sub-segmentos (API)", 30)
+            log(f"✓ {len(_all_words)} words --> {len(segmentos)} sub-segmentos (API)", 30)
         elif whisper_backend == "faster":
             log(f"⚡ Transcribiendo con faster-whisper ({modelo})...", 22)
             from faster_whisper import WhisperModel as _FWM
@@ -9000,11 +9044,11 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
                                      "end": float(w.get("end", w["start"]))}
                                     for w in (s.get("words") or []) if w.get("start") is not None]}
                          for s in _wxl_aligned["segments"]]
-            log(f"✓ {len(_pv_all_words)} words alineadas → {len(segmentos)} segmentos (WhisperX local)", 30)
+            log(f"✓ {len(_pv_all_words)} words alineadas --> {len(segmentos)} segmentos (WhisperX local)", 30)
         elif whisper_backend == "whisperx":
             log("🎯 Transcribiendo con WhisperX Replicate (alineación forzada)...", 22)
             segmentos, _pv_all_words = _transcribir_whisperx_runpod(audio_path, language=None)
-            log(f"✓ {len(_pv_all_words)} words alineadas → {len(segmentos)} segmentos (WhisperX RunPod)", 30)
+            log(f"✓ {len(_pv_all_words)} words alineadas --> {len(segmentos)} segmentos (WhisperX RunPod)", 30)
         else:
             log(f"🎤 Transcribiendo con Whisper ({modelo})...", 22)
             import whisper as _wh
@@ -9022,19 +9066,19 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
             _pv_last_ok   = max((_t["fin"] for _t in timestamps if _t.get("score", 0) > 0), default=0.0)
             if (_pv_unmatched / max(1, len(timestamps)) > 0.40
                     and _pv_last_ok > duracion_total * 0.85):
-                log(f"⚠️ Word-level anómalo ({_pv_unmatched}/{len(timestamps)} sin match) "
-                    f"→ segment-level fallback", 33)
+                log(f"[WARNING] Word-level anómalo ({_pv_unmatched}/{len(timestamps)} sin match) "
+                    f"--> segment-level fallback", 33)
                 timestamps = asignar_timestamps(escenas, segmentos, duracion_total)
-                log("  → modo segment-level fallback (pronunciación distinta al guión)", 33)
+                log("  --> modo segment-level fallback (pronunciación distinta al guión)", 33)
             else:
-                log("  → modo word-level / alineación forzada (máxima precisión)", 33)
+                log("  --> modo word-level / alineación forzada (máxima precisión)", 33)
         else:
             timestamps = asignar_timestamps(escenas, segmentos, duracion_total)
-            log("  → modo segment-level", 33)
+            log("  --> modo segment-level", 33)
         log(f"✓ {len(timestamps)} timestamps listos", 35)
         log("📋 Timestamps por escena:")
         for _i, _ts in enumerate(timestamps):
-            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s → {_ts['fin']:.2f}s  dur={_ts['duracion']:.3f}s  score={_ts.get('score',0):.2f}  seg={_ts.get('seg_idx','?')}")
+            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s --> {_ts['fin']:.2f}s  dur={_ts['duracion']:.3f}s  score={_ts.get('score',0):.2f}  seg={_ts.get('seg_idx','?')}")
 
         log("🚀 Codificando archivos para Modal...", 40)
         with open(audio_path, "rb") as f:
@@ -9056,7 +9100,7 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
             batch_audio_b64 = audio_b64
 
         extra = trans_dur if transicion != "none" else 0.0
-        # Mapa escena→imagen por nombre de archivo — evita desplazamiento cuando
+        # Mapa escena-->imagen por nombre de archivo — evita desplazamiento cuando
         # Whisk falla en alguna imagen (img_00003 faltante no corre las demás)
         _pv_img_by_scene = {}
         for _ip in imagenes:
@@ -9130,7 +9174,7 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
                 try:
                     resp = requests.post(MODAL_URL, json=batch_payload, timeout=900)
                     if resp.status_code in (500, 502, 503, 504) and _attempt < 3:
-                        log(f"  ⚠️ Batch {b_idx+1}: error {resp.status_code}, reintento {_attempt+1}/3...")
+                        log(f"  [WARNING] Batch {b_idx+1}: error {resp.status_code}, reintento {_attempt+1}/3...")
                         time.sleep(10 * (_attempt + 1))
                         continue
                     resp.raise_for_status()
@@ -9145,7 +9189,7 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
                 except Exception as _e:
                     last_err = _e
                     if _attempt < 3:
-                        log(f"  ⚠️ Batch {b_idx+1}: {_e}, reintento {_attempt+1}/3...")
+                        log(f"  [WARNING] Batch {b_idx+1}: {_e}, reintento {_attempt+1}/3...")
                         time.sleep(10 * (_attempt + 1))
             if last_err:
                 raise Exception(f"Batch {b_idx+1} falló tras 4 intentos: {last_err}")
@@ -9221,7 +9265,7 @@ def procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir,
         _vf_final_mux_aligned(video_concat, audio_path, video_final, duracion_total, log=log)
 
         size_mb = os.path.getsize(video_final) / (1024*1024)
-        log(f"✅ Video listo — {size_mb:.1f} MB", 100)
+        log(f"[OK] Video listo — {size_mb:.1f} MB", 100)
         jobs[job_id].update({
             "estado": "completado",
             "video_url": f"/api/descargar/{job_id}",
@@ -9344,7 +9388,7 @@ def _sync_grok_multi_into_app_animator_folder():
                 shutil.copy2(str(src), str(_GROK_V4))
         except Exception as _ge:
             print(
-                f"[Studio IVR] No se pudo sincronizar grok_multi → grok-animator2.0: {_ge}",
+                f"[Studio IVR] No se pudo sincronizar grok_multi --> grok-animator2.0: {_ge}",
                 file=sys.stderr,
             )
 
@@ -9472,7 +9516,7 @@ def _watch_and_copy():
     # Snapshot existing files BEFORE the job starts — never copy these
     grok_dl.mkdir(parents=True, exist_ok=True)
     pre_existing = set(f.name for f in grok_dl.glob("*.mp4"))
-    seen = set(pre_existing)  # treat pre-existing as already seen → skip them
+    seen = set(pre_existing)  # treat pre-existing as already seen --> skip them
     while not grok_state["finished"] or (grok_state["proc"] and grok_state["proc"].poll() is None):
         try:
             for f in grok_dl.glob("*.mp4"):
@@ -9655,7 +9699,7 @@ def grok_login_cuenta():
                         elif smf.exists():
                             smf.unlink()
                         grok_state["log_lines"].append(
-                            f"  ✅ [{folder_name}] Sesión guardada "
+                            f"  [OK] [{folder_name}] Sesión guardada "
                             f"(sso={ck_dict['sso'][:12]}… | {len(cookies)} cookies"
                             f"{' | session_meta OK' if session_meta_capture else ''})."
                         )
@@ -9670,13 +9714,13 @@ def grok_login_cuenta():
                     try: ctx.close()
                     except Exception: pass
                     grok_state["log_lines"].append(
-                        f"  ⚠️  [{folder_name}] Browser cerrado sin guardar sesión "
+                        f"  [WARNING]  [{folder_name}] Browser cerrado sin guardar sesión "
                         f"(cookie 'sso' no detectada)."
                     )
         except ImportError:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Playwright no instalado.")
+            grok_state["log_lines"].append(f"  [ERROR] [{folder_name}] Playwright no instalado.")
         except Exception as e:
-            grok_state["log_lines"].append(f"  ❌ [{folder_name}] Error: {e}")
+            grok_state["log_lines"].append(f"  [ERROR] [{folder_name}] Error: {e}")
         finally:
             # Limpiar perfil temporal siempre, incluso si hubo error
             try:
@@ -10487,7 +10531,7 @@ def qwen_login_cuenta():
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
-            _qwen_log(f"❌ [{folder.name}] Playwright no instalado.")
+            _qwen_log(f"[ERROR] [{folder.name}] Playwright no instalado.")
             return
         import glob as _glob
         import tempfile as _tf
@@ -10626,7 +10670,7 @@ def qwen_login_cuenta():
                                     json.dumps(session_meta_capture, indent=2),
                                     encoding="utf-8",
                                 )
-                            _qwen_log(f"✅ [{folder.name}] Sesion guardada (token + {ccount} cookies).")
+                            _qwen_log(f"[OK] [{folder.name}] Sesion guardada (token + {ccount} cookies).")
                             saved = True
                             break
                         elif tk != last_invalid_token:
@@ -10653,7 +10697,7 @@ def qwen_login_cuenta():
                                         json.dumps(session_meta_capture, indent=2),
                                         encoding="utf-8",
                                     )
-                                _qwen_log(f"✅ [{folder.name}] Sesion guardada al cierre (token + cookies).")
+                                _qwen_log(f"[OK] [{folder.name}] Sesion guardada al cierre (token + cookies).")
                                 saved = True
                     except Exception:
                         pass
@@ -10662,9 +10706,9 @@ def qwen_login_cuenta():
                 except Exception:
                     pass
                 if not saved:
-                    _qwen_log(f"⚠️ [{folder.name}] Browser cerrado sin token valido. Cookies guardadas si estuvieron disponibles.")
+                    _qwen_log(f"[WARNING] [{folder.name}] Browser cerrado sin token valido. Cookies guardadas si estuvieron disponibles.")
         except Exception as e:
-            _qwen_log(f"❌ [{folder.name}] Error: {e}")
+            _qwen_log(f"[ERROR] [{folder.name}] Error: {e}")
         finally:
             try:
                 if FPath(tmp_profile).exists():
@@ -10702,13 +10746,13 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
         vid_dir.mkdir(parents=True, exist_ok=True)
         imgs = [p for p in sorted(img_dir.iterdir()) if p.is_file() and p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}]
         if not imgs:
-            _qwen_log("❌ No hay imagenes para animar.")
+            _qwen_log("[ERROR] No hay imagenes para animar.")
             qwen_state["finished"] = True
             qwen_state["running"] = False
             return
         tokens = _qwen_tokens_for_run()
         if not tokens:
-            _qwen_log("❌ No hay cuentas Qwen activas. Inicia sesion primero en Cuentas.")
+            _qwen_log("[ERROR] No hay cuentas Qwen activas. Inicia sesion primero en Cuentas.")
             qwen_state["finished"] = True
             qwen_state["running"] = False
             return
@@ -10721,7 +10765,7 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
         submit_delay = 0.35 if maxw > 1 else 0.0
         _qwen_log(
             f"🚀 Iniciando lote Qwen: {len(imgs)} imagen(es), {n_accounts} cuenta(s), "
-            f"slots={req_slots} → efectivos={maxw}, delay={submit_delay:.1f}s"
+            f"slots={req_slots} --> efectivos={maxw}, delay={submit_delay:.1f}s"
         )
         _qwen_log(f"🌐 Transporte HTTP: {'curl_cffi(chromium impersonation)' if _QWEN_HAS_CURL_CFFI else 'requests estándar'}")
 
@@ -10763,7 +10807,7 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
                     )
                     with done_lock:
                         done["n"] += 1
-                    _qwen_log(f"[{account_name}] ✅ {out_name} ({done['n']}/{len(imgs)})")
+                    _qwen_log(f"[{account_name}] [OK] {out_name} ({done['n']}/{len(imgs)})")
                     return
                 except Exception as e:
                     err = str(e)
@@ -10774,7 +10818,7 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
                         continue
                     with done_lock:
                         done["n"] += 1
-                    _qwen_log(f"[{account_name}] ❌ {out_name}: {err}")
+                    _qwen_log(f"[{account_name}] [ERROR] {out_name}: {err}")
                     return
 
         with _QTP(max_workers=maxw) as ex:
@@ -10787,7 +10831,7 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
                 try:
                     f.result()
                 except Exception as e:
-                    _qwen_log(f"⚠️ Worker error: {e}")
+                    _qwen_log(f"[WARNING] Worker error: {e}")
 
         qwen_state["finished"] = True
         qwen_state["running"] = False
@@ -10795,7 +10839,7 @@ def _qwen_batch_worker(proj_dir: FPath, prompt: str, size: str, slots: int, time
     except Exception as e:
         qwen_state["finished"] = True
         qwen_state["running"] = False
-        _qwen_log(f"❌ Error batch Qwen: {e}")
+        _qwen_log(f"[ERROR] Error batch Qwen: {e}")
 
 
 @app.route("/api/qwen/iniciar", methods=["POST"])
@@ -10902,9 +10946,9 @@ def qwen_regenerar():
         try:
             _qwen_log(f"[{account_name}] ▶️ Regen {img_stem}.mp4")
             _qwen_generate_one(token, str(matches[0]), prompt, size, str(proj_dir / "video" / f"{img_stem}.mp4"), timeout_sec=900)
-            _qwen_log(f"[{account_name}] ✅ Regen completado: {img_stem}.mp4")
+            _qwen_log(f"[{account_name}] [OK] Regen completado: {img_stem}.mp4")
         except Exception as e:
-            _qwen_log(f"[{account_name}] ❌ Regen error: {e}")
+            _qwen_log(f"[{account_name}] [ERROR] Regen error: {e}")
         qwen_state["running"] = False
         qwen_state["finished"] = True
 
@@ -11096,7 +11140,7 @@ def _win_collect_descendant_pids(pid: int) -> set:
         except _psu.NoSuchProcess:
             pass
     except Exception as e:
-        _meta_log(f"  ⚠️ [focus] no se pudo enumerar hijos de PID {pid} con psutil: {e}")
+        _meta_log(f"  [WARNING] [focus] no se pudo enumerar hijos de PID {pid} con psutil: {e}")
         # Fallback best-effort si psutil no estuviera disponible por algún motivo.
         try:
             out = subprocess.run(
@@ -11136,7 +11180,7 @@ def _win_bring_pid_to_front(pid: int) -> bool:
 
         user32.EnumWindows(_enum_cb, 0)
         if not found:
-            _meta_log(f"  ⚠️ [focus] ninguna ventana visible coincide con PID {pid} ni sus {len(target_pids) - 1} hijo(s) — no se robó el foco esta vez")
+            _meta_log(f"  [WARNING] [focus] ninguna ventana visible coincide con PID {pid} ni sus {len(target_pids) - 1} hijo(s) — no se robó el foco esta vez")
             return False
         hwnd = found[0]
 
@@ -11154,10 +11198,10 @@ def _win_bring_pid_to_front(pid: int) -> bool:
         if ok:
             _meta_log(f"  🪟 [focus] ventana de Chrome (PID {pid}) puesta en primer plano")
         else:
-            _meta_log(f"  ⚠️ [focus] SetForegroundWindow devolvió False para PID {pid}")
+            _meta_log(f"  [WARNING] [focus] SetForegroundWindow devolvió False para PID {pid}")
         return ok
     except Exception as e:
-        _meta_log(f"  ⚠️ [focus] excepción robando el foco (PID {pid}): {e}")
+        _meta_log(f"  [WARNING] [focus] excepción robando el foco (PID {pid}): {e}")
         return False
 
 
@@ -11198,7 +11242,7 @@ def _meta_focus_loop():
                             break
         except Exception as e:
             try:
-                _meta_log(f"  ⚠️ [focus] excepción en _meta_focus_loop: {e}")
+                _meta_log(f"  [WARNING] [focus] excepción en _meta_focus_loop: {e}")
             except Exception:
                 pass
         time.sleep(3)
@@ -11288,10 +11332,10 @@ def _meta_tokens_for_run():
 # ── Meta AI HTTP-direct helpers ───────────────────────────────────────
 #
 # Strategy: "learn once, HTTP forever"
-#   • First image per account slot → Playwright (headless) with request
+#   • First image per account slot --> Playwright (headless) with request
 #     interception to capture the OAuth token + generation doc_id.
 #     Captured state is persisted to meta_accounts/<acct>/api_state.json.
-#   • All subsequent images → pure requests.Session, NO browser.
+#   • All subsequent images --> pure requests.Session, NO browser.
 #     This eliminates Chromium entirely for the vast majority of images.
 #
 # Known Meta AI API endpoints:
@@ -11305,7 +11349,7 @@ META_UPLOAD_BASE  = "https://rupload.meta.ai/gen_ai_document_gen_ai_tenant"
 
 # Known doc_ids (Relay persisted query hashes)
 _META_DOC_WARMUP  = "e7f802582dbfed8e181b012e010993eb"   # warmupConversation
-_META_DOC_MODE    = "c32bbe999c48e64e855dc63177d5153f"   # updateConversationMode → mode=create
+_META_DOC_MODE    = "c32bbe999c48e64e855dc63177d5153f"   # updateConversationMode --> mode=create
 _META_DOC_CARD    = "344570a4b8110dd9848829731d35c74a"   # fetchVideoCard
 
 _META_UA = (
@@ -11313,7 +11357,7 @@ _META_UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
-_META_GQL_ACCEPT = "*/*"   # application/json → HTTP 406; Meta solo acepta */*
+_META_GQL_ACCEPT = "*/*"   # application/json --> HTTP 406; Meta solo acepta */*
 
 
 def _meta_api_state_path(acct_folder: FPath) -> FPath:
@@ -11453,7 +11497,7 @@ def _meta_generate_http(
     if lsd:
         _meta_log(f"  [S{slot_id}] 🔑 LSD={lsd[:8]}…")
     else:
-        _meta_log(f"  [S{slot_id}] ⚠️ LSD no encontrado — sesión expirada o rate-limit")
+        _meta_log(f"  [S{slot_id}] [WARNING] LSD no encontrado — sesión expirada o rate-limit")
 
     gql_h = _meta_gql_headers(cookie_dict, lsd)
 
@@ -11513,9 +11557,9 @@ def _meta_generate_http(
                 except (ValueError, TypeError):
                     if raw_txt and not raw_txt.startswith("{") and len(raw_txt) < 80:
                         doc_ref = raw_txt          # e.g. "abc123handle"
-            _meta_log(f"  [S{slot_id}] 📎 HTTP upload OK → ref={str(doc_ref)[:40]}")
+            _meta_log(f"  [S{slot_id}] 📎 HTTP upload OK --> ref={str(doc_ref)[:40]}")
         except Exception as e:
-            _meta_log(f"  [S{slot_id}] ⚠️ Upload falló: {e} — continuando sin imagen")
+            _meta_log(f"  [S{slot_id}] [WARNING] Upload falló: {e} — continuando sin imagen")
             doc_ref = None
 
     # 4) Trigger generation using intercepted doc_id + variables template
@@ -11558,20 +11602,20 @@ def _meta_generate_http(
             else:
                 send_msg_tpl_obj = send_msg_tpl_raw
             sm_vars = _patch_vars(send_msg_tpl_obj, prompt, conv_id, doc_ref, msg_id)
-            _meta_log(f"  [S{slot_id}] 📤 sendMessage → conv={conv_id[:8]}… vars={_json_dbg.dumps(sm_vars)[:200]}")
+            _meta_log(f"  [S{slot_id}] 📤 sendMessage --> conv={conv_id[:8]}… vars={_json_dbg.dumps(sm_vars)[:200]}")
             r_sm = sess.post(META_GQL, headers=gql_h,
                              json={"doc_id": _META_DOC_SEND_MSG, "variables": sm_vars},
                              timeout=30)
             if r_sm.ok:
-                _meta_log(f"  [S{slot_id}] ✅ sendMessage OK (HTTP {r_sm.status_code})")
+                _meta_log(f"  [S{slot_id}] [OK] sendMessage OK (HTTP {r_sm.status_code})")
             else:
-                _meta_log(f"  [S{slot_id}] ⚠️ sendMessage HTTP {r_sm.status_code} — continuando")
+                _meta_log(f"  [S{slot_id}] [WARNING] sendMessage HTTP {r_sm.status_code} — continuando")
         except Exception as _sme:
-            _meta_log(f"  [S{slot_id}] ⚠️ sendMessage falló: {_sme} — continuando sin prompt")
+            _meta_log(f"  [S{slot_id}] [WARNING] sendMessage falló: {_sme} — continuando sin prompt")
     else:
-        _meta_log(f"  [S{slot_id}] ⚠️ send_msg_tpl no disponible — generando sin prompt de texto")
+        _meta_log(f"  [S{slot_id}] [WARNING] send_msg_tpl no disponible — generando sin prompt de texto")
 
-    # 5) Gen mutation → SSE stream (con retry si la conexión cae con IN_PROGRESS)
+    # 5) Gen mutation --> SSE stream (con retry si la conexión cae con IN_PROGRESS)
     card_id = None
     video_url_direct = None
     gen_attempt      = 0
@@ -11596,13 +11640,13 @@ def _meta_generate_http(
                             break
                 except Exception:
                     pass
-                _meta_log(f"  [S{slot_id}] ⚠️ gen HTTP {r.status_code}: {err_txt[:300]}")
+                _meta_log(f"  [S{slot_id}] [WARNING] gen HTTP {r.status_code}: {err_txt[:300]}")
                 result["error"] = f"HTTP {r.status_code}: {err_txt[:200]}"
                 return result
 
             # La respuesta es un stream SSE con batchedGenerationStatusStream.
             # Leer chunks hasta encontrar generatedVideo.url (puede tardar minutos).
-            # Si la conexión cae con IN_PROGRESS → la gen sigue en el backend → reintentar.
+            # Si la conexión cae con IN_PROGRESS --> la gen sigue en el backend --> reintentar.
             buf         = ""
             had_progress = False
             _last_log   = _t.time()
@@ -11661,12 +11705,12 @@ def _meta_generate_http(
                         fb_m = _re.search(r'https?://video-[^\s"\'].*?fbcdn\.net[^\s"\']*', buf)
                         if fb_m:
                             video_url_direct = fb_m.group(0).replace("\\/", "/")
-                            _meta_log(f"  [S{slot_id}] ✅ URL fallback CDN: {video_url_direct[:80]}")
+                            _meta_log(f"  [S{slot_id}] [OK] URL fallback CDN: {video_url_direct[:80]}")
                             break
 
                     # Error explícito
                     if '"status":"ERROR"' in buf or '"status":"FAILED"' in buf:
-                        _meta_log(f"  [S{slot_id}] ❌ Generación ERROR en stream")
+                        _meta_log(f"  [S{slot_id}] [ERROR] Generación ERROR en stream")
                         result["error"] = "ERROR de generación (stream)"
                         return result
 
@@ -11675,7 +11719,7 @@ def _meta_generate_http(
                         _last_log = _t.time()
                         _meta_log(f"  [S{slot_id}] ⏳ stream activo {len(buf)}B… último: {buf[-100:]!r}")
             except Exception as _se:
-                _meta_log(f"  [S{slot_id}] ⚠️ Stream read error (intento {gen_attempt}): {_se}")
+                _meta_log(f"  [S{slot_id}] [WARNING] Stream read error (intento {gen_attempt}): {_se}")
             finally:
                 try:
                     r.close()
@@ -11695,7 +11739,7 @@ def _meta_generate_http(
             # La URL NUNCA llega vía SSE — hay que polling fetchConversation (4fd…).
             # Esto es exactamente lo que hace el frontend oficial de Meta.ai.
             if 'event: complete' in buf and _t.time() < deadline_ts:
-                _meta_log(f"  [S{slot_id}] 📌 SSE event:complete → polling fetchConversation (conv={conv_id[:8]}…)")
+                _meta_log(f"  [S{slot_id}] 📌 SSE event:complete --> polling fetchConversation (conv={conv_id[:8]}…)")
                 _DOC_FETCH_CONV = '4fd795143fc5b90fc1fc3ca716bdbb86'
                 poll_interval = 10
                 poll_count    = 0
@@ -11748,12 +11792,12 @@ def _meta_generate_http(
                             if fc_fbm:
                                 fc_url = fc_fbm.group(0).replace("\\/", "/")
                         if fc_url:
-                            _meta_log(f"  [S{slot_id}] ✅ URL via fetchConversation poll #{poll_count}: {fc_url[:80]}")
+                            _meta_log(f"  [S{slot_id}] [OK] URL via fetchConversation poll #{poll_count}: {fc_url[:80]}")
                             video_url_direct = fc_url
                             break
                         _meta_log(f"  [S{slot_id}] ⏳ fetchConv poll #{poll_count}/{MAX_POLLS} — sin URL. últimos 200B: {fc_txt[-200:]!r}")
                     except Exception as fc_e:
-                        _meta_log(f"  [S{slot_id}] ⚠️ fetchConv poll #{poll_count} error: {fc_e}")
+                        _meta_log(f"  [S{slot_id}] [WARNING] fetchConv poll #{poll_count} error: {fc_e}")
                 if video_url_direct:
                     break
                 result["error"] = f"Timeout fetchConversation ({poll_count} polls) — sin URL"
@@ -11765,7 +11809,7 @@ def _meta_generate_http(
                 # La generación sigue corriendo en el backend (vimos IN_PROGRESS).
                 # Esperar y reintentar la suscripción SSE.
                 retry_wait = min(3 + gen_attempt * 2, 20)
-                _meta_log(f"  [S{slot_id}] 🔄 Stream caído sin event:complete → reintentando gen en {retry_wait}s…")
+                _meta_log(f"  [S{slot_id}] 🔄 Stream caído sin event:complete --> reintentando gen en {retry_wait}s…")
                 _t.sleep(retry_wait)
             else:
                 # No había progreso (sin sendMessage?) o agotamos reintentos
@@ -11773,11 +11817,11 @@ def _meta_generate_http(
                 return result
 
         except Exception as e:
-            _meta_log(f"  [S{slot_id}] ⚠️ Gen trigger error (intento {gen_attempt}): {e}")
+            _meta_log(f"  [S{slot_id}] [WARNING] Gen trigger error (intento {gen_attempt}): {e}")
             result["error"] = f"Gen trigger falló: {e}"
             return result
 
-    _meta_log(f"  [S{slot_id}] 🚀 HTTP gen → videoUrl={str(video_url_direct)[:60] or 'no encontrado'} "
+    _meta_log(f"  [S{slot_id}] 🚀 HTTP gen --> videoUrl={str(video_url_direct)[:60] or 'no encontrado'} "
               f"(intentos={gen_attempt} buf={len(buf)}B)")
     if not video_url_direct:
         _meta_log(f"  [S{slot_id}] 📄 Últimos 400B del stream: {buf[-400:]!r}")
@@ -11795,10 +11839,10 @@ def _meta_generate_http(
                     _f.write(_chunk)
             result["url"]   = video_url_direct
             result["saved"] = True
-            _meta_log(f"  [S{slot_id}] ✅ Video descargado directamente del stream SSE")
+            _meta_log(f"  [S{slot_id}] [OK] Video descargado directamente del stream SSE")
             return result
         except Exception as _de:
-            _meta_log(f"  [S{slot_id}] ⚠️ Descarga directa falló: {_de}")
+            _meta_log(f"  [S{slot_id}] [WARNING] Descarga directa falló: {_de}")
 
     # Si hay URL pero no out_path (o descarga falló), retornar la URL sin descargar
     if video_url_direct:
@@ -11897,7 +11941,7 @@ def _meta_generate_playwright_intercept(
             if _submitted[0] and method == "POST" and post_data:
                 host = url.split("/")[2].lower() if url.startswith("http") else ""
                 if "meta.ai" in host or "facebook.com" in host:
-                    entry = f"{url[:70]} → {post_data[:120]}"
+                    entry = f"{url[:70]} --> {post_data[:120]}"
                     if entry not in _all_post_log:
                         _all_post_log.append(entry)
                         _meta_log(f"  [S{slot_id}] 📤 {entry[:140]}")
@@ -11932,7 +11976,7 @@ def _meta_generate_playwright_intercept(
             try:
                 ctx.add_cookies(cookie_list)
             except Exception as e:
-                _meta_log(f"  [S{slot_id}] ⚠️ Cookies: {e}")
+                _meta_log(f"  [S{slot_id}] [WARNING] Cookies: {e}")
 
         page = ctx.new_page()
         page.on("request",  _on_request)
@@ -11943,7 +11987,7 @@ def _meta_generate_playwright_intercept(
             page.goto(f"{META_BASE}/create", timeout=30000, wait_until="domcontentloaded")
             _t.sleep(1.5)
         except Exception as e:
-            _meta_log(f"  [S{slot_id}] ⚠️ Carga: {e}")
+            _meta_log(f"  [S{slot_id}] [WARNING] Carga: {e}")
 
         # Adjuntar imagen
         if image_path and FPath(image_path).is_file():
@@ -11966,9 +12010,9 @@ def _meta_generate_playwright_intercept(
                     _t.sleep(0.7)
                     _meta_log(f"  [S{slot_id}] 📎 {FPath(image_path).name}")
                 else:
-                    _meta_log(f"  [S{slot_id}] ⚠️ Sin input archivo.")
+                    _meta_log(f"  [S{slot_id}] [WARNING] Sin input archivo.")
             except Exception as e:
-                _meta_log(f"  [S{slot_id}] ⚠️ Adjuntar: {e}")
+                _meta_log(f"  [S{slot_id}] [WARNING] Adjuntar: {e}")
 
         # Escribir prompt
         typed = False
@@ -12069,7 +12113,7 @@ def _meta_generate_playwright_intercept(
                     if chunk:
                         fh.write(chunk)
             result["saved"] = True
-            _meta_log(f"  [S{slot_id}] ✅ {FPath(out_path).name}")
+            _meta_log(f"  [S{slot_id}] [OK] {FPath(out_path).name}")
         except Exception as e:
             result["error"] = f"Error descarga: {e}"
 
@@ -12234,7 +12278,7 @@ def _meta_verify_batch_fix(images_meta: list, vid_dir: FPath):
                 vp.rename(correct_path)
                 _meta_log(f"  🔧 [verificador] {stem}.mp4 no coincidía con su imagen — reasignado a {correct_stem}.mp4 (dist={d})")
             except Exception as _e:
-                _meta_log(f"  ⚠️ [verificador] no se pudo reasignar {stem}.mp4 → {correct_stem}.mp4: {_e}")
+                _meta_log(f"  [WARNING] [verificador] no se pudo reasignar {stem}.mp4 --> {correct_stem}.mp4: {_e}")
 
         # Videos que NO ganaron ninguna asignación en el pase greedy — se
         # descartan SOLO si además tampoco coinciden ni remotamente con su
@@ -12259,7 +12303,7 @@ def _meta_verify_batch_fix(images_meta: list, vid_dir: FPath):
                     pass
     except Exception as _e:
         try:
-            _meta_log(f"  ⚠️ [verificador] excepción en pase de verificación: {_e}")
+            _meta_log(f"  [WARNING] [verificador] excepción en pase de verificación: {_e}")
         except Exception:
             pass
 
@@ -12268,7 +12312,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
     """
     Chromium-only batch via extensión DOM.
       1. Verifica si hay tabs Chromium registradas en Flask.
-      2. Si no hay → auto-lanza Chromium con la extensión cargada.
+      2. Si no hay --> auto-lanza Chromium con la extensión cargada.
       3. Espera hasta 60 s a que al menos una tab se registre.
       4. Despacha los trabajos via _meta_ext_queue (DOM, NO HTTP).
     """
@@ -12310,10 +12354,10 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
     global _meta_desired_slots, _meta_batch_id
     # v6.12/v6.13 BATCH mode: el bridge pide `slots` jobs por poll y los manda
     # como META_BATCH_REQUEST (N imágenes en 1 solo mensaje).
-    # meta.ai genera los N videos SIMULTÁNEAMENTE en el backend → ultra rapido.
+    # meta.ai genera los N videos SIMULTÁNEAMENTE en el backend --> ultra rapido.
     # NO hacen falta tabs múltiples; 1 sola tab, 1 sola ventana por cuenta.
     _meta_desired_slots = max(1, slots)
-    _meta_batch_id = int(time.time())   # nuevo lote → bridge detecta cambio → META_RESET en meta_main.js
+    _meta_batch_id = int(time.time())   # nuevo lote --> bridge detecta cambio --> META_RESET en meta_main.js
 
     ext_accounts = _meta_ext_connected()
     import subprocess as _sp, json as _jj, tempfile as _tftf
@@ -12334,7 +12378,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
         if cancel_ev and cancel_ev.is_set(): break
         ext_accounts = _meta_ext_connected()
         if len(ext_accounts) >= _expected_accts:
-            _meta_log(f"  ✅ {len(ext_accounts)} tab(s) ya activas (en {int((time.time()-_pre_start)*1000)}ms)")
+            _meta_log(f"  [OK] {len(ext_accounts)} tab(s) ya activas (en {int((time.time()-_pre_start)*1000)}ms)")
             break
         time.sleep(0.1)
 
@@ -12417,7 +12461,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
                 if _chrome_type_for_profile(str(_accts_dir / t[0] / "chromium_profile")) == 'playwright'
             ]
             if not still_pw:
-                _meta_log(f"  ✅ Login finalizado en {int(time.time()-_pw_wait)}s")
+                _meta_log(f"  [OK] Login finalizado en {int(time.time()-_pw_wait)}s")
                 time.sleep(2)
                 break
             ext_accounts = _meta_ext_connected()
@@ -12439,7 +12483,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
     # Chromium a mano cada vez. Con esto, ni se busca el manifest ni se
     # lanza nada si ya hay cuentas conectadas.
     if len(ext_accounts) >= _expected_accts:
-        _meta_log(f"  ✅ Extensión ya conectada con {len(ext_accounts)} cuenta(s) — se usa eso, no se busca ni se lanza Chromium")
+        _meta_log(f"  [OK] Extensión ya conectada con {len(ext_accounts)} cuenta(s) — se usa eso, no se busca ni se lanza Chromium")
         _already_running = list(_accounts_valid)
         _need_launch = []
     else:
@@ -12459,11 +12503,11 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
             if cancel_ev and cancel_ev.is_set(): break
             ext_accounts = _meta_ext_connected()
             if len(ext_accounts) >= len(_already_running):
-                _meta_log(f"  ✅ {len(ext_accounts)} tab(s) en {int((time.time()-_pre2)*1000)}ms")
+                _meta_log(f"  [OK] {len(ext_accounts)} tab(s) en {int((time.time()-_pre2)*1000)}ms")
                 break
             time.sleep(0.15)
         if not ext_accounts:
-            _meta_log("  ⚠️  Chrome está corriendo pero la extensión no responde.")
+            _meta_log("  [WARNING]  Chrome está corriendo pero la extensión no responde.")
 
     # ── PASO 4: Lanzar Chromium para los perfiles sin Chrome ─────────────
     if _need_launch:
@@ -12538,9 +12582,9 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
                 _meta_launched_procs[_profile_dir] = _proc
                 _launched += 1
 
-            _meta_log(f"  ✅ {_launched} ventana(s) lanzadas | ext: {_ext_dir}")
+            _meta_log(f"  [OK] {_launched} ventana(s) lanzadas | ext: {_ext_dir}")
         except Exception as _le:
-            _meta_log(f"  ❌ Error al lanzar Chromium: {_le}")
+            _meta_log(f"  [ERROR] Error al lanzar Chromium: {_le}")
 
     # ── Esperar registro final ────────────────────────────────────────────────
     # Esperamos al menos 1 tab por cuenta — las demás tabs del mismo slot
@@ -12555,10 +12599,10 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
             ext_accounts = _meta_ext_connected()
             # Proceed as soon as we have all expected tabs, OR at least 1 create-ready tab
             if len(ext_accounts) >= _min_needed:
-                _meta_log(f"  ✅ {len(ext_accounts)} ventana(s) listas en {int(time.time()-_wait_start)}s")
+                _meta_log(f"  [OK] {len(ext_accounts)} ventana(s) listas en {int(time.time()-_wait_start)}s")
                 break
             if ext_accounts and _meta_ext_create_tabs():
-                _meta_log(f"  ✅ {len(ext_accounts)}/{_min_needed} ventana(s) en meta.ai — procediendo (la segunda cuenta no conectó)")
+                _meta_log(f"  [OK] {len(ext_accounts)}/{_min_needed} ventana(s) en meta.ai — procediendo (la segunda cuenta no conectó)")
                 break
             elapsed = int(time.time() - _wait_start)
             if elapsed % 15 == 0 and elapsed > 0:
@@ -12570,7 +12614,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
 
         if not ext_accounts:
             _meta_log(
-                "❌ Ninguna tab Chromium se registró en 4 min.\n"
+                "[ERROR] Ninguna tab Chromium se registró en 4 min.\n"
                 "   • Verifica que la ventana Chromium esté en meta.ai/create\n"
                 "   • Si ves error 403 o pantalla en blanco: cierra Chromium y vuelve a dar Iniciar\n"
                 "   • Si ves login de Facebook/Google: inicia sesión en meta.ai primero"
@@ -12585,7 +12629,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
     if ext_accounts and not create_tabs:
         _meta_log(
             f"⏳ {len(ext_accounts)} tab(s) conectada(s) pero aún en login/cargando.\n"
-            f"   → Inicia sesión en meta.ai en la ventana Chromium (esperando hasta 2 min)…"
+            f"   --> Inicia sesión en meta.ai en la ventana Chromium (esperando hasta 2 min)…"
         )
         _login_wait_start = time.time()
         while time.time() - _login_wait_start < 120:
@@ -12596,7 +12640,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
             ext_accounts = _meta_ext_connected()
             create_tabs  = _meta_ext_create_tabs()
             if create_tabs:
-                _meta_log(f"  ✅ Sesión lista en {int(time.time()-_login_wait_start)}s — continuando")
+                _meta_log(f"  [OK] Sesión lista en {int(time.time()-_login_wait_start)}s — continuando")
                 break
             elapsed_login = int(time.time() - _login_wait_start)
             if elapsed_login % 15 == 0 and elapsed_login > 0:
@@ -12604,7 +12648,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
             time.sleep(1)
         else:
             _meta_log(
-                f"❌ Timeout: las sesiones siguen expiradas después de 2 min.\n"
+                f"[ERROR] Timeout: las sesiones siguen expiradas después de 2 min.\n"
                 f"   Inicia sesión en meta.ai y vuelve a dar Iniciar."
             )
             meta_state["finished"] = True
@@ -12628,7 +12672,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
     n_accounts  = max(1, len(ext_accounts))
     concurrency = slots * n_accounts   # slots imgs/batch × n_accounts cuentas
     _meta_log(
-        f"  🔄 Pipeline: {n_accounts} tab(s) · {slots} imgs/batch → "
+        f"  🔄 Pipeline: {n_accounts} tab(s) · {slots} imgs/batch --> "
         f"{concurrency} generaciones simultáneas en meta.ai"
     )
 
@@ -12668,14 +12712,14 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
                 with lock:
                     done_count[0] += 1
                 meta_state["downloaded"] = done_count[0]
-                _meta_log(f"  ✅ [{i+1}/{total}] {stem}.mp4  ({done_count[0]}/{total} listo(s))")
+                _meta_log(f"  [OK] [{i+1}/{total}] {stem}.mp4  ({done_count[0]}/{total} listo(s))")
                 return
             except Exception as e:
                 if _dl_try < 2:
                     time.sleep(1.5 * (_dl_try + 1))
                 else:
                     with lock:
-                        _meta_log(f"  ❌ [{i+1}/{total}] {stem} — Descarga: {e}")
+                        _meta_log(f"  [ERROR] [{i+1}/{total}] {stem} — Descarga: {e}")
 
     def _dl_worker():
         while True:
@@ -12759,14 +12803,14 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
                     _meta_ext_events.pop(rid, None)
                     _meta_ext_inflight.pop(rid, None)
                 with lock:
-                    _meta_log(f"  ❌ [{i+1}/{total}] {stem} — Timeout extensión")
+                    _meta_log(f"  [ERROR] [{i+1}/{total}] {stem} — Timeout extensión")
                 return
         _meta_log(f"  🟡 [{i+1}/{total}] {rid[:8]} evento recibido | cancel={bool(cancel_ev and cancel_ev.is_set())}")
         with _meta_ext_lock:
             result = _meta_ext_results.pop(rid, None)
             _meta_ext_events.pop(rid, None)
         if result is None:
-            _meta_log(f"  ⚠️ [{i+1}/{total}] {rid[:8]} evento sin resultado (detener?)")
+            _meta_log(f"  [WARNING] [{i+1}/{total}] {rid[:8]} evento sin resultado (detener?)")
             return
         url = result.get("url") or ""
         err = result.get("error") or ""
@@ -12800,7 +12844,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
         else:
             with lock:
                 msg = err if err else "sin URL ni error"
-                _meta_log(f"  ❌ [{i+1}/{total}] {stem} — {msg}")
+                _meta_log(f"  [ERROR] [{i+1}/{total}] {stem} — {msg}")
 
     # ── Monitor de progreso ────────────────────────────────────────────────────
     _monitor_start = time.time()
@@ -12848,7 +12892,7 @@ def _meta_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_sec: in
                 _f.result()
             except Exception as _ce:
                 with lock:
-                    _meta_log(f"  ⚠️ Collector excepción: {_ce}")
+                    _meta_log(f"  [WARNING] Collector excepción: {_ce}")
 
     # Señalizar fin a los workers de descarga y esperar
     for _ in range(_DL_WORKERS):
@@ -12871,8 +12915,8 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 
     Estrategia "learn once, HTTP forever":
       • Si api_state.json ya tiene oauth_token + gen_doc_id + gen_variables_template
-        → usa _meta_generate_http() directamente (cero navegadores).
-      • Si falta algún token → usa _meta_generate_playwright_intercept() headless
+        --> usa _meta_generate_http() directamente (cero navegadores).
+      • Si falta algún token --> usa _meta_generate_playwright_intercept() headless
         para la PRIMERA imagen de esa cuenta, captura tokens, guarda api_state.json,
         y el resto del pipeline corre por HTTP puro.
 
@@ -12901,7 +12945,7 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 
     if not accounts:
         _meta_log(
-            "❌ No hay cuentas autenticadas.\n"
+            "[ERROR] No hay cuentas autenticadas.\n"
             "   Usa el botón '🔑 Login' en el panel de sesiones para autenticar."
         )
         meta_state["finished"] = True
@@ -12938,11 +12982,11 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
                     _meta_log(f"  [{acct_name}] 🔑 LSD={_lsd_val[:8]}…")
                 else:
                     _meta_log(
-                        f"  [{acct_name}] ⚠️ LSD no disponible — "
+                        f"  [{acct_name}] [WARNING] LSD no disponible — "
                         "sesión expirada o cuenta bloqueada"
                     )
             except Exception as _le:
-                _meta_log(f"  [{acct_name}] ⚠️ LSD fetch error: {_le}")
+                _meta_log(f"  [{acct_name}] [WARNING] LSD fetch error: {_le}")
 
     # ── Fase 1: Captura Playwright para cuentas sin api_state completo ────────
     needs_capture = [
@@ -12961,7 +13005,7 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
         except ImportError:
             _pw_available = False
             _meta_log(
-                "  ⚠️ Playwright no está instalado.\n"
+                "  [WARNING] Playwright no está instalado.\n"
                 "     Instala con:\n"
                 "       pip install playwright\n"
                 "       python -m playwright install chromium\n"
@@ -13005,14 +13049,14 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 
                         if res.get("url") or res.get("saved"):
                             _meta_log(
-                                f"  ✅ [{i+1}/{total}] {stem}.mp4 "
+                                f"  [OK] [{i+1}/{total}] {stem}.mp4 "
                                 "(Playwright capture+gen)"
                             )
                         else:
                             err_msg = res.get("error", "sin URL")
-                            _meta_log(f"  ❌ [{i+1}/{total}] {stem} — {err_msg}")
-                            # Si los tokens se capturaron → reencolar (reintento HTTP)
-                            # Si no → descartar (sin tokens no puede continuar)
+                            _meta_log(f"  [ERROR] [{i+1}/{total}] {stem} — {err_msg}")
+                            # Si los tokens se capturaron --> reencolar (reintento HTTP)
+                            # Si no --> descartar (sin tokens no puede continuar)
                             if _meta_http_state_complete(acct_states[idx][3]):
                                 _meta_log(
                                     f"  🔁 [{i+1}/{total}] {stem} — "
@@ -13026,7 +13070,7 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 
         if not pending:
             _meta_log(
-                "✅ Todos los videos generados durante la captura de tokens."
+                "[OK] Todos los videos generados durante la captura de tokens."
             )
             meta_state["finished"] = True
             meta_state["running"]  = False
@@ -13040,7 +13084,7 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 
     if not http_accts:
         _meta_log(
-            "❌ Ninguna cuenta tiene api_state completo para modo HTTP.\n"
+            "[ERROR] Ninguna cuenta tiene api_state completo para modo HTTP.\n"
             "   Pasos para obtenerlos:\n"
             "   1. Asegúrate de estar autenticado (botón '🔑 Login').\n"
             "   2. Instala Playwright: pip install playwright && "
@@ -13111,18 +13155,18 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
                     if res.get("saved") or res.get("url"):
                         done_count[0] += 1
                         _meta_log(
-                            f"  ✅ [W{worker_idx}|{acct_name}] [{i+1}/{total}] "
+                            f"  [OK] [W{worker_idx}|{acct_name}] [{i+1}/{total}] "
                             f"{stem}.mp4  ({done_count[0]}/{total})"
                         )
                     else:
                         _meta_log(
-                            f"  ❌ [W{worker_idx}|{acct_name}] [{i+1}/{total}] "
+                            f"  [ERROR] [W{worker_idx}|{acct_name}] [{i+1}/{total}] "
                             f"{stem} — {res.get('error', 'sin URL')}"
                         )
             except Exception as _we:
                 with lock:
                     _meta_log(
-                        f"  ⚠️ [W{worker_idx}|{acct_name}] "
+                        f"  [WARNING] [W{worker_idx}|{acct_name}] "
                         f"Excepción en job [{i+1}]: {_we}"
                     )
             finally:
@@ -13138,7 +13182,7 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
                 _f.result()
             except Exception as _fe:
                 with lock:
-                    _meta_log(f"  ⚠️ Worker excepción: {_fe}")
+                    _meta_log(f"  [WARNING] Worker excepción: {_fe}")
 
     meta_state["finished"] = True
     meta_state["running"]  = False
@@ -13151,29 +13195,29 @@ def _meta_http_batch_worker(proj_dir: FPath, prompt: str, slots: int, timeout_se
 # port 8080.  The meta_bridge.js content script polls these endpoints.
 #
 # Flow:
-#   Flask queues a job → extension picks it up → DOM manipulation on
-#   the real meta.ai tab → video URL returned → Flask downloads it.
+#   Flask queues a job --> extension picks it up --> DOM manipulation on
+#   the real meta.ai tab --> video URL returned --> Flask downloads it.
 #   Zero Playwright, zero extra browser processes.
 # ══════════════════════════════════════════════════════════════════
 
 _meta_ext_lock     = threading.Lock()
 _meta_ext_queue    = []          # pending requests: [{requestId, image_b64, prompt, ...}]
-_meta_ext_results  = {}          # requestId → result dict
-_meta_ext_events   = {}          # requestId → threading.Event
-_meta_ext_inflight = {}          # requestId → {"job": req, "ts": float}
-_meta_ext_tabs     = {}          # account_hash → {"ts": float, "url": str}
+_meta_ext_results  = {}          # requestId --> result dict
+_meta_ext_events   = {}          # requestId --> threading.Event
+_meta_ext_inflight = {}          # requestId --> {"job": req, "ts": float}
+_meta_ext_tabs     = {}          # account_hash --> {"ts": float, "url": str}
 _meta_desired_slots = 4          # cuántas tabs/slots quiere el batch worker (default 4; se actualiza al arrancar)
 _meta_ext_last_poll = 0.0        # timestamp del último poll del bridge (para re-queue basado en silencio)
 _meta_ext_last_login_warn = 0.0  # throttle: última vez que logueamos "on_login_page" (1 vez / 30s)
-_meta_launched_procs: dict = {}  # profile_dir → Popen (rastreamos lo que nosotros lanzamos)
-_meta_batch_id     = 0           # se incrementa al arrancar cada lote → bridge detecta cambio y resetea meta_main.js
+_meta_launched_procs: dict = {}  # profile_dir --> Popen (rastreamos lo que nosotros lanzamos)
+_meta_batch_id     = 0           # se incrementa al arrancar cada lote --> bridge detecta cambio y resetea meta_main.js
 
 
-_META_TAB_STALE_S = 300   # segundos sin poll → tab considerada desconectada (5 min)
+_META_TAB_STALE_S = 300   # segundos sin poll --> tab considerada desconectada (5 min)
 
 def _meta_ext_connected() -> list:
     """Return list of ALL registered tab hashes seen in the last 5 min (including login-page tabs).
-    Heartbeat is 8s → 300s gives 37× margin; survives page reloads, 403 reconnects & navigations."""
+    Heartbeat is 8s --> 300s gives 37× margin; survives page reloads, 403 reconnects & navigations."""
     now = time.time()
     with _meta_ext_lock:
         stale = [h for h, v in _meta_ext_tabs.items() if now - v.get("ts", 0) > _META_TAB_STALE_S]
@@ -13185,11 +13229,11 @@ def _meta_ext_connected() -> list:
 def _is_meta_ready_url(url: str) -> bool:
     """True si la tab está en una URL donde puede generar.
     Acepta CUALQUIER URL de meta.ai que no sea login/auth explícito.
-    URL vacía = bridge antiguo sin tracking → asumir lista (compatibilidad).
+    URL vacía = bridge antiguo sin tracking --> asumir lista (compatibilidad).
 
     Problema anterior: solo aceptaba root y /create. Cuando meta.ai hace
     SPA-navigation (p.ej. agrega ?thread_id=xxx o cambia a otra ruta),
-    la tab quedaba marcada como 'login' y dejaba de recibir jobs → stuck."""
+    la tab quedaba marcada como 'login' y dejaba de recibir jobs --> stuck."""
     if not url:
         return True
     url_lower = url.lower()
@@ -13268,7 +13312,7 @@ def _meta_ext_generate(
         _meta_ext_events[rid] = ev
         _meta_ext_queue.append(req)
 
-    _meta_log(f"  [S{slot_id}] 📤 Ext bridge → {filename} ({len(image_b64)//1024} KB b64)")
+    _meta_log(f"  [S{slot_id}] 📤 Ext bridge --> {filename} ({len(image_b64)//1024} KB b64)")
 
     # Poll con intervalos de 1s para responder rápidamente a cancelación
     deadline = time.time() + timeout_sec
@@ -13321,7 +13365,7 @@ def meta_ext_register():
                 "url": tab_url or prev.get("url", ""),
             }
     # v8.2: devolver max_concurrent para que el bridge lo aplique en el primer register
-    # → el primer poll ya pide el número correcto de jobs sin ciclo extra de 150ms.
+    # --> el primer poll ya pide el número correcto de jobs sin ciclo extra de 150ms.
     return _meta_ext_cors(jsonify({"ok": True, "account": account, "max_concurrent": _meta_desired_slots, "batch_id": _meta_batch_id}))
 
 
@@ -13333,7 +13377,7 @@ def meta_ext_poll():
     tab_url  = request.args.get("url", "")
     # Bridge v8+ envía ?max=N (cuántos jobs puede recibir sin superar su inFlight cap).
     # max=0 es válido: bridge está al límite y solo quiere actualizar max_concurrent.
-    # Bridge v7 y anteriores no lo envían → max=1 como compatibilidad.
+    # Bridge v7 y anteriores no lo envían --> max=1 como compatibilidad.
     _max_raw = request.args.get("max", None)
     try:
         max_take = max(0, int(_max_raw)) if _max_raw is not None else 1
@@ -13344,12 +13388,12 @@ def meta_ext_poll():
     # Problema del TTL por edad: con meta.ai secuencial (~45 s/video y 49 jobs),
     # el job 49 puede tardar 49×45 s ≈ 36 min en resultar. Un TTL fijo de 45 s
     # re-encola TODOS los jobs que aún no resultaron, creando entradas duplicadas
-    # en _pending de meta_main.js → los videos se asignan al requestId equivocado.
+    # en _pending de meta_main.js --> los videos se asignan al requestId equivocado.
     # Solución: solo re-encolar si el bridge lleva > BRIDGE_SILENCE_TTL s sin
     # enviar ningún poll. En operación normal el bridge pollea cada 150 ms–1 s,
     # así que bridge_silence < 1 s y nunca se re-encola. Solo tras un crash real
     # del SW (donde el bridge no reconecta en 100 s) se re-encolan los jobs perdidos.
-    _BRIDGE_SILENCE_TTL = 100  # s sin ningún poll → SW crash confirmado → re-queue
+    _BRIDGE_SILENCE_TTL = 100  # s sin ningún poll --> SW crash confirmado --> re-queue
 
     global _meta_ext_last_poll
     now = time.time()
@@ -13382,8 +13426,8 @@ def meta_ext_poll():
         total_pending = len(_meta_ext_queue)
 
         # ── Filtro de página de login ─────────────────────────────────────
-        # Si la tab reportó una URL y NO es root ni /create → no le damos trabajo.
-        # URL vacía = bridge antiguo sin tracking → pasa sin filtro (compatibilidad).
+        # Si la tab reportó una URL y NO es root ni /create --> no le damos trabajo.
+        # URL vacía = bridge antiguo sin tracking --> pasa sin filtro (compatibilidad).
         stored_url    = _meta_ext_tabs.get(account, {}).get("url", "")
         on_login_page = bool(stored_url and not _is_meta_ready_url(stored_url))
 
@@ -13392,7 +13436,7 @@ def meta_ext_poll():
             global _meta_ext_last_login_warn
             if now - _meta_ext_last_login_warn >= 30:
                 _meta_ext_last_login_warn = now
-                _meta_log(f"  ⚠️ ext-poll: on_login_page — acct={account[:8] if account else '?'} url={stored_url[:80] if stored_url else '(vacía)'} → jobs bloqueados")
+                _meta_log(f"  [WARNING] ext-poll: on_login_page — acct={account[:8] if account else '?'} url={stored_url[:80] if stored_url else '(vacía)'} --> jobs bloqueados")
         else:
             remaining, to_send = [], []
             for r in _meta_ext_queue:
@@ -13406,12 +13450,12 @@ def meta_ext_poll():
             for _r in to_send:
                 _meta_ext_inflight[_r["requestId"]] = {"job": _r, "ts": now}
             if to_send:
-                _meta_log(f"  🚀 ext-poll: despachando {len(to_send)} job(s) → cola={len(remaining)}")
+                _meta_log(f"  🚀 ext-poll: despachando {len(to_send)} job(s) --> cola={len(remaining)}")
             if max_take == 0 and total_pending > 0:
-                _meta_log(f"  ⚠️ ext-poll: max_take=0 — bridge al límite, {total_pending} en cola")
+                _meta_log(f"  [WARNING] ext-poll: max_take=0 — bridge al límite, {total_pending} en cola")
 
     if _requeueed:
-        _meta_log(f"  🔄 Re-encolados {len(_requeueed)} jobs (bridge silent {bridge_silence:.0f}s > {_BRIDGE_SILENCE_TTL}s) → cola={total_pending}")
+        _meta_log(f"  🔄 Re-encolados {len(_requeueed)} jobs (bridge silent {bridge_silence:.0f}s > {_BRIDGE_SILENCE_TTL}s) --> cola={total_pending}")
 
     return _meta_ext_cors(jsonify({
         "requests":       to_send,
@@ -13444,7 +13488,7 @@ def meta_ext_result():
 
 
 # Estado aprendido por la extensión: gen_doc_id, oauth_token, etc.
-_meta_learned_state: dict = {}   # account_hash → state dict
+_meta_learned_state: dict = {}   # account_hash --> state dict
 _meta_global_state:  dict = {}   # estado global persistido (gen_doc_id, vars_tpl…)
 
 def _meta_global_state_path() -> FPath:
@@ -13516,9 +13560,9 @@ def meta_ext_learn():
         sm_ready = bool(state.get("send_msg_did") and state.get("send_msg_tpl"))
         _meta_log(
             f"  🧠 Aprendido [{account[:12]}]: gen_doc_id={gen_did or '?'} "
-            f"send_msg={'✅' if sm_ready else '❌'} "
-            f"oauth={'✅' if state.get('oauth_token') else '❌'} "
-            f"vars_tpl={'✅' if state.get('gen_vars_tpl') else '❌'}"
+            f"send_msg={'[OK]' if sm_ready else '[ERROR]'} "
+            f"oauth={'[OK]' if state.get('oauth_token') else '[ERROR]'} "
+            f"vars_tpl={'[OK]' if state.get('gen_vars_tpl') else '[ERROR]'}"
         )
         if gen_did:
             _meta_log(f"  ⚡ gen_doc_id={gen_did} — modo directo listo (paralelo)")
@@ -13616,7 +13660,7 @@ def meta_login_cuenta():
             _meta_log(msg)
             print(f"[META-LOGIN] {msg}", flush=True)
 
-        # Usar el MISMO perfil que usa el batch worker → la sesión está disponible al lanzar Chromium
+        # Usar el MISMO perfil que usa el batch worker --> la sesión está disponible al lanzar Chromium
         _accounts_d = _meta_ensure_accounts()
         tmp_profile = str(_accounts_d / folder_name / "chromium_profile")
         # NO borrar el perfil existente — conservar sesión anterior
@@ -13625,7 +13669,7 @@ def meta_login_cuenta():
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
-            _log(f"❌ [{folder_name}] Playwright no instalado.")
+            _log(f"[ERROR] [{folder_name}] Playwright no instalado.")
             return
 
         # Cookies capturadas desde headers Set-Cookie de respuestas HTTP
@@ -13737,7 +13781,7 @@ def meta_login_cuenta():
                     all_cookies = _collect_all_cookies()
                     ck_dict = {c["name"]: c["value"] for c in all_cookies}
 
-                    # Log de diagnóstico cada 15 s → visible en el terminal Flask
+                    # Log de diagnóstico cada 15 s --> visible en el terminal Flask
                     now = _t.time()
                     if now - last_log_t > 15:
                         last_log_t = now
@@ -13762,7 +13806,7 @@ def meta_login_cuenta():
                         ]
                         (folder / "cookies_auto.json").write_text(_json.dumps(cookie_list, indent=2))
                         ecto_hint = ecto_cookie["value"][:16]
-                        _log(f"  ✅ [{folder_name}] ¡Sesión guardada! {ecto_cookie['name']}={ecto_hint}… | {len(cookie_list)} cookies")
+                        _log(f"  [OK] [{folder_name}] ¡Sesión guardada! {ecto_cookie['name']}={ecto_hint}… | {len(cookie_list)} cookies")
                         saved = True
                         _t.sleep(1)
                         try:
@@ -13778,7 +13822,7 @@ def meta_login_cuenta():
                     all_names_f = [c["name"] for c in all_cookies_f]
                     ecto_names = [n for n in all_names_f if n.startswith("ecto")]
                     _log(
-                        f"  ⚠️ [{folder_name}] Timeout. "
+                        f"  [WARNING] [{folder_name}] Timeout. "
                         f"Cookies: {all_names_f} | ecto*={ecto_names} | intercept={list(intercepted.keys())}"
                     )
                     try:
@@ -13787,7 +13831,7 @@ def meta_login_cuenta():
                         pass
 
         except Exception as e:
-            _log(f"  ❌ [{folder_name}] Error: {e}")
+            _log(f"  [ERROR] [{folder_name}] Error: {e}")
         # NO hay finally con rmtree — el perfil es persistente y debe sobrevivir
 
     threading.Thread(target=_do_login, daemon=True).start()
@@ -13845,15 +13889,15 @@ def meta_iniciar():
 
     prompt = request.form.get("prompt", "Cinematic slow zoom")
     slots = int(request.form.get("slots", 1))
-    # mode="http"  → HTTP directo (default, sin extensión)
-    # mode="ext"   → extensión Chrome (modo legacy)
+    # mode="http"  --> HTTP directo (default, sin extensión)
+    # mode="ext"   --> extensión Chrome (modo legacy)
     mode = request.form.get("mode", "ext").strip().lower()
     # 900s = 15 min por video.
     # La extensión tiene un timeout de 10 min (600s) que empieza cuando meta.ai
     # recibe el job (no cuando el collector Python arranca). Con 49 jobs y ~8
     # despachados cada 10 s, el último batch llega a meta.ai unos 50 s después
     # de que Python empieza a esperar. Su timeout en la extensión expira a los
-    # 650 s → el colector Python necesita >650 s de paciencia → 900 s es seguro.
+    # 650 s --> el colector Python necesita >650 s de paciencia --> 900 s es seguro.
     timeout_sec = int(request.form.get("timeout", 900))
 
     (proj_dir / "guion" / "config_meta.txt").write_text(
@@ -14113,19 +14157,19 @@ def meta_launch_chrome():
             import time as _t
             proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             _meta_register_chrome_pid(proc.pid)
-            _meta_log(f"  ✅ [{folder_name}] Chrome abierto · si ves login, inicia sesión en meta.ai")
+            _meta_log(f"  [OK] [{folder_name}] Chrome abierto · si ves login, inicia sesión en meta.ai")
             _meta_log(f"     Extensión registrará {n_slots} slot(s) automáticamente")
             _start = _t.time()
             proc.wait()
             _elapsed = _t.time() - _start
             if _elapsed < 8:
-                _meta_log(f"  ⚠️  [{folder_name}] Chrome se cerró en {_elapsed:.1f}s — posiblemente el modo de desarrollador no está activado.")
+                _meta_log(f"  [WARNING]  [{folder_name}] Chrome se cerró en {_elapsed:.1f}s — posiblemente el modo de desarrollador no está activado.")
                 _meta_log(f"     👉 Usa el botón '🔧 Modo Dev' para abrir chrome://extensions y activar el toggle.")
                 _meta_log(f"     Luego vuelve a hacer clic en '🌐 Abrir Chrome'.")
             else:
                 _meta_log(f"  ⏹ [{folder_name}] Chrome cerrado")
         except Exception as e:
-            _meta_log(f"  ❌ [{folder_name}] Error lanzando Chrome: {e}")
+            _meta_log(f"  [ERROR] [{folder_name}] Error lanzando Chrome: {e}")
         finally:
             if proc is not None:
                 _meta_unregister_chrome_pid(proc.pid)
@@ -14174,7 +14218,7 @@ def meta_open_devmode():
             proc.wait()
             _meta_log(f"  ⏹ [{folder_name}] Chrome (modo dev) cerrado")
         except Exception as e:
-            _meta_log(f"  ❌ [{folder_name}] Error abriendo Chrome para modo dev: {e}")
+            _meta_log(f"  [ERROR] [{folder_name}] Error abriendo Chrome para modo dev: {e}")
 
     threading.Thread(target=_run_devmode, daemon=True).start()
     return jsonify({"ok": True, "message": f"Chrome abierto en chrome://extensions para {folder_name}"})
@@ -14190,16 +14234,12 @@ from concurrent.futures import ThreadPoolExecutor as _WTPE
 from datetime import datetime as _wdt
 
 _WHISK_NUM_ACCOUNTS = 5
-_WHISK_BASE_DIR     = (
-    FPath(sys.executable).parent
-    if getattr(sys, "frozen", False) else
-    FPath(os.path.abspath(__file__)).parent
-)
+_WHISK_BASE_DIR = FPath(APP_DATA)  # Siempre usa AppData
 _WHISK_DOWNLOAD_DIR = str(_WHISK_BASE_DIR / "whisk_downloads")
 _WHISK_COOKIES_DIR  = str(_WHISK_BASE_DIR / "cookies")
 _POLLINATION_WEBHOOK = os.environ.get(
     "POLLINATION_WEBHOOK",
-    "https://n8n-n8n.y9c1cn.easypanel.host/webhook/generar-imagenes",
+    "https://n8n-n8n.y9c1cn.easypanel.host/webhook/3dab8315-b12b-4c76-9b7c-91fc67daf120"
 )
 _PLAYWRIGHT_OK      = None   # se resuelve al vuelo (import playwright)
 
@@ -14534,7 +14574,7 @@ class _WhiskClient:
             from datetime import timezone
             self._expiry = _wdt.fromisoformat(exp.replace("Z", "+00:00"))
         user = d.get("user", {}).get("name", "?")
-        self._log(f"✅ Auth OK — {user}")
+        self._log(f"[OK] Auth OK — {user}")
         return self._token
 
     def _get_token(self) -> str:
@@ -14608,7 +14648,7 @@ class _WhiskClient:
                     break
                 if r.status_code in (500, 502, 503) and attempt < 3:
                     wait = 3 * (attempt + 1)
-                    self._log(f"⚠️  upload HTTP {r.status_code} — reintentando en {wait}s…")
+                    self._log(f"[WARNING]  upload HTTP {r.status_code} — reintentando en {wait}s…")
                     time.sleep(wait)
                     continue
                 raise RuntimeError(f"upload HTTP {r.status_code}: {r.text[:120]}")
@@ -14713,12 +14753,12 @@ class _WhiskClient:
             if subj_src and os.path.isfile(str(subj_src)):
                 self.subject_refs = [self.upload_subject(subj_src, self.workflow_id)]
             else:
-                self._log("⚠️  reset_session sin sujeto — recipeMediaInputs quedará vacío")
+                self._log("[WARNING]  reset_session sin sujeto — recipeMediaInputs quedará vacío")
         except Exception as e:
             # Si el upload falla tras crear el proyecto, restaurar refs anteriores
             # para que el cliente pueda seguir generando mientras se reinicia
             if not self.subject_refs and old_refs:
-                self._log(f"⚠️  reset_session falló ({e}) — restaurando refs anteriores temporalmente")
+                self._log(f"[WARNING]  reset_session falló ({e}) — restaurando refs anteriores temporalmente")
                 self.subject_refs = old_refs
             raise
 
@@ -14729,8 +14769,8 @@ class _WhiskPool:
     """
     Gestiona todos los clientes Whisk listos.
 
-    • Ante un 429 / cookie inválida → pausa esa cuenta N segundos y rota.
-    • Si TODAS están en cooldown → espera silenciosamente hasta la más próxima.
+    • Ante un 429 / cookie inválida --> pausa esa cuenta N segundos y rota.
+    • Si TODAS están en cooldown --> espera silenciosamente hasta la más próxima.
     • Límite de concurrencia por cuenta calculado automáticamente a partir
       del número de slots configurados (sin cap artificial).
     • El log de "saturación" sólo aparece una vez cada 10 s para no spamear.
@@ -14742,7 +14782,7 @@ class _WhiskPool:
         self._lock     = threading.Lock()
         self._cond     = threading.Condition(self._lock)
 
-        # label → timestamp a partir del cual el cliente está disponible
+        # label --> timestamp a partir del cual el cliente está disponible
         self._cooldown: dict = {c.label: 0.0 for c in clients}
 
         # Instancias _WhiskClient ya prestadas a un worker (evita dos hilos en C4S0).
@@ -14848,12 +14888,12 @@ class _WhiskPool:
             try:
                 client._log("🔄 Renovando sesión…")
                 client.reset_session(self._subj)
-                client._log("✅ Sesión renovada")
+                client._log("[OK] Sesión renovada")
                 with self._cond:
                     self._cooldown[client.label] = 0.0
                     self._cond.notify_all()
             except Exception as e:
-                client._log(f"❌ reset falló: {e} — cooldown 5 min")
+                client._log(f"[ERROR] reset falló: {e} — cooldown 5 min")
                 with self._cond:
                     self._cooldown[client.label] = time.time() + 300
                     self._cond.notify_all()
@@ -14957,7 +14997,7 @@ def _whisk_worker(idx: int, prompt: str, pool: _WhiskPool,
             return {"idx": idx, "ok": False}
 
         client._log(f"✏️  [{idx+1}/{total}] intento {attempt}: {prompt[:60]}")
-        seed = random.randint(1, 999_999)  # always random → unique variants, no cache
+        seed = random.randint(1, 999_999)  # always random --> unique variants, no cache
 
         if cancel_ev.is_set() or _whisk_cancel_requested():
             pool.release_client(client)
@@ -14968,7 +15008,7 @@ def _whisk_worker(idx: int, prompt: str, pool: _WhiskPool,
             raw = client.generate(prompt, seed=seed)
             with open(path, "wb") as fh:
                 fh.write(raw)
-            client._log(f"✅ [{idx+1}] {fname} ({len(raw)//1024} KB)")
+            client._log(f"[OK] [{idx+1}] {fname} ({len(raw)//1024} KB)")
             pool.mark_ok(client)   # libera slot + quita cooldown
             timeout_streak = 0
             conn_streak = 0
@@ -15063,7 +15103,7 @@ def _whisk_worker(idx: int, prompt: str, pool: _WhiskPool,
             else:
                 pool.release_client(client)
                 wait = min(5 * attempt, 30)
-                client._log(f"⚠️  Error [{idx+1}] intento {attempt}: {str(e)[:120]}"
+                client._log(f"[WARNING]  Error [{idx+1}] intento {attempt}: {str(e)[:120]}"
                             f" — reintentando en {wait}s")
                 for _ in range(wait):
                     if cancel_ev.is_set() or _whisk_cancel_requested():
@@ -15094,7 +15134,7 @@ def _whisk_worker(idx: int, prompt: str, pool: _WhiskPool,
                 client._log(f"⏱️  Timeout inesperado [{idx+1}] — reintentando en {wait}s…")
             else:
                 wait = min(5 * attempt, 30)
-                client._log(f"⚠️  Error inesperado [{idx+1}] intento {attempt}: "
+                client._log(f"[WARNING]  Error inesperado [{idx+1}] intento {attempt}: "
                             f"{str(e)[:120]} — reintentando en {wait}s")
             for _ in range(wait):
                 if cancel_ev.is_set() or _whisk_cancel_requested():
@@ -15118,7 +15158,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
                 base.append(_WhiskClient(ck, label=f"C{i}"))
 
     if not base:
-        _whisk_log("❌ No hay cuentas. Guarda al menos una cookie en cookies/account_0.txt")
+        _whisk_log("[ERROR] No hay cuentas. Guarda al menos una cookie en cookies/account_0.txt")
         with _whisk_lock:
             _whisk_state["last_error"] = (
                 "Whisk: no hay cookies en Studio IVR/cookies/ (account_*.txt)."
@@ -15170,7 +15210,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
                     _whisk_log(f"  📂 Workflows creados {k}/{n_slots}")
             return c
         except Exception as e:
-            c._log(f"❌ create_project fallido: {e}")
+            c._log(f"[ERROR] create_project fallido: {e}")
             return None
 
     _w1 = _whisk_tls_workers(n_slots)
@@ -15179,7 +15219,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
         with_project = [c for c in exe.map(_create_project, slot_clients) if c is not None]
 
     if not with_project:
-        _whisk_log("❌ Ningún slot pudo crear proyecto. Verifica las cookies.")
+        _whisk_log("[ERROR] Ningún slot pudo crear proyecto. Verifica las cookies.")
         _tail = "\n".join(_whisk_state.get("log", [])[-40:])
         _msg = (
             "Whisk: sesión expirada (HTTP 401). Reinicia sesión en Google Labs / Whisk y vuelve a exportar cookies."
@@ -15233,7 +15273,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
             _subj_path_real = _ph
             _whisk_log("  📎 Sin imagen de referencia — usando placeholder neutro")
         except Exception as _phe:
-            _whisk_log(f"  ⚠️  No se pudo crear placeholder: {_phe}")
+            _whisk_log(f"  [WARNING]  No se pudo crear placeholder: {_phe}")
             _subj_path_real = None
 
     shared_b64 = None
@@ -15246,7 +15286,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
             shared_cap = with_project[0]._caption(shared_b64, with_project[0].workflow_id)
             _whisk_log(f"  📝 Caption: {shared_cap[:70]}")
         except Exception as e:
-            _whisk_log(f"  ⚠️  Caption compartido falló ({e}) — se intentará por slot")
+            _whisk_log(f"  [WARNING]  Caption compartido falló ({e}) — se intentará por slot")
             shared_b64 = None
 
     # ── Fase C: upload del sujeto en paralelo (reusando caption) ─────────
@@ -15272,10 +15312,10 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
             except Exception as e:
                 if attempt < 2:
                     wait = 4 * (attempt + 1)
-                    c._log(f"⚠️  upload_subject intento {attempt+1}/3: {e} — reintentando en {wait}s…")
+                    c._log(f"[WARNING]  upload_subject intento {attempt+1}/3: {e} — reintentando en {wait}s…")
                     time.sleep(wait)
                 else:
-                    c._log(f"❌ upload_subject fallido tras 3 intentos: {e} — slot descartado")
+                    c._log(f"[ERROR] upload_subject fallido tras 3 intentos: {e} — slot descartado")
                     return None
 
     _w3 = _whisk_tls_workers(len(with_project))
@@ -15284,7 +15324,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
         ready = [c for c in exe.map(_upload_subject, with_project) if c is not None]
 
     if not ready:
-        _whisk_log("❌ Ningún slot pudo inicializarse. Verifica las cookies.")
+        _whisk_log("[ERROR] Ningún slot pudo inicializarse. Verifica las cookies.")
         with _whisk_lock:
             _whisk_state["last_error"] = (
                 "Whisk: falló la subida de la imagen de referencia o la sesión. Revisa cookies y la imagen."
@@ -15297,13 +15337,13 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
         _whisk_state["step"] = "idle"
         return
 
-    _whisk_log(f"  ✅ {len(ready)} slots listos — generando {total} imágenes…")
+    _whisk_log(f"  [OK] {len(ready)} slots listos — generando {total} imágenes…")
     os.makedirs(out_dir, exist_ok=True)
 
     # 4. Crear pool de rotación y lanzar workers
     #    Solo hay como máximo len(ready) tareas en el executor a la vez: el resto no se
     #    encola hasta que termina una. Así «Detener» cancela las pendientes (no siguen
-    #    saliendo docenas de ✅) y el shutdown no espera a vaciar una cola enorme.
+    #    saliendo docenas de [OK]) y el shutdown no espera a vaciar una cola enorme.
     cancel_ev = threading.Event()
     ev_q      = _wq.Queue()
     pool      = _WhiskPool(ready, subj_path)
@@ -15365,7 +15405,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
                             conn_cooldown_until = now + 8.0
                             _whisk_log(
                                 f"  🧯 Conectividad inestable detectada ({len(conn_events)} errores/45s) "
-                                f"→ bajando paralelismo a {target_parallel} slot(s)."
+                                f"--> bajando paralelismo a {target_parallel} slot(s)."
                             )
                     continue
                 if ev_type in ("done", "fail"):
@@ -15414,7 +15454,7 @@ def _whisk_run_batch_core(prompts: list, slots_per_acc: int,
                 final.append(tgt)
             else:
                 final.append(item)
-        # Paso 3: mtime secuencial → Finder muestra en orden aunque ordene por fecha
+        # Paso 3: mtime secuencial --> Finder muestra en orden aunque ordene por fecha
         t0 = 1_700_000_000.0
         for n, f in enumerate(final, 1):
             try:
@@ -15445,7 +15485,7 @@ def _whisk_run_batch(prompts: list, slots_per_acc: int, subj_path, out_dir: str)
     except Exception as e:
         import traceback
 
-        _whisk_log(f"❌ Error fatal en batch Whisk: {e}")
+        _whisk_log(f"[ERROR] Error fatal en batch Whisk: {e}")
         _whisk_log(traceback.format_exc())
         _whisk_state["last_error"] = str(e)[:400]
         _whisk_state["step"] = "idle"
@@ -15882,7 +15922,7 @@ def _flow_rotate_account(account_hash: str, acc_idx: int):
         # 1. Cerrar browser de la cuenta baneada
         _flow_close_chromium_by_idx(acc_idx)
 
-        # 2. Mover el índice de active → al final de backup
+        # 2. Mover el índice de active --> al final de backup
         # IMPORTANTE: NO llamar _flow_open_chromium_by_idx dentro del lock
         # (_flow_chromium_lock y _flow_rotation_lock en orden inverso = deadlock)
         next_idx = None
@@ -15900,7 +15940,7 @@ def _flow_rotate_account(account_hash: str, acc_idx: int):
             time.sleep(1.5)
             _flow_open_chromium_by_idx(next_idx)
         else:
-            _flow_log(f"[Flow] ⚠️ Sin más perfiles de respaldo disponibles")
+            _flow_log(f"[Flow] [WARNING] Sin más perfiles de respaldo disponibles")
 
         # 4. Programar reactivación en 1h
         def _reactivate():
@@ -15920,7 +15960,7 @@ def _flow_rotate_account(account_hash: str, acc_idx: int):
                 else:
                     _flow_backup_queue.insert(0, acc_idx)
             if _reopen:
-                _flow_log(f"[Flow] ✅ Perfil {acc_idx+1} reactivado tras 1h de ban")
+                _flow_log(f"[Flow] [OK] Perfil {acc_idx+1} reactivado tras 1h de ban")
                 _flow_open_chromium_by_idx(acc_idx)
             else:
                 _flow_log(f"[Flow] ↩️ Perfil {acc_idx+1} regresa a respaldo (slots activos llenos)")
@@ -15950,7 +15990,7 @@ def _flow_record_rl_hit(account_hash: str, acc_idx: int) -> bool:
         count = len(_flow_rl_hits[account_hash])
 
     if count >= _FLOW_RL_THRESHOLD and not _flow_is_banned(account_hash):
-        _flow_log(f"[Flow] ⚠️ Perfil {acc_idx+1}: {count} rate limits en {_FLOW_RL_WINDOW//60}min → rotación")
+        _flow_log(f"[Flow] [WARNING] Perfil {acc_idx+1}: {count} rate limits en {_FLOW_RL_WINDOW//60}min --> rotación")
         _flow_rotate_account(account_hash, acc_idx)
         return True
     return False
@@ -15972,7 +16012,7 @@ def _flow_auto_open_browsers():
     _pw_h -= _http_active_ao
     _real_hashes = _connected_all - _pw_h
     if _real_hashes:
-        _flow_log(f"[Flow] ✅ Chrome real conectado ({len(_real_hashes)} cuenta(s)) — Playwright no abrirá")
+        _flow_log(f"[Flow] [OK] Chrome real conectado ({len(_real_hashes)} cuenta(s)) — Playwright no abrirá")
         return
 
     with _flow_rotation_lock:
@@ -16449,7 +16489,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
         t.join(timeout=25)
 
     # Agregar cuentas conectadas por WS (sin cookies) y por HTTP puro.
-    # En .exe compilado websockets puede no estar disponible → la extension
+    # En .exe compilado websockets puede no estar disponible --> la extension
     # solo conecta por HTTP (/flow-register). Esas cuentas están en
     # _flow_http_seen y _flow_ws_clients pero no en accounts_ok todavía.
     _connected_all = _flow_get_connected_accounts()  # WS + HTTP
@@ -16555,16 +16595,16 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
             _grace_elapsed = time.time() - _first_ready_time
             _grace_limit = 8  # 8s para que se conecten más extensiones Chrome
             if _grace_elapsed >= _grace_limit:
-                _flow_log(f"[Flow] ✅ Chrome real listo ({_n_http_bearer} cuenta(s)) — iniciando")
+                _flow_log(f"[Flow] [OK] Chrome real listo ({_n_http_bearer} cuenta(s)) — iniciando")
                 break
             elif time.time() - _last_feedback >= 5:
                 _last_feedback = time.time()
                 elapsed = int(time.time() - (_wait_deadline - 90))
-                _flow_log(f"[Flow] ✅ {_n_http_bearer} Chrome OK — grace {int(_grace_limit - _grace_elapsed):.0f}s más...")
+                _flow_log(f"[Flow] [OK] {_n_http_bearer} Chrome OK — grace {int(_grace_limit - _grace_elapsed):.0f}s más...")
             time.sleep(0.3)
             continue
 
-        # Sin Chrome real → esperar WS (Playwright) como fallback
+        # Sin Chrome real --> esperar WS (Playwright) como fallback
         if len(accounts_ok) > 0 and _n_ws_bearer >= len(accounts_ok):
             if _first_ready_time is None:
                 _first_ready_time = time.time()
@@ -16572,12 +16612,12 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
             _all_disk_bearer = all(bool(a.get("bearer", "")) for a in accounts_ok)
             _grace_limit = 0 if _all_disk_bearer else 25
             if _grace_elapsed >= _grace_limit:
-                _flow_log(f"[Flow] ✅ WS + bearer listo — iniciando ({_n_ws_bearer} cuenta(s))")
+                _flow_log(f"[Flow] [OK] WS + bearer listo — iniciando ({_n_ws_bearer} cuenta(s))")
                 break
             elif time.time() - _last_feedback >= 5:
                 _last_feedback = time.time()
                 elapsed = int(time.time() - (_wait_deadline - 90))
-                _flow_log(f"[Flow] ✅ {_n_ws_bearer} cuenta(s) WS OK — grace {int(_grace_limit - _grace_elapsed):.0f}s más...")
+                _flow_log(f"[Flow] [OK] {_n_ws_bearer} cuenta(s) WS OK — grace {int(_grace_limit - _grace_elapsed):.0f}s más...")
             time.sleep(0.3)
             continue
         # Fallback: salir al acercarse al deadline si hay cuentas conectadas
@@ -16609,7 +16649,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                 "cookie":        "",
                 "bearer_lock":   threading.Lock(),
             })
-            _flow_log(f"[Flow] ✅ Cuenta WS agregada: {_wh[:8]}")
+            _flow_log(f"[Flow] [OK] Cuenta WS agregada: {_wh[:8]}")
 
     if not accounts_ok:
         msg = "No hay cuentas Flow activas. Guarda la cookie en la seccion Flow."
@@ -16622,14 +16662,14 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
     if n_connected == 0:
         n_connected = len(accounts_ok)
         _flow_log(f"[Flow] Ninguna cuenta en bridge. Usando bearer de disco como fallback.")
-        _flow_log(f"[Flow] ⚠️ Ninguna cuenta detectada en bridge. Usando todas.")
+        _flow_log(f"[Flow] [WARNING] Ninguna cuenta detectada en bridge. Usando todas.")
     else:
         _flow_log(f"[Flow] 🌐 {n_connected}/{len(accounts_ok)} cuenta(s) conectadas.")
     n_accs      = len(accounts_ok)
     slots_user  = max(1, min(slots, 10))
     max_workers = max(1, slots_user * max(1, (n_connected if n_connected > 0 else n_accs)))
 
-    _flow_log(f"[Flow] ✅ {n_accs} cuenta(s) con cookie valida:")
+    _flow_log(f"[Flow] [OK] {n_accs} cuenta(s) con cookie valida:")
     for _a in accounts_ok:
         _state = "conectada" if _a["account_hash"] in connected_now else "sin Chrome"
         cached_b = _flow_get_cached_bearer(_a["account_hash"])
@@ -16671,9 +16711,9 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
             if _ref_name:
                 _flow_log(f"[Flow] 🖼 Imagen subida — name={_ref_name} (NARWHAL + imageInputs)")
                 break
-            _flow_log(f"[Flow] ⚠️ Upload falló con {_ref_acc['email']}, intentando siguiente cuenta...")
+            _flow_log(f"[Flow] [WARNING] Upload falló con {_ref_acc['email']}, intentando siguiente cuenta...")
         if not _ref_name:
-            _flow_log(f"[Flow] ⚠️ Upload de ref image falló en todas las cuentas — generando sin referencia (NARWHAL)")
+            _flow_log(f"[Flow] [WARNING] Upload de ref image falló en todas las cuentas — generando sin referencia (NARWHAL)")
     else:
         _ref_name = None
     _flow_log(f"[Flow] ⚡ Asegurate de tener Chrome en labs.google/fx/tools/flow con la extension.")
@@ -16724,7 +16764,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                 time.sleep(0.2)
                 continue
 
-            # Sin Chrome real en absoluto → Playwright como fallback
+            # Sin Chrome real en absoluto --> Playwright como fallback
             if available:
                 with _rr_lock:
                     idx = _rr_counter[0] % len(available)
@@ -16745,14 +16785,14 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
     _acc_semaphores = {a["account_hash"]: threading.Semaphore(slots_user) for a in accounts_ok}
 
     # Para cuentas HTTP-only (sin WS): serializar a 1 request simultáneo
-    # Burst de N requests simultáneos via HTTP-poll → Google CAPTCHA 403
+    # Burst de N requests simultáneos via HTTP-poll --> Google CAPTCHA 403
     # WS-push no tiene este problema porque la extension serializa internamente
     with _flow_ws_clients_lock:
         _ws_set_at_start = set(_flow_ws_clients.keys())
     for _a in accounts_ok:
         if _a["account_hash"] not in _ws_set_at_start:
             _acc_semaphores[_a["account_hash"]] = threading.Semaphore(1)
-            _flow_log(f"[Flow] ⚠️ {_a['account_hash'][:8]} sin WS → concurrencia 1 (evitar CAPTCHA por burst)")
+            _flow_log(f"[Flow] [WARNING] {_a['account_hash'][:8]} sin WS --> concurrencia 1 (evitar CAPTCHA por burst)")
 
     # Contador de 401 consecutivos por cuenta
     _acc_fails       = {a["account_hash"]: 0 for a in accounts_ok}
@@ -16808,7 +16848,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
             _now     = time.time()
             _new_idx = len(accounts_ok)
             # Heredar warmup: buscar perfil Chrome con warmup activo pero sin cuenta aún.
-            # Cuando rotation abre perfil N → _flow_warmup_until_idx[N] se setea, pero
+            # Cuando rotation abre perfil N --> _flow_warmup_until_idx[N] se setea, pero
             # la cuenta no está en accounts_ok hasta que conecta. Al conectar, su
             # index dinámico (len(accounts_ok)) ≠ N, así que el warmup se pierde.
             # Fix: copiar el expiry del perfil Chrome sin hash al nuevo index dinámico.
@@ -16952,8 +16992,8 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
     _acc_last_lock   = threading.Lock()
 
     # Intervalo mínimo entre requests consecutivos por cuenta
-    # Con slots_user=10 y 3 cuentas → 10 workers por cuenta
-    # Necesitamos espaciarlos: si Google acepta ~1 req/2s por cuenta → 2s de gap
+    # Con slots_user=10 y 3 cuentas --> 10 workers por cuenta
+    # Necesitamos espaciarlos: si Google acepta ~1 req/2s por cuenta --> 2s de gap
     _ACC_MIN_GAP = max(1.5, slots_user * 0.2)  # 2s con slots=10
 
     def _wait_for_account_slot(account_hash: str):
@@ -17043,7 +17083,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                 sem = _acc_semaphores[acc["account_hash"]]
 
                 # Cuando quedan pocos items vs workers, dispersar para no saturar cuentas.
-                # Ej: 2 items y 24 workers → todos se amontonan en los mismos prompts → reCAPTCHA.
+                # Ej: 2 items y 24 workers --> todos se amontonan en los mismos prompts --> reCAPTCHA.
                 _n_left = job_q.qsize()
                 if _n_left < max_workers // 2 and _n_left > 0:
                     import random as _rnd
@@ -17126,7 +17166,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                         "requests": [_inner_req],
                     }
 
-                    _flow_log(f"{label} → bridge_generate acc={acc['account_hash'][:8]} url={api_url[40:80]}")
+                    _flow_log(f"{label} --> bridge_generate acc={acc['account_hash'][:8]} url={api_url[40:80]}")
                     try:
                         result = _flow_bridge_generate(
                             _json.dumps(_req_body), bearer, api_url,
@@ -17182,7 +17222,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                                     raise _dl_e
                         if not _dl_ok:
                             raise RuntimeError("Descarga fallida tras 4 intentos")
-                        _flow_log(f"{label} ✅ Imagen {task_idx+1}")
+                        _flow_log(f"{label} [OK] Imagen {task_idx+1}")
                         _mark_success(acc["account_hash"])
                         if _mark_complete(task_idx):
                             with res_lock:
@@ -17260,7 +17300,7 @@ def _flow_run_batch_inner(prompts: list, out_dir: str, slots: int,
                             _fail_cnt = _ref_fail_count[task_idx]
                         _flow_log(f"{label} 500 con imagen ref (intento {attempt+1}, fallo_ref={_fail_cnt}/{_REF_FAIL_LIMIT}): {resp_body[:300]}")
                         if _fail_cnt >= _REF_FAIL_LIMIT:
-                            _flow_log(f"{label} ⚠️ Ref image falla consistentemente — próximos intentos usarán NARWHAL sin referencia")
+                            _flow_log(f"{label} [WARNING] Ref image falla consistentemente — próximos intentos usarán NARWHAL sin referencia")
                     else:
                         _flow_log(f"{label} intento {attempt+1}: HTTP {status}")
                     time.sleep(2)
@@ -17428,7 +17468,7 @@ def ensure_flow_extension_installed():
     src_path = get_extension_source_path()
     
     if src_path is None or not os.path.exists(src_path):
-        print("⚠️  No se encontró flow_extension en el paquete")
+        print("[WARNING]  No se encontró flow_extension en el paquete")
         return dest_path
     
     os.makedirs(dest_path, exist_ok=True)
@@ -17442,7 +17482,7 @@ def ensure_flow_extension_installed():
                 saved_hash = f.read().strip()
             if saved_hash == current_hash:
                 need_install = False
-                print(f"✅ flow_extension ya está actualizado en {dest_path}")
+                print(f"[OK] flow_extension ya está actualizado en {dest_path}")
         except:
             pass
     
@@ -17454,9 +17494,9 @@ def ensure_flow_extension_installed():
             shutil.copytree(src_path, dest_path)
             with open(version_file, 'w') as f:
                 f.write(current_hash)
-            print("✅ flow_extension instalado correctamente")
+            print("[OK] flow_extension instalado correctamente")
         except Exception as e:
-            print(f"❌ Error al instalar flow_extension: {e}")
+            print(f"[ERROR] Error al instalar flow_extension: {e}")
     
     return dest_path
 
@@ -17508,8 +17548,9 @@ def _flow_find_chromium_exe() -> str:
     import glob as _g
     _local = os.environ.get("LOCALAPPDATA", "") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
     _home  = os.path.expanduser("~")
-    _prog  = os.environ.get("PROGRAMFILES", r"C:\Program Files")
-    _prog86= os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")
+    _appdata = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+    _prog = os.path.join(_appdata, 'VideoForge')
+    _prog86 = _prog 
     _exe_dir = str(_FLOW_BASE_DIR_PW)  # carpeta del .exe (o del .py en desarrollo)
 
     # 1. Playwright Chromium (preferido — soporta --load-extension)
@@ -17688,7 +17729,7 @@ def _flow_playwright_login(account_idx: int):
     ext_dir = _flow_find_extension_dir()
     _flow_diag_log(f"[Flow Acc{account_idx+1}] ext_dir={ext_dir!r}")
     if not os.path.isfile(os.path.join(ext_dir, "manifest.json")):
-        _flow_diag_log(f"[Flow Acc{account_idx+1}] ❌ manifest.json no encontrado en: {ext_dir}")
+        _flow_diag_log(f"[Flow Acc{account_idx+1}] [ERROR] manifest.json no encontrado en: {ext_dir}")
         _flow_diag_log(f"[Flow Acc{account_idx+1}]   Pon la carpeta de la extension junto al .exe")
         with _flow_chromium_lock:
             _flow_chromium_procs.pop(account_idx, None)
@@ -17697,7 +17738,7 @@ def _flow_playwright_login(account_idx: int):
     exe = _flow_find_chromium_exe()
     _flow_diag_log(f"[Flow Acc{account_idx+1}] exe={exe!r}")
     if not exe:
-        _flow_diag_log(f"[Flow Acc{account_idx+1}] ❌ No se encontro Chrome/Chromium.")
+        _flow_diag_log(f"[Flow Acc{account_idx+1}] [ERROR] No se encontro Chrome/Chromium.")
         _flow_diag_log(f"[Flow Acc{account_idx+1}]   Ejecuta: python -m playwright install chromium")
         with _flow_chromium_lock:
             _flow_chromium_procs.pop(account_idx, None)
@@ -17717,7 +17758,7 @@ def _flow_playwright_login(account_idx: int):
         # Solo eliminar archivos de sesion para evitar el banner "restore from crash".
         # NO borrar Visited Links, Trust Tokens, Session Storage, Local Storage ni IndexedDB
         # porque esos datos son necesarios para que reCAPTCHA Enterprise confíe en la sesion.
-        # Borrarlos hace que el perfil parezca "fresco" → PUBLIC_ERROR_UNUSUAL_ACTIVITY.
+        # Borrarlos hace que el perfil parezca "fresco" --> PUBLIC_ERROR_UNUSUAL_ACTIVITY.
         for _sf in ["Last Session", "Last Tabs", "Current Session", "Current Tabs",
                     "Last Browser"]:
             try: os.remove(os.path.join(_default_dir, _sf))
@@ -17808,7 +17849,7 @@ def _flow_playwright_login(account_idx: int):
             )
             _flow_diag_log(f"[Flow Acc{account_idx+1}] Chromium abierto OK")
             _flow_log(f"[Flow Acc{account_idx+1}] Chromium abierto")
-            _rel_sem()  # Chrome lanzado y estable → el siguiente perfil puede arrancar ya
+            _rel_sem()  # Chrome lanzado y estable --> el siguiente perfil puede arrancar ya
 
             # Anti-detección reCAPTCHA Enterprise: ocultar webdriver y otras marcas de Playwright
             try:
@@ -17931,7 +17972,7 @@ def _flow_playwright_login(account_idx: int):
                     except Exception:
                         return
                     time.sleep(0.5)
-                # Monitorear: cuando pages queda vacío → ventana cerrada
+                # Monitorear: cuando pages queda vacío --> ventana cerrada
                 while not _closed_ev.is_set():
                     time.sleep(1)
                     try:
@@ -18338,18 +18379,18 @@ def api_flow_run():
     with _flow_lock:
         is_running = _flow_state["running"]
     if is_running:
-        _flow_log("[Flow] ⚠️ Ya hay generacion en curso → 409")
+        _flow_log("[Flow] [WARNING] Ya hay generacion en curso --> 409")
         return jsonify({"error": "Ya hay una generacion en curso"}), 409
     data    = request.get_json(force=True) or {}
     prompts = data.get("prompts", [])
     if isinstance(prompts, str):
         prompts = [l.strip() for l in prompts.splitlines() if l.strip()]
     if not prompts:
-        _flow_log("[Flow] ⚠️ Sin prompts → 400")
+        _flow_log("[Flow] [WARNING] Sin prompts --> 400")
         return jsonify({"error": "Sin prompts"}), 400
     out_dir = (data.get("output_dir") or "").strip()
     if not out_dir:
-        _flow_log("[Flow] ⚠️ output_dir vacio → 400")
+        _flow_log("[Flow] [WARNING] output_dir vacio --> 400")
         return jsonify({"error": "output_dir requerido"}), 400
     model   = data.get("model", "NANO_BANANA_2")  # NANO_BANANA_2=calidad, IMAGE_GENERATION_001_IMAGEN4=rapidez
     _default_slots = 5 if model == "IMAGE_GENERATION_001_IMAGEN4" else 2
@@ -18523,7 +18564,7 @@ def _whisk_playwright_login(profile_id: int):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        _whisk_log(f"  [C{profile_id}] ❌ Playwright no instalado. "
+        _whisk_log(f"  [C{profile_id}] [ERROR] Playwright no instalado. "
                    "Instala: pip install playwright && python -m playwright install chromium")
         return
 
@@ -18575,7 +18616,7 @@ def _whisk_playwright_login(profile_id: int):
                                                    f"account_{profile_id}.txt"),
                                       "w", encoding="utf-8") as fh:
                                 fh.write(ck_str)
-                            _whisk_log(f"  [C{profile_id}] ✅ Cookie guardada — {r.get('user','')}")
+                            _whisk_log(f"  [C{profile_id}] [OK] Cookie guardada — {r.get('user','')}")
                             saved = True
                             threading.Thread(target=_whisk_sync_profile_rows, daemon=True).start()
                     except Exception:
@@ -18592,9 +18633,9 @@ def _whisk_playwright_login(profile_id: int):
                 time.sleep(2)
 
             if not saved:
-                _whisk_log(f"  [C{profile_id}] ⚠️  Browser cerrado sin guardar sesión")
+                _whisk_log(f"  [C{profile_id}] [WARNING]  Browser cerrado sin guardar sesión")
     except Exception as e:
-        _whisk_log(f"  [C{profile_id}] ❌ Browser error: {e}")
+        _whisk_log(f"  [C{profile_id}] [ERROR] Browser error: {e}")
 
 
 @app.route("/api/whisk/login", methods=["POST"])
@@ -18615,7 +18656,7 @@ def api_whisk_login():
             with open(os.path.join(_WHISK_COOKIES_DIR, f"account_{profile_id}.txt"),
                       "w", encoding="utf-8") as fh:
                 fh.write(ck)
-            _whisk_log(f"  [C{profile_id}] ✅ Cookie guardada directamente")
+            _whisk_log(f"  [C{profile_id}] [OK] Cookie guardada directamente")
             threading.Thread(target=_whisk_sync_profile_rows, daemon=True).start()
             return jsonify(ok=True, user=r.get("user", ""))
 
@@ -18633,7 +18674,7 @@ def api_whisk_login():
 
 @app.route("/api/whisk/set-subject", methods=["POST", "DELETE"])
 def api_whisk_set_subject():
-    # DELETE o POST vacío → limpiar sujeto
+    # DELETE o POST vacío --> limpiar sujeto
     if request.method == "DELETE":
         _whisk_subj[0] = None
         return jsonify(ok=True, cleared=True)
@@ -18668,7 +18709,7 @@ def api_whisk_set_subject():
         _whisk_log(f"  📎 Sujeto guardado (multipart): {path}")
         return jsonify(ok=True, path=path)
 
-    # Sin datos → limpiar
+    # Sin datos --> limpiar
     _whisk_subj[0] = None
     return jsonify(ok=True, cleared=True)
 
@@ -18676,6 +18717,11 @@ def api_whisk_set_subject():
 
 @app.route("/api/whisk/run-prompts", methods=["POST"])
 def api_whisk_run():
+    import traceback
+    import os
+    import sys
+    from datetime import datetime
+
     try:
         if _whisk_state["running"]:
             return jsonify(error="Ya hay una corrida en progreso"), 400
@@ -18692,27 +18738,63 @@ def api_whisk_run():
         if not prompts:
             return jsonify(error="Sin prompts — escribe al menos uno"), 400
 
-        slots   = max(1, int(data.get("slots",  1)))
-        repeat  = max(1, int(data.get("repeat", 1)))
+        slots = max(1, int(data.get("slots", 1)))
+        repeat = max(1, int(data.get("repeat", 1)))
         out_dir = (data.get("output_dir") or "").strip() or _WHISK_DOWNLOAD_DIR
 
+        # ============================================
+        #  DIAGNOSTICO DE CARPETAS
+        # ============================================
+        print("[DIAG] === INICIO whisk_run_prompts ===")
+        print(f"[DIAG] sys._MEIPASS: {getattr(sys, '_MEIPASS', 'No existe')}")
+        print(f"[DIAG] out_dir: {out_dir}")
+        print(f"[DIAG] out_dir existe: {os.path.exists(out_dir)}")
+        
+        # Verificar carpeta de cookies
+        cookies_dir = os.path.join(os.path.dirname(out_dir), 'cookies')
+        print(f"[DIAG] cookies_dir: {cookies_dir}")
+        print(f"[DIAG] cookies_dir existe: {os.path.exists(cookies_dir)}")
+        
+        if os.path.exists(cookies_dir):
+            try:
+                cookie_files = os.listdir(cookies_dir)
+                print(f"[DIAG] Archivos en cookies: {cookie_files[:10]}")
+                if not cookie_files:
+                    print("[ERROR] No hay archivos de cookies!")
+            except Exception as e:
+                print(f"[DIAG] Error listando cookies: {e}")
+        
+        print(f"[DIAG] prompts: {len(prompts)}")
+        print(f"[DIAG] slots: {slots}")
+        print(f"[DIAG] repeat: {repeat}")
+        print(f"[DIAG] ================================")
+
         import uuid as _uuid
-        # Append a unique token per prompt so Whisk never deduplicates variants
         raw_prompts = [p for p in prompts for _ in range(repeat)]
         all_prompts = [p + f" [v{i+1}-{_uuid.uuid4().hex[:6]}]" for i, p in enumerate(raw_prompts)]
         total = len(all_prompts)
 
-        # Imagen de referencia es opcional — si no hay sujeto, Whisk genera libremente
+        # Imagen de referencia es opcional
         if _whisk_subj[0] and not os.path.isfile(str(_whisk_subj[0])):
-            _whisk_subj[0] = None   # reset si el path ya no existe
+            _whisk_subj[0] = None
 
-        # Auto-clear only img_* files — never delete subject or cookies
+        # Crear carpeta de salida
         try:
             os.makedirs(out_dir, exist_ok=True)
-            for _f in FPath(out_dir).glob("img_*"):
-                try: _f.unlink()
+            print(f"[DIAG] Carpeta out_dir creada/verificada: {out_dir}")
+        except Exception as e:
+            print(f"[ERROR] No se pudo crear out_dir: {e}")
+            raise
+
+        # Limpiar archivos img_* anteriores
+        try:
+            from pathlib import Path
+            for f in Path(out_dir).glob("img_*"):
+                try: f.unlink()
                 except: pass
-        except: pass
+            print(f"[DIAG] Archivos img_* limpiados en {out_dir}")
+        except Exception as e:
+            print(f"[DIAG] No se pudieron limpiar archivos: {e}")
 
         _whisk_stop.clear()
         with _whisk_lock:
@@ -18741,9 +18823,45 @@ def api_whisk_run():
                        message=f"{total} imagen(es) en cola · {slots} slot(s)")
 
     except Exception as e:
-        import traceback
-        _whisk_log(f"❌ run-prompts error: {traceback.format_exc()}")
-        return jsonify(error=str(e)), 500
+        # ============================================
+        #  GUARDAR ERROR EN EL ESCRITORIO DEL USUARIO
+        # ============================================
+        error_texto = traceback.format_exc()
+        print(f"[ERROR] whisk_run_prompts falló: {e}")
+        print(error_texto)
+        
+        try:
+            desktop = os.path.expanduser("~/Desktop")
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            log_path = os.path.join(desktop, f"IVR_Whisk_Error_{timestamp}.txt")
+            
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write("=" * 60 + "\n")
+                f.write("  IVR 2.5 - ERROR EN WHISK\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Usuario: {os.getlogin()}\n")
+                f.write(f"PC: {os.environ.get('COMPUTERNAME', 'desconocida')}\n\n")
+                f.write("=" * 60 + "\n")
+                f.write("  ERROR DETALLADO\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(error_texto)
+                f.write("\n\n" + "=" * 60 + "\n")
+                f.write("  VARIABLES DE ENTORNO\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(f"APPDATA: {os.environ.get('APPDATA', 'No existe')}\n")
+                f.write(f"TEMP: {os.environ.get('TEMP', 'No existe')}\n")
+                f.write(f"USERPROFILE: {os.environ.get('USERPROFILE', 'No existe')}\n")
+                f.write("\n" + "=" * 60 + "\n")
+                f.write("  FIN DEL REPORTE\n")
+                f.write("=" * 60 + "\n")
+            
+            print(f"[DIAG] Error guardado en: {log_path}")
+        except Exception as log_error:
+            print(f"[ERROR] No se pudo guardar el log: {log_error}")
+
+        _whisk_log(f"[ERROR] run-prompts error: {traceback.format_exc()}")
+        return jsonify(error=str(e), trace=error_texto), 500
 
 
 @app.route("/api/pollination/generate", methods=["POST"])
@@ -18874,9 +18992,9 @@ Primero determina: ¿es un ANIMAL o un HUMANO?
 - Estilo de ilustración
 
 ## PARA HUMANOS
-- Color exacto de cara/piel: si es blanca sin tono humano → "cara blanca sin color de piel"
+- Color exacto de cara/piel: si es blanca sin tono humano --> "cara blanca sin color de piel"
 - Forma EXACTA de cabeza: círculo, elipse vertical, elipse horizontal. NO uses "ovalada" si es circular.
-- Si cabeza grande respecto al cuerpo → "cabeza grande en proporción al cuerpo" (NO usar "chibi")
+- Si cabeza grande respecto al cuerpo --> "cabeza grande en proporción al cuerpo" (NO usar "chibi")
 - Ojos, cabello, vestimenta con colores exactos
 
 ## ESTILO
@@ -18931,8 +19049,8 @@ def _guion_parse_vision_output(txt: str):
 def guion_openai_analyze_image_b64(b64: str, mime: str):
     """
     Analiza imagen (OpenAI Vision). Devuelve dict:
-      ok True  → {"ok": True, "descripcion_completa": str, "json": dict|None}
-      ok False → {"ok": False, "error": str, "status": int, "detail": ...}
+      ok True  --> {"ok": True, "descripcion_completa": str, "json": dict|None}
+      ok False --> {"ok": False, "error": str, "status": int, "detail": ...}
     """
     b64 = re.sub(r"[\s\r\n]+", "", (b64 or "").strip())
     mime = (mime or "image/png").strip() or "image/png"
@@ -18961,7 +19079,7 @@ def guion_openai_analyze_image_b64(b64: str, mime: str):
         }
 
     data_url = f"data:{mime};base64,{b64}"
-    # detail=low: menos tokens de imagen → más rápido; suficiente para estilo.
+    # detail=low: menos tokens de imagen --> más rápido; suficiente para estilo.
     _img_detail = (os.environ.get("OPENAI_IMAGE_DETAIL") or "low").strip().lower()
     if _img_detail not in ("low", "high", "auto"):
         _img_detail = "low"
@@ -19357,12 +19475,12 @@ El personaje se describe SIEMPRE con esta frase exacta, sin variaciones:
 Después de la frase fija, añade la postura y expresión específica de la escena (sudor, ojos abiertos, temblor, encogido, empujando, encogiéndose de hombros, etc.).
 
 ══ REGLA 3 — TEXTO EN ESCENA (obligatorio) ══
-REGLA DE IDIOMA CRÍTICA: El idioma del texto visible en la imagen DEBE coincidir SIEMPRE con el idioma del guión recibido. Si el guión está en español → el texto en imagen en español. Si el guión está en inglés → el texto en imagen en inglés. NUNCA uses un idioma distinto al del guión.
+REGLA DE IDIOMA CRÍTICA: El idioma del texto visible en la imagen DEBE coincidir SIEMPRE con el idioma del guión recibido. Si el guión está en español --> el texto en imagen en español. Si el guión está en inglés --> el texto en imagen en inglés. NUNCA uses un idioma distinto al del guión.
 Incluye UN elemento de texto visible dentro de la imagen. El texto debe ser MUY corto: 1 a 3 palabras o una cifra clave. NUNCA oraciones completas. Elige la integración más creativa según el concepto:
-• Decisión o dilema → textos flotantes a los lados con flechas rojas hacia cada opción. Ej (guión en español): "flotando a la izquierda un texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en español: 'GEN X' con una flecha roja hacia la izquierda, y a la derecha otro que dice: 'MILLENNIALS' con una flecha roja hacia la derecha."
-• Duda o misterio → signo de interrogación gigante "?" flotando junto al personaje, más la palabra clave flotante. Ej (guión en español): "Flotando junto al personaje hay un signo de interrogación gigante '?', acompañado en el espacio vacío por un texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en español: 'NO ENCAJO'."
-• Dato de impacto o número → texto dentro de un recuadro blanco sólido en una esquina superior.
-• Proceso o secuencia → texto con flechas entre pasos.
+• Decisión o dilema --> textos flotantes a los lados con flechas rojas hacia cada opción. Ej (guión en español): "flotando a la izquierda un texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en español: 'GEN X' con una flecha roja hacia la izquierda, y a la derecha otro que dice: 'MILLENNIALS' con una flecha roja hacia la derecha."
+• Duda o misterio --> signo de interrogación gigante "?" flotando junto al personaje, más la palabra clave flotante. Ej (guión en español): "Flotando junto al personaje hay un signo de interrogación gigante '?', acompañado en el espacio vacío por un texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en español: 'NO ENCAJO'."
+• Dato de impacto o número --> texto dentro de un recuadro blanco sólido en una esquina superior.
+• Proceso o secuencia --> texto con flechas entre pasos.
 SIEMPRE usa la fórmula: texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en [IDIOMA DEL GUIÓN]: '[TEXTO MUY CORTO]'
 
 ══ REGLA 4 — ENTORNO Y ACCIÓN ══
@@ -19377,7 +19495,7 @@ Cada escena del guión describe UN momento específico y distinto. Tu prompt DEB
 • Lee la escena actual con atención y extrae el DETALLE CONCRETO más visual e impactante de ESE momento específico — no el tema general del guión.
 
 ══ ESTRUCTURA OBLIGATORIA DEL PÁRRAFO ══
-[Apertura fija con fondo] → [Texto en escena con su posición] → [Frase fija del stickman + postura/expresión específica] → [Acción, entorno, interacción]
+[Apertura fija con fondo] --> [Texto en escena con su posición] --> [Frase fija del stickman + postura/expresión específica] --> [Acción, entorno, interacción]
 
 ══ EJEMPLOS DE SALIDA CORRECTA ══
 Ejemplo A: Un dibujo animado digital 2D de estilo cómic web extremadamente minimalista, con líneas gruesas y negras, colores planos sin sombreado, sobre un fondo gris claro. Flotando junto al personaje hay un signo de interrogación gigante "?", acompañado en el espacio vacío por un texto manuscrito de estilo cómic web que dice literalmente y carácter por carácter en español: 'NO ENCAJO'. En el centro se encuentra un personaje estilo stickman (monigote clásico), con una cabeza circular blanca sin cabello, y un cuerpo hecho de líneas negras simples (brazos y piernas de palitos, sin ropa, sin anatomía humana detallada). El monigote tiene los ojos muy abiertos, grandes gotas de sudor y una expresión de pánico, mientras intenta empujar con sus manos y pies hacia afuera las paredes interiores de una pequeña caja de cartón marrón de colores planos en la que está encogido, mientras un par de manos anónimas de palitos lo empujan desde arriba para meterlo a la fuerza.
@@ -19393,7 +19511,7 @@ LA PLANTILLA OBLIGATORIA (Sigue este orden exacto):
 REGLA DE IDIOMA: El idioma del texto visible en la imagen DEBE coincidir SIEMPRE con el idioma del guión recibido.
 REGLA DE UNICIDAD: Cada escena describe un momento específico y distinto. PROHIBIDO repetir el mismo texto, composición o entorno en escenas consecutivas. Varía la perspectiva, la paleta de colores y la acción del personaje.
 EJEMPLO DE COMPORTAMIENTO ESPERADO:
-Escena: "Firmar un mal contrato bajo presión" → Un dibujo animado digital 2D de estilo cómic web extremadamente minimalista, con líneas gruesas y negras, colores planos sin sombreado. La escena muestra el interior de un restaurante clásico y simétrico con paredes color beige grisáceo muy apagado, decoradas con paneles cuadrados simples, y un piso de madera color marrón ceniza oscuro con líneas de perspectiva. A los lados hay asientos de cabina color caqui grisáceo desaturado. Hay dos personajes estilo stickman interactuando, todos con cuerpos de líneas negras simples y cabezas circulares blancas, pero visualmente distintos. Sentado a la izquierda, el protagonista con cabello castaño oscuro opaco, con expresión de gran nerviosismo, inclinado firmando un documento amarillo sobre la mesa. Sentado a la derecha, un secundario con cabello negro corto para contrastar, con sonrisa maliciosa. Flotando arriba hay un círculo blanco con borde negro que contiene el ícono de una lupa roja."""
+Escena: "Firmar un mal contrato bajo presión" --> Un dibujo animado digital 2D de estilo cómic web extremadamente minimalista, con líneas gruesas y negras, colores planos sin sombreado. La escena muestra el interior de un restaurante clásico y simétrico con paredes color beige grisáceo muy apagado, decoradas con paneles cuadrados simples, y un piso de madera color marrón ceniza oscuro con líneas de perspectiva. A los lados hay asientos de cabina color caqui grisáceo desaturado. Hay dos personajes estilo stickman interactuando, todos con cuerpos de líneas negras simples y cabezas circulares blancas, pero visualmente distintos. Sentado a la izquierda, el protagonista con cabello castaño oscuro opaco, con expresión de gran nerviosismo, inclinado firmando un documento amarillo sobre la mesa. Sentado a la derecha, un secundario con cabello negro corto para contrastar, con sonrisa maliciosa. Flotando arriba hay un círculo blanco con borde negro que contiene el ícono de una lupa roja."""
 
     if prompt_mode == "stick":
         if prompt_style == "history":
@@ -19740,9 +19858,9 @@ os.makedirs(_GT_COOKIES_DIR, exist_ok=True)
 import queue as _gt_ws_queue_mod
 import struct as _struct
 
-_gt_ws_clients    = {}   # account_id → ws_socket
+_gt_ws_clients    = {}   # account_id --> ws_socket
 _gt_ws_lock       = threading.Lock()
-_gt_pending       = {}   # requestId → {"event": Event, "result": dict}
+_gt_pending       = {}   # requestId --> {"event": Event, "result": dict}
 _gt_pending_lock  = threading.Lock()
 
 def _gt_ws_server():
@@ -20047,7 +20165,7 @@ def _gt_playwright_login(account_id: int):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        _gt_log(f"  [C{account_id}] ❌ Playwright no instalado.")
+        _gt_log(f"  [C{account_id}] [ERROR] Playwright no instalado.")
         return
 
     profile_dir = str(_GT_BASE_DIR / f"gt_profile_{account_id}")
@@ -20096,7 +20214,7 @@ def _gt_playwright_login(account_id: int):
                     if pr["ok"]:
                         with open(_gt_cookie_path(account_id), "w", encoding="utf-8") as fh:
                             fh.write(ck_str)
-                        _gt_log(f"  [C{account_id}] ✅ Cookie guardada — {pr.get('user', '')}")
+                        _gt_log(f"  [C{account_id}] [OK] Cookie guardada — {pr.get('user', '')}")
                         saved = True
                         threading.Thread(target=_gt_sync_profiles, daemon=True).start()
 
@@ -20111,9 +20229,9 @@ def _gt_playwright_login(account_id: int):
                 time.sleep(2)
 
             if not saved:
-                _gt_log(f"  [C{account_id}] ⚠️ Browser cerrado sin guardar sesión")
+                _gt_log(f"  [C{account_id}] [WARNING] Browser cerrado sin guardar sesión")
     except Exception as e:
-        _gt_log(f"  [C{account_id}] ❌ Error: {e}")
+        _gt_log(f"  [C{account_id}] [ERROR] Error: {e}")
 
 def _gt_worker(prompts: list, slots: int, repeat: int,
                output_dir: str, ratio: str, quality: str):
@@ -20134,7 +20252,7 @@ def _gt_worker(prompts: list, slots: int, repeat: int,
             cookies_list.append((i, ck))
 
     if not cookies_list:
-        _gt_log("❌ No hay cuentas configuradas. Usa 🔑 Login primero.")
+        _gt_log("[ERROR] No hay cuentas configuradas. Usa 🔑 Login primero.")
         with _gt_lock:
             _gt_state.update(running=False, step="idle")
         return
@@ -20142,7 +20260,7 @@ def _gt_worker(prompts: list, slots: int, repeat: int,
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        _gt_log("❌ Playwright no instalado.")
+        _gt_log("[ERROR] Playwright no instalado.")
         with _gt_lock:
             _gt_state.update(running=False, step="idle")
         return
@@ -20392,14 +20510,14 @@ def _gt_worker(prompts: list, slots: int, repeat: int,
                                 saved_count[0] += 1
                                 with _gt_lock:
                                     _gt_state["images_saved"] = saved_count[0]
-                            _gt_log(f"  ✅ [S{slot_idx}|{task_idx+1}] {fname}")
+                            _gt_log(f"  [OK] [S{slot_idx}|{task_idx+1}] {fname}")
 
                             # Registrar imagen generada en pre_urls para próxima iteración
                             if result_img[0] == 'b64':
                                 pre_urls.add(result_img[1][:200])
 
                     except Exception as e2:
-                        _gt_log(f"  [S{slot_idx}|{task_idx+1}] ❌ {str(e2)[:80]}")
+                        _gt_log(f"  [S{slot_idx}|{task_idx+1}] [ERROR] {str(e2)[:80]}")
                         page_loaded = False
                         pre_urls.clear()
                         if retries < 3:
@@ -20476,7 +20594,7 @@ def gt_login():
             return jsonify(error="Cookie inválida o expirada — verifica que hayas copiado la cookie correcta."), 400
         with open(_gt_cookie_path(account_id), "w", encoding="utf-8") as fh:
             fh.write(ck)
-        _gt_log(f"  [C{account_id}] ✅ Cookie guardada directamente — {pr.get('user','')}")
+        _gt_log(f"  [C{account_id}] [OK] Cookie guardada directamente — {pr.get('user','')}")
         threading.Thread(target=_gt_sync_profiles, daemon=True).start()
         return jsonify(ok=True, user=pr.get("user", ""))
     # Modo browser
@@ -20855,7 +20973,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                                  movimiento, shake, render_mode, out_dir,
                                  whisper_backend="local", guion_path=None,
                                  ri_user=None):
-    """Pipeline híbrido: imágenes → Modal GPU | videos → FFmpeg local (paralelo)."""
+    """Pipeline híbrido: imágenes --> Modal GPU | videos --> FFmpeg local (paralelo)."""
     import tempfile as _tmp, shutil as _sh, math as _math
     from concurrent.futures import ThreadPoolExecutor as _TPE
     import io as _io
@@ -21001,7 +21119,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                             for _w in (getattr(_s, "words", None) or []):
                                 _all_words.append({"word": _w.word, "start": float(_w.start), "end": float(_w.end)})
                     segmentos = _split_api_segmentos(_all_words, _tr.segments)
-                    log(f"  (API: {len(_all_words)} words → {len(segmentos)} sub-segmentos)")
+                    log(f"  (API: {len(_all_words)} words --> {len(segmentos)} sub-segmentos)")
                 except Exception as _ae:
                     raise Exception(f"Whisper API error: {_ae}")
             elif whisper_backend == "faster":
@@ -21071,7 +21189,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
 
                 # ── Detección de fallo en word-level ─────────────────────────
                 # Con ciertas voces TTS el narrator lee números y abreviaciones
-                # de forma distinta al texto del guión ("Kepler-70" → "kepler setenta").
+                # de forma distinta al texto del guión ("Kepler-70" --> "kepler setenta").
                 # El n-gram matching exacto falla silenciosamente: encuentra coincidencias
                 # en posiciones incorrectas del stream, produciendo escenas de 200-300s
                 # que "absorben" decenas de escenas siguientes. Síntoma: >40% de escenas
@@ -21088,7 +21206,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                 _wl_failed = _wl_ratio > 0.40 and _wl_late
 
                 if _wl_failed:
-                    log(f"⚠️ Word-level anómalo: {_wl_unmatched}/{len(timestamps)} escenas sin "
+                    log(f"[WARNING] Word-level anómalo: {_wl_unmatched}/{len(timestamps)} escenas sin "
                         f"coincidencia, último match al "
                         f"{_wl_last_ok / duracion_total * 100:.0f}% del audio.", 33)
                     log("   Causa probable: voz TTS lee números/abreviaciones distinto al guión.", 33)
@@ -21107,7 +21225,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             log(f"✓ {len(timestamps)} timestamps", 22)
         log("📋 Timestamps por escena:")
         for _i, _ts in enumerate(timestamps):
-            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s → {_ts['fin']:.2f}s  dur={_ts['duracion']:.3f}s  score={_ts.get('score',0):.2f}  seg={_ts.get('seg_idx','?')}")
+            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s --> {_ts['fin']:.2f}s  dur={_ts['duracion']:.3f}s  score={_ts.get('score',0):.2f}  seg={_ts.get('seg_idx','?')}")
 
         # ── Build scene list ──────────────────────────────────────────────────
         # Un timestamp por línea de guión: si hay más timestamps que imágenes (p. ej. Whisk
@@ -21120,7 +21238,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             n_ts, n_vids = len(timestamps), len(_vids_sorted)
             _n_total = max(n_ts, n_vids)
             if n_ts > n_vids:
-                log(f"⚠️ {n_ts} timestamps pero solo {n_vids} videos — se reutiliza el último.", 25)
+                log(f"[WARNING] {n_ts} timestamps pero solo {n_vids} videos — se reutiliza el último.", 25)
             for i in range(_n_total):
                 _vid = _vids_sorted[min(i, n_vids - 1)]
                 _ts  = timestamps[min(i, n_ts - 1)] if timestamps else {"inicio": 0, "fin": duracion_total / max(1, n_vids), "duracion": duracion_total / max(1, n_vids)}
@@ -21138,11 +21256,11 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             n_ts, n_img = len(timestamps), len(images)
             if n_ts > n_img:
                 log(
-                    f"⚠️ {n_ts} timestamps (guión) pero {n_img} imágenes — "
+                    f"[WARNING] {n_ts} timestamps (guión) pero {n_img} imágenes — "
                     f"se reutiliza la última imagen en las {n_ts - n_img} escenas finales.",
                     25,
                 )
-            # Mapa escena→imagen por nombre de archivo (img_00001→escena 0, etc.)
+            # Mapa escena-->imagen por nombre de archivo (img_00001-->escena 0, etc.)
             # Robusto ante fallos de Whisk: si falta img_00003.png, la escena 2
             # usa el fallback pero las escenas 3,4,… siguen viendo su imagen
             # correcta — sin el desplazamiento que causaba el índice de lista.
@@ -21193,7 +21311,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             scenes[-1]["duracion"] = round(max(0.5, float(scenes[-1]["duracion"]) + gap), 3)
             log(
                 f"📏 Ajuste fin de línea: +{gap:.2f}s en última escena "
-                f"(suma escenas {total_vid:.1f}s → audio {duracion_total:.1f}s).",
+                f"(suma escenas {total_vid:.1f}s --> audio {duracion_total:.1f}s).",
                 26,
             )
         n_vid = sum(1 for s in scenes if s["type"] == "video")
@@ -21266,10 +21384,10 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                 ratio = _dur_exact / src_d
                 if ratio <= 1.60:
                     pts_expr = f"{ratio:.8f}*PTS"
-                    log(f"  🎬 clip E{sc['escena_idx']+1}: {src_d:.2f}s → {_dur_exact:.3f}s (x{ratio:.3f})")
+                    log(f"  🎬 clip E{sc['escena_idx']+1}: {src_d:.2f}s --> {_dur_exact:.3f}s (x{ratio:.3f})")
                 else:
                     pts_expr = "PTS"
-                    log(f"  ⏱️ clip E{sc['escena_idx']+1}: {src_d:.2f}s < {_dur_exact:.3f}s → freeze")
+                    log(f"  ⏱️ clip E{sc['escena_idx']+1}: {src_d:.2f}s < {_dur_exact:.3f}s --> freeze")
                 _vf_s = (f"scale={w_res}:{h_res}:force_original_aspect_ratio=decrease,"
                          f"pad={w_res}:{h_res}:(ow-iw)/2:(oh-ih)/2:color=black,"
                          f"setsar=1,fps={_FPS},setpts={pts_expr}")
@@ -21319,7 +21437,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     os.replace(_out_tmp, out)
             if not (os.path.exists(out) and os.path.getsize(out) > 500):
                 _err = (_r.stderr or "")[-400:].strip()
-                log(f"  ⚠️ _render_vid_clip E{sc['escena_idx']+1} fallback: {_err[-200:]}")
+                log(f"  [WARNING] _render_vid_clip E{sc['escena_idx']+1} fallback: {_err[-200:]}")
                 _vf_fb = (f"scale={w_res}:{h_res}:force_original_aspect_ratio=decrease,"
                           f"pad={w_res}:{h_res}:(ow-iw)/2:(oh-ih)/2:color=black,"
                           f"setsar=1,fps={_FPS},setpts=PTS-STARTPTS")
@@ -21413,7 +21531,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                         except Exception:
                             _modal_local.s = requests.Session()
                         log(
-                            f"  ⚠️ seg{seg_idx} batch {bi+1}/{n_b}: conexión Modal inestable, "
+                            f"  [WARNING] seg{seg_idx} batch {bi+1}/{n_b}: conexión Modal inestable, "
                             f"reintentando... ({str(conn_err)[:120]})"
                         )
                         time.sleep(1.5 + _attempt * 2.0 + random.random() * 0.35)
@@ -21421,7 +21539,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     except requests.exceptions.ReadTimeout as to_err:
                         last_err = to_err
                         log(
-                            f"  ⚠️ seg{seg_idx} batch {bi+1}/{n_b}: timeout de Modal "
+                            f"  [WARNING] seg{seg_idx} batch {bi+1}/{n_b}: timeout de Modal "
                             f"({_modal_read_timeout}s), reintentando..."
                         )
                         time.sleep(1.0 + _attempt * 1.5 + random.random() * 0.3)
@@ -21432,7 +21550,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                         # 429/5xx suelen ser transitorios en servicios remotos.
                         if _st in (408, 409, 425, 429, 500, 502, 503, 504):
                             log(
-                                f"  ⚠️ seg{seg_idx} batch {bi+1}/{n_b}: Modal HTTP {_st}, "
+                                f"  [WARNING] seg{seg_idx} batch {bi+1}/{n_b}: Modal HTTP {_st}, "
                                 f"reintentando..."
                             )
                             time.sleep(1.5 + _attempt * 2.0 + random.random() * 0.3)
@@ -21448,7 +21566,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     except Exception:
                         pass
                     log(
-                        f"  ⚠️ seg{seg_idx} batch {bi+1}/{n_b}: Modal no respondió, "
+                        f"  [WARNING] seg{seg_idx} batch {bi+1}/{n_b}: Modal no respondió, "
                         f"fallback local estático. {str(last_err)[:140]}"
                     )
                     _batch_clips = []
@@ -21502,7 +21620,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     f.write(decoded_video)
                 if not os.path.exists(bp) or os.path.getsize(bp) <= 500:
                     raise Exception(f"Modal seg {seg_idx} batch {bi}: clip vacío o inválido")
-                # Normalizar codec Modal → libx264 ultrafast para compatibilidad con clips locales
+                # Normalizar codec Modal --> libx264 ultrafast para compatibilidad con clips locales
                 bp_n = bp.replace(".mp4","_n.mp4")
                 _cmd = [
                     "ffmpeg", "-y", "-threads", _ff_threads, "-i", bp,
@@ -21539,8 +21657,8 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     _bw_v = int((_st_v[0] if _st_v else {}).get("width", 0) or 0)
                     _bh_v = int((_st_v[0] if _st_v else {}).get("height", 0) or 0)
                     if _bw_v < 2 or _bh_v < 2:
-                        log(f"  ⚠️ seg{seg_idx} batch{_bi_v} descartado: "
-                            f"dim inválida {_bw_v}×{_bh_v} → {os.path.basename(_bp_v)}")
+                        log(f"  [WARNING] seg{seg_idx} batch{_bi_v} descartado: "
+                            f"dim inválida {_bw_v}×{_bh_v} --> {os.path.basename(_bp_v)}")
                         continue
                 except Exception:
                     pass  # ante la duda conservar el clip
@@ -21611,7 +21729,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                 else:
                     _sc = _sc_map[_eidx]
                     _fb = os.path.join(tmp_dir, f"vc_{_eidx:05d}_fb.mp4")
-                    log(f"  ⚠️ clip E{_eidx+1} falló — usando imagen estática como fallback")
+                    log(f"  [WARNING] clip E{_eidx+1} falló — usando imagen estática como fallback")
                     # Intentar usar la imagen correspondiente (img_XXXXX.jpg/png/webp)
                     _img_path = _sc.get("img_path", "")
                     _img_ok = _img_path and os.path.exists(_img_path)
@@ -21677,7 +21795,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
                     ], capture_output=True, **_vf_no_window())
                     if os.path.exists(_co_corr) and os.path.getsize(_co_corr) > 500:
                         os.replace(_co_corr, co)
-                        log(f"  ✅ seg{seg_idx} drift corregido: {_drift:+.3f}s → 0.000s")
+                        log(f"  [OK] seg{seg_idx} drift corregido: {_drift:+.3f}s --> 0.000s")
             except Exception: pass
             return seg_idx, co
 
@@ -21702,7 +21820,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
 
         n_img_segs = sum(1 for t,_ in segments if t == "image")
         n_vid_segs = sum(1 for t,_ in segments if t == "video")
-        log(f"🔀 {len(segments)} segmentos — {n_img_segs} imagen→Modal · {n_vid_segs} video→FFmpeg", 30)
+        log(f"🔀 {len(segments)} segmentos — {n_img_segs} imagen-->Modal · {n_vid_segs} video-->FFmpeg", 30)
 
         # ── Procesar todos los segmentos EN PARALELO ──────────────────────────
         log("⚡ Procesando segmentos en paralelo...", 35)
@@ -21785,7 +21903,7 @@ def procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             raise Exception("FFmpeg no generó el video final")
 
         size_mb = os.path.getsize(video_final) / (1024*1024)
-        log(f"✅ Video listo — {size_mb:.1f} MB", 100)
+        log(f"[OK] Video listo — {size_mb:.1f} MB", 100)
         jobs[job_id].update({
             "estado":    "completado",
             "video_url": f"/api/descargar_render/{job_id}",
@@ -22297,36 +22415,36 @@ def editor_analizar():
         "intro_dinamica: SIEMPRE escena 1. texto_overlay = TITULO del video (3-5 palabras, NO narración, NO preguntas, NO frases). EJEMPLO: 'Generacion X' o 'La Historia del Arte'.\n"
         "normal: narracion sin elemento visual especifico. texto_overlay = null. USAR LO MENOS POSIBLE.\n"
         "lower_third: hay un nombre, sigla, lugar o dato que conviene etiquetar abajo-izq mientras narra. texto_overlay = la etiqueta (2-4 palabras).\n"
-        "  EJEMPLO: 'La CIA, la NSA, el FBI controlan...' → lower_third, texto_overlay='CIA, NSA, FBI'\n"
-        "  EJEMPLO: 'Los soviéticos lanzaron el Sputnik...' → lower_third, texto_overlay='Sputnik, 1957'\n"
+        "  EJEMPLO: 'La CIA, la NSA, el FBI controlan...' --> lower_third, texto_overlay='CIA, NSA, FBI'\n"
+        "  EJEMPLO: 'Los soviéticos lanzaron el Sputnik...' --> lower_third, texto_overlay='Sputnik, 1957'\n"
         "texto_enfasis: hay una CIFRA, FECHA o DATO impactante. texto_overlay = solo el dato.\n"
-        "  EJEMPLO: '...costó 30 mil millones de dólares...' → texto_enfasis, texto_overlay='$30 mil millones', color_accent=FFD700\n"
-        "  EJEMPLO: 'En 1961, en plena Guerra Fría...' → texto_enfasis, texto_overlay='1961', color_accent=00CFFF\n"
+        "  EJEMPLO: '...costó 30 mil millones de dólares...' --> texto_enfasis, texto_overlay='$30 mil millones', color_accent=FFD700\n"
+        "  EJEMPLO: 'En 1961, en plena Guerra Fría...' --> texto_enfasis, texto_overlay='1961', color_accent=00CFFF\n"
         "nombre_persona: se menciona una persona por PRIMERA VEZ con nombre propio. texto_overlay=nombre, texto_secundario=cargo.\n"
-        "  EJEMPLO: 'Simon Pedro, pescador de Galilea...' → nombre_persona, texto_overlay='Simon Pedro', texto_secundario='Apostol'\n"
+        "  EJEMPLO: 'Simon Pedro, pescador de Galilea...' --> nombre_persona, texto_overlay='Simon Pedro', texto_secundario='Apostol'\n"
         "texto_lateral: se describe un OFICIO, PROFESION o ACTIVIDAD. imagen ilustrativa centrada + titulo arriba.\n"
-        "  EJEMPLO: 'era carpintero de profesion...' → texto_lateral, texto_overlay='Carpintero', google_query='medieval carpenter illustration'\n"
-        "  EJEMPLO: 'pescadores del Mar de Galilea...' → texto_lateral, texto_overlay='Pescador', google_query='ancient fisherman nets illustration'\n"
+        "  EJEMPLO: 'era carpintero de profesion...' --> texto_lateral, texto_overlay='Carpintero', google_query='medieval carpenter illustration'\n"
+        "  EJEMPLO: 'pescadores del Mar de Galilea...' --> texto_lateral, texto_overlay='Pescador', google_query='ancient fisherman nets illustration'\n"
         "ref_persona: se menciona figura historica conocida. imagen Google pantalla completa. ref_label='Nombre, fecha'.\n"
-        "  EJEMPLO: 'Julio Cesar conquisto...' → ref_persona, google_query='Julius Caesar portrait Roman', ref_label='Julio Cesar, 100 a.C.'\n"
+        "  EJEMPLO: 'Julio Cesar conquisto...' --> ref_persona, google_query='Julius Caesar portrait Roman', ref_label='Julio Cesar, 100 a.C.'\n"
         "ref_lugar: se menciona lugar, ciudad, pais o edificio. imagen Google pantalla completa. ref_label='Lugar, epoca'.\n"
-        "  EJEMPLO: '...en Jerusalen, bajo el Imperio Romano...' → ref_lugar, google_query='Jerusalem ancient Roman period aerial', ref_label='Jerusalen, siglo I'\n"
+        "  EJEMPLO: '...en Jerusalen, bajo el Imperio Romano...' --> ref_lugar, google_query='Jerusalem ancient Roman period aerial', ref_label='Jerusalen, siglo I'\n"
         "google_fullscreen: concepto visual fuerte sin persona ni lugar fijo: objeto, tecnologia, fenomeno, animal, epoca.\n"
-        "  EJEMPLO: 'un satelite espía sobrevolando...' → google_fullscreen, google_query='spy satellite orbit Earth photo'\n"
-        "  EJEMPLO: 'la Red ARPANET conectaba...' → google_fullscreen, google_query='ARPANET network diagram 1970s'\n"
+        "  EJEMPLO: 'un satelite espía sobrevolando...' --> google_fullscreen, google_query='spy satellite orbit Earth photo'\n"
+        "  EJEMPLO: 'la Red ARPANET conectaba...' --> google_fullscreen, google_query='ARPANET network diagram 1970s'\n"
         "ref_doble: comparacion EXPLICITA de dos personas, grupos o conceptos.\n"
-        "  EJEMPLO: 'los romanos vs los judios...' → ref_doble, split_label_1='Romanos', split_label_2='Judios'\n"
+        "  EJEMPLO: 'los romanos vs los judios...' --> ref_doble, split_label_1='Romanos', split_label_2='Judios'\n"
         "broll: escena descriptiva/contextual — imagen IA de fondo + imagen Google esquina. google_query obligatoria.\n"
         "quote_animado: CITA TEXTUAL dicha por alguien. texto_overlay = la cita completa.\n"
-        "  EJEMPLO: 'dijo: Sobre esta roca edificare mi iglesia...' → quote_animado, texto_overlay='Sobre esta roca edificare mi iglesia'\n"
+        "  EJEMPLO: 'dijo: Sobre esta roca edificare mi iglesia...' --> quote_animado, texto_overlay='Sobre esta roca edificare mi iglesia'\n"
         "titulo_capitulo: cambio claro de tema o era. max 3 por video. numero_capitulo obligatorio.\n\n"
         "REGLAS DE VARIEDAD — OBLIGATORIAS:\n"
         "1. Escena 1 = SIEMPRE intro_dinamica.\n"
-        "2. Nombre propio mencionado en la escena → ref_persona o nombre_persona EN ESA ESCENA.\n"
-        "3. Lugar geografico mencionado → ref_lugar EN ESA ESCENA.\n"
-        "4. Cifra/fecha importante → texto_enfasis EN ESA ESCENA.\n"
-        "5. Cita textual directa → quote_animado.\n"
-        "6. Oficio/actividad descrita → texto_lateral.\n"
+        "2. Nombre propio mencionado en la escena --> ref_persona o nombre_persona EN ESA ESCENA.\n"
+        "3. Lugar geografico mencionado --> ref_lugar EN ESA ESCENA.\n"
+        "4. Cifra/fecha importante --> texto_enfasis EN ESA ESCENA.\n"
+        "5. Cita textual directa --> quote_animado.\n"
+        "6. Oficio/actividad descrita --> texto_lateral.\n"
         "7. NUNCA mas de 2 'normal' seguidos. Si llevas 2 normales, el siguiente DEBE ser otro tipo.\n"
         "8. MINIMO 50% de escenas con tipo != normal. Si el lote tiene 20 escenas, minimo 10 deben ser no-normal.\n"
         "9. google_query SIEMPRE en ingles especifico con contexto: 'Julius Caesar portrait Roman senator', no solo 'Julius Caesar'.\n"
@@ -22436,10 +22554,10 @@ def editor_analizar():
                 f"Escenas {_ini+1} a {_fin} de {n_total} totales:\n" +
                 "\n".join(f"{_ini+j+1}. {e.get('texto','').strip()}" for j,e in enumerate(_sub)) +
                 f"\n\nRECUERDA: De estas {_n} escenas, MINIMO {max(1,_n//2)} deben ser tipo != normal. "
-                f"Busca activamente: nombres propios→nombre_persona/ref_persona, "
-                f"lugares→ref_lugar, cifras/fechas→texto_enfasis, "
-                f"oficios→texto_lateral, citas textuales→quote_animado, "
-                f"siglas/etiquetas→lower_third, conceptos visuales→google_fullscreen.\n"
+                f"Busca activamente: nombres propios-->nombre_persona/ref_persona, "
+                f"lugares-->ref_lugar, cifras/fechas-->texto_enfasis, "
+                f"oficios-->texto_lateral, citas textuales-->quote_animado, "
+                f"siglas/etiquetas-->lower_third, conceptos visuales-->google_fullscreen.\n"
                 f"Devuelve EXACTAMENTE {_n} objetos JSON en el array, uno por escena, en orden."
             )
 
@@ -22527,7 +22645,7 @@ def editor_analizar():
                 t = " ".join(words[:max_w])
             if len(t) > max_c:
                 t = t[:max_c].rsplit(" ", 1)[0] if " " in t[:max_c] else t[:max_c]
-            # Para tipos con imagen de referencia: texto largo → null
+            # Para tipos con imagen de referencia: texto largo --> null
             if tipo in ("normal", "broll", "ref_persona", "ref_lugar", "google_fullscreen"):
                 if len(t.split()) > 4 or len(t) > 30:
                     return None
@@ -22572,7 +22690,7 @@ def editor_analizar():
         # ── Post-proceso: corrección de desfase de sincronización ────────────
         # El LLM asigna tipos visuales a la escena que EMPIEZA con el tema,
         # pero la mención oral ocurre al FINAL de la escena anterior.
-        # Solución: si keywords del tipo visual aparecen en el texto de la escena anterior → adelantar.
+        # Solución: si keywords del tipo visual aparecen en el texto de la escena anterior --> adelantar.
         _REF_TIPOS_SHIFT = {"ref_persona", "ref_lugar", "google_fullscreen",
                             "broll", "lower_third", "nombre_persona", "texto_enfasis"}
 
@@ -22628,7 +22746,7 @@ def editor_analizar():
 
             # 4) Para texto_enfasis: usar las primeras palabras SIGNIFICATIVAS del
             #    texto de la propia escena (ej: "Reconocimiento facial confirma 94.7%"
-            #    → palabras como "reconocimiento", "facial", "confirma")
+            #    --> palabras como "reconocimiento", "facial", "confirma")
             if tipo_sc == "texto_enfasis":
                 own = (scene.get("texto") or "").lower()
                 own_words = [w for w in _re.findall(r'[a-záéíóúüñ]{5,}', own)
@@ -22678,7 +22796,7 @@ def editor_analizar():
 @app.route("/api/editor/buscar_imagen", methods=["POST"])
 def editor_buscar_imagen():
     """
-    Busca imágenes usando Serper (Google Images) → Pexels → Unsplash → Pixabay.
+    Busca imágenes usando Serper (Google Images) --> Pexels --> Unsplash --> Pixabay.
     Prioriza Serper para resultados históricos/documentales precisos.
     """
     data  = request.get_json() or {}
@@ -23157,7 +23275,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
         dur_audio = float(_json.loads(_fp.stdout)["format"]["duration"])
         log(f"✓ Audio: {dur_audio:.1f}s", 5)
 
-        # ── 2. Transcripción Whisper → timestamps reales ───────────
+        # ── 2. Transcripción Whisper --> timestamps reales ───────────
         log("🎯 Transcribiendo con WhisperX Replicate (word-level)...", 6)
         timestamps = None
         # Leer guion.txt del proyecto — IDÉNTICO a render normal (línea = escena)
@@ -23182,7 +23300,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
         else:
             # Fallback: textos del JSON (comportamiento anterior)
             escenas_texto = [e.get("texto", "") for e in _escenas_hab]
-            log(f"  ⚠️ guion.txt no encontrado — usando textos del editor", 9)
+            log(f"  [WARNING] guion.txt no encontrado — usando textos del editor", 9)
 
         try:
             segmentos, _all_words = _transcribir_whisperx_runpod(audio_path, language=None)
@@ -23193,8 +23311,8 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                 _ed_last_ok   = max((_t["fin"] for _t in timestamps if _t.get("score", 0) > 0), default=0.0)
                 if (_ed_unmatched / max(1, len(timestamps)) > 0.40
                         and _ed_last_ok > dur_audio * 0.85):
-                    log(f"⚠️ Word-level anómalo ({_ed_unmatched}/{len(timestamps)} sin match) "
-                        f"→ segment-level fallback", 10)
+                    log(f"[WARNING] Word-level anómalo ({_ed_unmatched}/{len(timestamps)} sin match) "
+                        f"--> segment-level fallback", 10)
                     timestamps = asignar_timestamps(escenas_texto, segmentos, dur_audio)
                     log(f"✓ {len(timestamps)} timestamps segment-level fallback (WhisperX)", 12)
                 else:
@@ -23207,7 +23325,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                 _all_words = []
         except Exception as _we:
             _all_words = []
-            log(f"  ⚠️ WhisperX: {_we} — proporcional", 10)
+            log(f"  [WARNING] WhisperX: {_we} — proporcional", 10)
 
         if not timestamps:
             timestamps = _proporcional(escenas_texto, dur_audio)
@@ -23237,7 +23355,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                 timestamps[_ti]["duracion"] = round(
                     timestamps[_ti]["fin"] - timestamps[_ti]["inicio"], 3)
 
-        # Mapa índice_absoluto → timestamp (solo las primeras N escenas habilitadas,
+        # Mapa índice_absoluto --> timestamp (solo las primeras N escenas habilitadas,
         # donde N = len(escenas_texto) = número de líneas del guion).
         # Escenas extra que excedan el guion NO se incluyen en el mapa; el bucle de
         # renderizado las trata por separado con el valor de fallback de _ts_map.get().
@@ -23290,7 +23408,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
         # Log todos los timestamps para diagnóstico
         log(f"📋 {len(timestamps)} timestamps:")
         for _i, _ts in enumerate(timestamps):
-            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s → {_ts['fin']:.2f}s  ({_ts['duracion']:.2f}s)")
+            log(f"  E{_i+1:02d}: {_ts['inicio']:.2f}s --> {_ts['fin']:.2f}s  ({_ts['duracion']:.2f}s)")
 
         # ── 3. Fuentes disponibles ─────────────────────────────────
         font_path     = ""
@@ -23387,7 +23505,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                     f"fade=t=in:st=0:d={sd:.3f}")
 
         def _zoom_in_center(wr, hr, dur, zoom_dur=0.45):
-            """Imagen entra con zoom suave desde 0.92 → 1.0."""
+            """Imagen entra con zoom suave desde 0.92 --> 1.0."""
             sd = min(zoom_dur, dur * 0.4)
             sc_start = 0.92; sc_end = 1.0
             D = f"{max(sd, 0.1):.4f}"
@@ -23693,7 +23811,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                 if _texto_esc:
                     _q_words = _texto_esc.split()[:7]
                     _q_auto  = " ".join(_q_words)
-                    log(f"  🔍 E{i+1}: sin imagen local → buscando '{_q_auto[:45]}...'")
+                    log(f"  🔍 E{i+1}: sin imagen local --> buscando '{_q_auto[:45]}...'")
                     try:
                         _img_data = _fetch_ref_server(_q_auto, n=4)
                         if _img_data:
@@ -23702,7 +23820,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                             img_path = str(_auto_img)
                             log(f"  ✓ E{i+1}: imagen autocomplete OK")
                     except Exception as _ae:
-                        log(f"  ⚠️ E{i+1}: autocomplete falló ({_ae})")
+                        log(f"  [WARNING] E{i+1}: autocomplete falló ({_ae})")
 
             # ── Fallback dinámico: fondo negro cuando Google tampoco tiene imagen ─
             if not img_path:
@@ -23719,7 +23837,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                     pass
 
             if not img_path:
-                log(f"  ⚠️ Escena {i+1}: sin imagen — omitida"); continue
+                log(f"  [WARNING] Escena {i+1}: sin imagen — omitida"); continue
 
             pct = 14+int((i/max(1,len(escenas)))*68)
             log(f"  🎨 [{tipo}] Escena {i+1}/{len(escenas)} ({dur_clip:.1f}s)...", pct)
@@ -23862,8 +23980,8 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                     D_s = f"{max(_sd, 0.1):.4f}"
                     _t_ease = f"min(max(t/{D_s},0),1)"
                     _slide_px = int(w_res * 0.06)  # desplazamiento horizontal inicial
-                    # m1: entra desde izquierda (x1 - slide_px → x1)
-                    # m2: entra desde derecha  (x2 + slide_px → x2)
+                    # m1: entra desde izquierda (x1 - slide_px --> x1)
+                    # m2: entra desde derecha  (x2 + slide_px --> x2)
                     fc_d=(f"[0:v]setpts=PTS-STARTPTS[bg];"
                           f"[1:v]scale={iw2}:{ih2}:force_original_aspect_ratio=decrease,"
                           f"pad={iw2}:{ih2}:(ow-iw)/2:(oh-ih)/2:color=white,"
@@ -23912,12 +24030,12 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                         _ref_show_from = _rw_s
 
                     if _rw_s <= 0.10:
-                        # La mención es al inicio → imagen de referencia durante todo el clip
+                        # La mención es al inicio --> imagen de referencia durante todo el clip
                         _enc(seg_out, kb, dur_clip, rp, crf=23, tout=90)
                     else:
                         # Antes de la mención: KB de la imagen IA (normal)
                         # Desde la mención: imagen de referencia (Google)
-                        log(f"    ⏱ ref '{_ref_ov_txt[:20]}' @ {_rw_s:.2f}s → imagen referencia")
+                        log(f"    ⏱ ref '{_ref_ov_txt[:20]}' @ {_rw_s:.2f}s --> imagen referencia")
                         import shutil as _shr
                         _kb_part  = str(tmp_dir/f"seg_{i:04d}_kb.mp4")
                         _ref_part = str(tmp_dir/f"seg_{i:04d}_rp.mp4")
@@ -24000,12 +24118,12 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                         _apply_timed_overlay(seg_out, _dt_l3, _ws_l3, _we_l3, dur_clip, tmp_dir, f"seg_{i:04d}_l3")
 
                 elif tipo == "broll" and rp:
-                    # Pre-render KB base → luego PiP overlay (evita comillas anidadas en Windows FFmpeg)
+                    # Pre-render KB base --> luego PiP overlay (evita comillas anidadas en Windows FFmpeg)
                     kb_base = str(tmp_dir/f"kb_{i:04d}.mp4")
                     try:
                         _enc(kb_base, kb, dur_clip, img_path, crf=25, tout=90)
                     except Exception as _kb_e:
-                        log(f"  ⚠️ broll KB fallback normal: {_kb_e}")
+                        log(f"  [WARNING] broll KB fallback normal: {_kb_e}")
                         _enc(kb_base, _bsb(w_res,h_res), dur_clip, img_path, crf=25, tout=60)
                     pw = int(w_res*0.26); pw += pw%2
                     ph = int(h_res*0.26); ph += ph%2
@@ -24136,7 +24254,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                             _add_txt(seg_out,sto,dt)
                             if os.path.exists(sto): os.replace(sto,seg_out)
                     except Exception as _te:
-                        log(f"  ⚠️ overlay txt seg {i+1}: {_te}")
+                        log(f"  [WARNING] overlay txt seg {i+1}: {_te}")
 
                 # ══════════════════════════════════════════════════
                 # POST-PROCESO FINAL: ref_label — siempre encima de todo
@@ -24164,7 +24282,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
                 seg_paths.append(seg_out)
 
             except Exception as seg_e:
-                log(f"  ❌ Error escena {i+1}: {seg_e}")
+                log(f"  [ERROR] Error escena {i+1}: {seg_e}")
                 try:
                     _enc(seg_out,_bsb(w_res,h_res),dur_clip,img_path,
                          preset="ultrafast",crf=28,tout=60)
@@ -24223,7 +24341,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
         try:
             _vf_final_mux_aligned(concat_out, audio_path, video_final, dur_audio, log=log)
         except Exception as _mux_e:
-            log(f"  ⚠️ mux_aligned: {_mux_e} — usando -shortest")
+            log(f"  [WARNING] mux_aligned: {_mux_e} — usando -shortest")
             run(["ffmpeg", "-y",
                  "-i", concat_out, "-i", audio_path,
                  "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
@@ -24234,7 +24352,7 @@ def _procesar_render_enriquecido(job_id, proj_name, safe, escenas, ref_images,
             raise Exception("FFmpeg no generó el video final")
 
         size_mb = os.path.getsize(video_final) / (1024*1024)
-        log(f"✅ Video listo — {size_mb:.1f} MB", 100)
+        log(f"[OK] Video listo — {size_mb:.1f} MB", 100)
         jobs[job_id].update({
             "estado":     "completado",
             "video_url":  f"/api/descargar_render/{job_id}",
@@ -25028,7 +25146,7 @@ def _build_editor_view_html(proj_name: str) -> str:
 "  var refSeg=getActiveRefSeg(curTime);\n"
 "  var drawnRef=false;\n"
 "  if(refSeg){\n"
-"    // Ensure ref image is loaded (triggers async load → drawFrame callback)\n"
+"    // Ensure ref image is loaded (triggers async load --> drawFrame callback)\n"
 "    // When refSeg came from getActiveRefSeg for an imgTrackItem, the real seg is in _sc\n"
 "    if(!refSeg.refSrc&&!refSeg._refLoading){\n"
 "      var _loadTarget=refSeg._sc||refSeg;\n"
@@ -25361,7 +25479,7 @@ def _build_editor_view_html(proj_name: str) -> str:
 "  // Hide if no ref image\n"
 "  var rawSrc=esc.ref_image_b64||esc.ref_image_url||null;\n"
 "  if(!rawSrc){if(refWrap)refWrap.style.display='none';return;}\n"
-"  // Already loaded → just show\n"
+"  // Already loaded --> just show\n"
 "  if(sc.refSrc){\n"
 "    refThumb.src=sc.refSrc;if(refWrap)refWrap.style.display='';\n"
 "    return;\n"
@@ -25946,10 +26064,10 @@ def _build_editor_view_html(proj_name: str) -> str:
 "document.getElementById('tl-scroll').addEventListener('wheel',function(e){\n"
 "  e.preventDefault();\n"
 "  if(e.ctrlKey||e.metaKey){\n"
-"    // Ctrl+wheel → zoom\n"
+"    // Ctrl+wheel --> zoom\n"
 "    if(e.deltaY<0)zoomIn();else zoomOut();\n"
 "  } else {\n"
-"    // Normal wheel → scroll horizontally\n"
+"    // Normal wheel --> scroll horizontally\n"
 "    this.scrollLeft+=e.deltaY*2;\n"
 "  }\n"
 "},{passive:false});\n"
@@ -26217,7 +26335,7 @@ def _build_editor_view_html(proj_name: str) -> str:
 "\n"
 "function handleTimelineDrop(drag,rowType,dropTime){\n"
 "  if(rowType==='video'){\n"
-"    // Drop image/video onto video row → find scene at that time and replace its src\n"
+"    // Drop image/video onto video row --> find scene at that time and replace its src\n"
 "    if(drag.type!=='image'&&drag.type!=='video'&&drag.type!=='ref')return;\n"
 "    var targetSeg=null;\n"
 "    for(var i=0;i<segs.length;i++){\n"
@@ -26241,10 +26359,10 @@ def _build_editor_view_html(proj_name: str) -> str:
 "    imgTrackItems.push(newItem);\n"
 "    buildTimeline();drawFrame();\n"
 "  } else if(rowType==='ov'){\n"
-"    // Drop image onto text/overlay row → add text overlay at that time\n"
+"    // Drop image onto text/overlay row --> add text overlay at that time\n"
 "    // (skip — text overlays are canvas-based not image-based)\n"
 "  } else if(rowType==='audio'){\n"
-"    // Drop audio → add new audio track at dropTime\n"
+"    // Drop audio --> add new audio track at dropTime\n"
 "    if(drag.type!=='audio')return;\n"
 "    addAudioAtTime(drag.src,drag.name,dropTime);\n"
 "  }\n"
@@ -26462,7 +26580,7 @@ def _build_editor_view_html(proj_name: str) -> str:
 "        console.log('[TS] Lanzando transcripción WhisperX...');\n"
 "        var tr2=await fetch('/api/editor/transcribir/'+encodeURIComponent(PROJECT));\n"
 "        var td2=await tr2.json();\n"
-"        console.log('[TS] Respuesta transcripción:',td2.source||'?','→',(td2.segments||[]).length,'segmentos');\n"
+"        console.log('[TS] Respuesta transcripción:',td2.source||'?','-->',(td2.segments||[]).length,'segmentos');\n"
 "        if(td2.segments&&td2.segments.length>0)console.log('[TS] primeros 3 seg:',JSON.stringify((td2.segments||[]).slice(0,3)));\n"
 "        if(tr2.ok&&(td2.segments||[]).length){\n"
 "          // segments from transcription API are sequential: seg 0 = scene 0\n"
@@ -26498,7 +26616,7 @@ def _build_editor_view_html(proj_name: str) -> str:
 "          segs[idx].end=fin;\n"
 "          segs[idx].dur=dur;\n"
 "          tsApplied++;\n"
-"          if(_ti<5)console.log('[TS] escena',idx+1,'→ inicio='+ini.toFixed(2)+' fin='+fin.toFixed(2)+' dur='+dur.toFixed(2));\n"
+"          if(_ti<5)console.log('[TS] escena',idx+1,'--> inicio='+ini.toFixed(2)+' fin='+fin.toFixed(2)+' dur='+dur.toFixed(2));\n"
 "        } else {\n"
 "          tsMissed++;\n"
 "        }\n"
@@ -26665,7 +26783,7 @@ def editor_proyecto(proj_name):
                 pass
             break
 
-    # Build image lookup: filename → URL
+    # Build image lookup: filename --> URL
     img_lookup = {}
     if img_dir.exists():
         for _f in img_dir.iterdir():
@@ -26846,7 +26964,7 @@ def editor_transcribir(proj_name):
         try:
             segmentos_raw, all_words = _transcribir_whisperx_runpod(audio_path, language=None)
             source = "whisperx_replicate"
-            print(f"[editor_transcribir] WhisperX OK → {len(segmentos_raw)} segs, {len(all_words)} words")
+            print(f"[editor_transcribir] WhisperX OK --> {len(segmentos_raw)} segs, {len(all_words)} words")
         except Exception as _e1:
             print(f"[editor_transcribir] WhisperX falló ({_e1}), probando faster-whisper…")
 
@@ -26864,7 +26982,7 @@ def editor_transcribir(proj_name):
                                           "text": _s.text.strip(), "words": _wds})
                     all_words.extend(_wds)
                 source = "faster_whisper"
-                print(f"[editor_transcribir] faster-whisper OK → {len(segmentos_raw)} segs")
+                print(f"[editor_transcribir] faster-whisper OK --> {len(segmentos_raw)} segs")
             except ImportError:
 
                 # 3. openai-whisper (local, word-level)
@@ -26876,7 +26994,7 @@ def editor_transcribir(proj_name):
                     for _s in segmentos_raw:
                         all_words.extend(_s.get("words", []))
                     source = "openai_whisper"
-                    print(f"[editor_transcribir] openai-whisper OK → {len(segmentos_raw)} segs")
+                    print(f"[editor_transcribir] openai-whisper OK --> {len(segmentos_raw)} segs")
                 except ImportError:
                     # No Whisper at all — use guion estimate
                     source = "guion_estimate"
@@ -26892,7 +27010,7 @@ def editor_transcribir(proj_name):
             _last_ok   = max((t["fin"] for t in timestamps if t.get("score", 0) > 0), default=0.0)
             if (_unmatched / max(1, len(timestamps)) > 0.40
                     and _last_ok > duracion_total * 0.85):
-                print(f"[editor_transcribir] Word-level anómalo ({_unmatched}/{len(timestamps)} sin match) → segment-level fallback")
+                print(f"[editor_transcribir] Word-level anómalo ({_unmatched}/{len(timestamps)} sin match) --> segment-level fallback")
                 timestamps = asignar_timestamps(guion_lines, segmentos_raw, duracion_total)
             else:
                 print(f"[editor_transcribir] Word-level OK ({len(timestamps) - _unmatched}/{len(timestamps)} matched)")
@@ -26901,7 +27019,7 @@ def editor_transcribir(proj_name):
 
         print(f"[editor_transcribir] ✓ {len(timestamps)} timestamps ({source})")
         for _i, _t in enumerate(timestamps[:5]):
-            print(f"  E{_i+1:02d}: {_t['inicio']:.2f}s → {_t['fin']:.2f}s ({_t['duracion']:.2f}s) score={_t.get('score',0):.2f}")
+            print(f"  E{_i+1:02d}: {_t['inicio']:.2f}s --> {_t['fin']:.2f}s ({_t['duracion']:.2f}s) score={_t.get('score',0):.2f}")
 
         # ── Build final records ────────────────────────────────────────────────
         ts_records = []
@@ -27161,7 +27279,7 @@ def api_help_submit():
         return jsonify({"ok": False, "error": str(e)}), 500
     return jsonify({"ok": True})
 
-# ─── Idea → Video: generador de guión ──────────────────────────────────────
+# ─── Idea --> Video: generador de guión ──────────────────────────────────────
 def _xi2v_template(idea, dur_sec, style, tone, audience):
     n_scenes  = max(4, min(40, round(dur_sec / 7)))
     dur_label = f"{dur_sec//60}m{dur_sec%60:02d}s" if dur_sec >= 60 else f"{dur_sec}s"
@@ -27405,9 +27523,9 @@ def api_idea2video_script():
 
 
 # ══════════════════════════════════════════════════════════════════
-# IDEA → VIDEO  AUTOPILOT  ─  job engine
+# IDEA --> VIDEO  AUTOPILOT  ─  job engine
 # ══════════════════════════════════════════════════════════════════
-_i2v_ap_jobs = {}   # job_id → job dict
+_i2v_ap_jobs = {}   # job_id --> job dict
 
 def _i2v_parse_scenes_ap(script):
     import re as _re
@@ -28196,9 +28314,9 @@ if __name__ == "__main__":
             # Esperar a que Flask arranque primero
             time.sleep(3)
             _flow_start_ws_server()
-            print("[Bridge] ✅ WebSocket corriendo en ws://127.0.0.1:5557")
+            print("[Bridge] [OK] WebSocket corriendo en ws://127.0.0.1:5557")
         except Exception as e:
-            print(f"[Bridge] ⚠️  No se pudo iniciar: {e}")
+            print(f"[Bridge] [WARNING]  No se pudo iniciar: {e}")
     
     # Iniciar bridge en hilo DAEMON (no bloquea la app)
     threading.Thread(target=_start_bridge_auto, daemon=True).start()
@@ -28207,8 +28325,8 @@ if __name__ == "__main__":
     _mostrar_splash()
     print("\n" + "═"*52)
     print("  🎬  Studio IVR — Pipeline de Video con IA")
-    print("  →   http://127.0.0.1:8080/shell  (ventana principal)")
-    print("  →   Jobs guardados en:", JOBS_FOLDER)
+    print("  -->   http://127.0.0.1:8080/shell  (ventana principal)")
+    print("  -->   Jobs guardados en:", JOBS_FOLDER)
     print("═"*52 + "\n")
 
     # ── pywebview: ventana nativa independiente ───────────────────────────
@@ -28284,7 +28402,7 @@ if __name__ == "__main__":
             except TypeError:
                 _wv.start(debug=False, http_server=False)
         except Exception as _we:
-            print(f"[Studio IVR] Error pywebview ({_we}) → fallback navegador.")
+            print(f"[Studio IVR] Error pywebview ({_we}) --> fallback navegador.")
             webbrowser.open("http://127.0.0.1:8080/shell")
             _flask_t.join()
     else:

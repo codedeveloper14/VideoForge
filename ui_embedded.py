@@ -212,7 +212,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;o
       </div>
 
       <button class="btn btn-primary" id="loginBtn" onclick="doLogin()">
-        <span id="btnTxt">Ingresar →</span>
+        <span id="btnTxt">Ingresar --></span>
         <span class="ldots" id="ldots"><span class="ld"></span><span class="ld"></span><span class="ld"></span></span>
       </button>
       <div class="foot"><span class="sdot"></span>Servidor activo · Conexión segura</div>
@@ -263,7 +263,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;o
       </div>
 
       <button class="btn btn-primary" id="regBtn" onclick="doRegNext()">
-        <span id="regTxt">Continuar →</span>
+        <span id="regTxt">Continuar --></span>
         <span class="ldots" id="regLd"><span class="ld"></span><span class="ld"></span><span class="ld"></span></span>
       </button>
     </div>
@@ -356,7 +356,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;o
       <div class="mhint" id="mhint"></div>
     </div>
     <button class="btn-gold" id="cpBtn" onclick="doChange()" disabled>
-      <span id="cpTxt">Guardar contraseña →</span>
+      <span id="cpTxt">Guardar contraseña --></span>
       <span class="ldots" id="cpLd"><span class="ld"></span><span class="ld"></span><span class="ld"></span></span>
     </button>
   </div>
@@ -909,7 +909,7 @@ function _vfOpenOverlay(name){
   /* Quitar clase de cierre y reactivar animación */
   try{ el.classList.remove('vf-overlay-closed'); }catch(e){}
   el.style.animation = ''; /* eliminar override inline para que corra la animación CSS */
-  void el.offsetWidth;     /* forzar reflow → reinicia la animación */
+  void el.offsetWidth;     /* forzar reflow --> reinicia la animación */
   el.style.display = 'block';
   window.scrollTo(0,0);
 }
@@ -1924,14 +1924,14 @@ _vf_premium_proc_ui = (
         "      var _ov=document.createElement('p');"
         "      _ov.id='flow-ref-warning';"
         "      _ov.style.cssText='color:#ef4444;font-size:11px;font-weight:700;margin:6px 0 0;text-align:center;font-family:monospace;';"
-        "      _ov.textContent='⚠️ Imagen4 requiere imagen de referencia';"
+        "      _ov.textContent='[WARNING] Imagen4 requiere imagen de referencia';"
         "      if(!document.getElementById('flow-ref-warning')){_dz.parentNode.insertBefore(_ov,_dz.nextSibling);}"
         "      _dz.scrollIntoView({behavior:'smooth',block:'center'});"
         "      setTimeout(function(){_dz.style.border='';_dz.style.boxShadow='';var _w=document.getElementById('flow-ref-warning');if(_w)_w.remove();},6000);"
         "     }"
         "    };"
         "    _highlight();"
-        "    return Promise.resolve(new Response(JSON.stringify({error:'⚠️ Imagen4 requiere imagen de referencia. Sube una imagen antes de generar.'}),{status:400,headers:{'Content-Type':'application/json'}}));"
+        "    return Promise.resolve(new Response(JSON.stringify({error:'[WARNING] Imagen4 requiere imagen de referencia. Sube una imagen antes de generar.'}),{status:400,headers:{'Content-Type':'application/json'}}));"
         "   }"
         "  }catch(_pe){}"
         " }"
@@ -1953,11 +1953,11 @@ _vf_premium_proc_ui = (
         "       }).catch(function(){});"
         "     }"
         "     if(u.indexOf('/api/whisk/run-prompts')>=0 && resp.ok){ var _ws=_VFP['imagenes'];if(_ws){_ws.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');} pollWhisk(); }"
-        "     if(u.indexOf('/api/flow/run-prompts')>=0){ if(resp.ok){ var _fs=_VFP['imagenes'];if(_fs){_fs.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');}pollFlow();}else{resp.clone().json().then(function(ej){var _emsg=(ej&&ej.error)||'Error al iniciar generacion';if(typeof fLog==='function')fLog('❌ '+_emsg);try{var _dz=document.getElementById('flow-ref-dropzone')||document.querySelector('#flow-ref-area')||document.querySelector('[id*=ref][id*=drop],[id*=drop][id*=ref]');if(!_dz){var _allInp=document.querySelectorAll('input[type=file][accept*=image]');for(var _ii=0;_ii<_allInp.length;_ii++){var _pp=_allInp[_ii].parentElement;if(_pp&&(_pp.style.border||_pp.className)){_dz=_pp;break;}}}if(_dz){_dz.style.border='2px solid #f87171';_dz.style.boxShadow='0 0 0 4px rgba(239,68,68,0.4)';_dz.style.transition='all 0.3s';var _wn=document.createElement('div');_wn.style.cssText='position:absolute;top:0;left:0;right:0;background:rgba(239,68,68,0.9);color:#fff;padding:6px 10px;font-size:11px;font-weight:700;border-radius:6px 6px 0 0;text-align:center;z-index:9';_wn.textContent='⚠️ Imagen4 requiere imagen de referencia';if(getComputedStyle(_dz).position==='static')_dz.style.position='relative';_dz.appendChild(_wn);_dz.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){if(_dz){_dz.style.border='';_dz.style.boxShadow='';_dz.style.position='';try{_dz.removeChild(_wn);}catch(e){}}},5000);}}catch(_de){}alert(_emsg);}).catch(function(){alert('Error al iniciar la generacion Flow.');});}}"
+        "     if(u.indexOf('/api/flow/run-prompts')>=0){ if(resp.ok){ var _fs=_VFP['imagenes'];if(_fs){_fs.lines.push('Solicitud aceptada. Ejecutando proceso...');_paint('imagenes');}pollFlow();}else{resp.clone().json().then(function(ej){var _emsg=(ej&&ej.error)||'Error al iniciar generacion';if(typeof fLog==='function')fLog('[ERROR] '+_emsg);try{var _dz=document.getElementById('flow-ref-dropzone')||document.querySelector('#flow-ref-area')||document.querySelector('[id*=ref][id*=drop],[id*=drop][id*=ref]');if(!_dz){var _allInp=document.querySelectorAll('input[type=file][accept*=image]');for(var _ii=0;_ii<_allInp.length;_ii++){var _pp=_allInp[_ii].parentElement;if(_pp&&(_pp.style.border||_pp.className)){_dz=_pp;break;}}}if(_dz){_dz.style.border='2px solid #f87171';_dz.style.boxShadow='0 0 0 4px rgba(239,68,68,0.4)';_dz.style.transition='all 0.3s';var _wn=document.createElement('div');_wn.style.cssText='position:absolute;top:0;left:0;right:0;background:rgba(239,68,68,0.9);color:#fff;padding:6px 10px;font-size:11px;font-weight:700;border-radius:6px 6px 0 0;text-align:center;z-index:9';_wn.textContent='[WARNING] Imagen4 requiere imagen de referencia';if(getComputedStyle(_dz).position==='static')_dz.style.position='relative';_dz.appendChild(_wn);_dz.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){if(_dz){_dz.style.border='';_dz.style.boxShadow='';_dz.style.position='';try{_dz.removeChild(_wn);}catch(e){}}},5000);}}catch(_de){}alert(_emsg);}).catch(function(){alert('Error al iniciar la generacion Flow.');});}}"
         "     if(u.indexOf('/api/pollination/generate')>=0 && resp.ok){"
         "       var _ps=_VFP['imagenes']; if(_ps){ _ps.phase='n8n esta generando imagenes...'; _ps.pct=40; }"
         "       resp.clone().json().then(function(j){ var _ps2=_VFP['imagenes']; if(_ps2&&j&&j.count!=null) _ps2.metrics='Recibidas '+j.count+' imagen(es)'; }).catch(function(){});"
-        "       add('✅ Respuesta del webhook recibida. Guardando en disco…');"
+        "       add('[OK] Respuesta del webhook recibida. Guardando en disco…');"
         "       setTimeout(function(){ st.pct=100; done('Imágenes Pollination listas.'); }, 900);"
         "     }"
         "     if(u.indexOf('/api/guion/n8n_proxy')>=0 && resp.ok){"
@@ -1997,7 +1997,7 @@ _vf_premium_proc_ui = (
         "   return resp;"
         " }).catch(function(err){"
         "   if(_VFP['render']&&_VFP['render'].open){ applyRenderFailure('No hubo conexión con el servidor. Comprueba tu red e inténtalo de nuevo.'); }"
-        "   else { add('❌ Error de red: '+(err&&err.message?err.message:err)); done('No se pudo completar el proceso.'); }"
+        "   else { add('[ERROR] Error de red: '+(err&&err.message?err.message:err)); done('No se pudo completar el proceso.'); }"
         "   throw err;"
         " });"
         "};"

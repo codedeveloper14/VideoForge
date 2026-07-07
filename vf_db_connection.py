@@ -44,7 +44,7 @@ PLANS = {
     },
 }
 
-# Alias de nombres de plan alternativos en la BD → clave canónica
+# Alias de nombres de plan alternativos en la BD --> clave canónica
 PLAN_ALIASES = {
     "standard": "pro",       # nombre alternativo común para Pro
     "basic":    "starter",

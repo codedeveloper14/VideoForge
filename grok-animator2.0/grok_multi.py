@@ -2,7 +2,7 @@
 """
 grok_multi.py — Multi-cuenta Grok Animator
 Las imágenes se procesan ordenadas por FECHA DE CREACIÓN (más antigua primero).
-El video de salida usa el mismo stem que la imagen: img_00001.jpg → img_00001.mp4
+El video de salida usa el mismo stem que la imagen: img_00001.jpg --> img_00001.mp4
 
 Uso:
   python3 grok_multi.py /fotos --slots 3 --prompt "Cinematic slow zoom"
@@ -239,7 +239,7 @@ class GrokAccountClient:
                     video_id = vid; log.info(f"[{self.label}] videoId={video_id}")
                 if rv: video_url = _resolve(rv)
                 if prog == 100 and rv:
-                    log.info(f"[{self.label}] ✅ 100% url={video_url}"); break
+                    log.info(f"[{self.label}] [OK] 100% url={video_url}"); break
             for media in (resp.get("generatedMedia") or result.get("generatedMedia") or []):
                 ru = media.get("url") or media.get("videoUrl") or media.get("mediaUrl") or ""
                 mt = (media.get("mediaType") or "").lower()
@@ -295,7 +295,7 @@ class GrokAccountClient:
         """Usa self.session. Espera 15s (CDN) + retry cada 20s hasta 10 min."""
         hdrs = _hdrs(session_meta=self.session_meta)
         hdrs["referer"] = "https://grok.com/"
-        log.info(f"[{self.label}] Descargando → {dest.name} (15s CDN...)")
+        log.info(f"[{self.label}] Descargando --> {dest.name} (15s CDN...)")
         time.sleep(15)
         deadline = time.time() + 600
         attempt  = 0
@@ -309,14 +309,14 @@ class GrokAccountClient:
                     r.raise_for_status()
                     with open(dest, "wb") as f:
                         for chunk in r.iter_content(65536): f.write(chunk)
-                    log.info(f"[{self.label}] ✅ {dest.name} ({dest.stat().st_size//1024} KB) intento {attempt}")
+                    log.info(f"[{self.label}] [OK] {dest.name} ({dest.stat().st_size//1024} KB) intento {attempt}")
                     return True
             except requests.exceptions.HTTPError as e:
                 code = e.response.status_code if e.response else "?"
                 log.warning(f"[{self.label}] HTTP {code} intento {attempt}"); time.sleep(20)
             except Exception as e:
                 log.warning(f"[{self.label}] DL err {attempt}: {e}"); time.sleep(20)
-        log.error(f"[{self.label}] ❌ Timeout descarga: {url}")
+        log.error(f"[{self.label}] [ERROR] Timeout descarga: {url}")
         (BASE_DIR / "pending_downloads.txt").open("a").write(url + "\n")
         return False
 
@@ -346,7 +346,7 @@ def _login_account(folder):
             h   = req.headers
             sid = h.get("x-statsig-id", "")
             if sid and not captured.get("statsig_id"):
-                captured["statsig_id"] = sid; log.info(f"[{folder.name}] statsig_id ✅")
+                captured["statsig_id"] = sid; log.info(f"[{folder.name}] statsig_id [OK]")
             bag = h.get("baggage", "")
             if "sentry-release=" in bag and not captured.get("sentry_release"):
                 for part in bag.split(","):
@@ -358,7 +358,7 @@ def _login_account(folder):
         log.info(f"[{folder.name}] *** Inicia sesión en el browser *** (máx 3 min)")
         for _ in range(180):
             ck = {c["name"]: c["value"] for c in ctx.cookies("https://grok.com")}
-            if ck.get("sso"): log.info(f"[{folder.name}] ✅ Login OK"); break
+            if ck.get("sso"): log.info(f"[{folder.name}] [OK] Login OK"); break
             time.sleep(1)
         else:
             log.error(f"[{folder.name}] Timeout login"); ctx.close(); return False
@@ -371,7 +371,7 @@ def _login_account(folder):
               "path": "/", "httpOnly": False, "secure": True} for c in raw]
     (folder / "cookies_auto.json").write_text(json.dumps(clist, indent=2))
     (folder / "session_meta.json").write_text(json.dumps(captured, indent=2))
-    log.info(f"[{folder.name}] Cookies y meta guardados ✅")
+    log.info(f"[{folder.name}] Cookies y meta guardados [OK]")
     return True
 
 # ── Crear clientes por cuenta ──────────────────────────────────────────────────
@@ -387,7 +387,7 @@ def _make_clients(folder, slots, prompt, aspect_ratio, video_length, resolution)
     clients = [GrokAccountClient(folder.name, i, cookies, meta,
                                  prompt, aspect_ratio, video_length, resolution)
                for i in range(1, slots + 1)]
-    log.info(f"  [{folder.name}] {slots} slot(s) — statsig={'✅' if meta.get('statsig_id') else '❌'}")
+    log.info(f"  [{folder.name}] {slots} slot(s) — statsig={'[OK]' if meta.get('statsig_id') else '[ERROR]'}")
     return clients
 
 # ── Worker loop ────────────────────────────────────────────────────────────────
@@ -439,9 +439,9 @@ def main():
     p.add_argument("--slots",        type=int, default=1, metavar="N",
                    help=(
                        "Videos en paralelo POR cuenta [1-12, default: 1]\n"
-                       "  --slots 1  → 1 video/cuenta (más estable)\n"
-                       "  --slots 3  → 3 videos/cuenta (recomendado)\n"
-                       "  --slots 12 → máximo permitido\n"
+                       "  --slots 1  --> 1 video/cuenta (más estable)\n"
+                       "  --slots 3  --> 3 videos/cuenta (recomendado)\n"
+                       "  --slots 12 --> máximo permitido\n"
                        "Total = cuentas × slots (ej: 3 cuentas × 3 = 9 en paralelo)"
                    ))
     p.add_argument("--filter-file",  default="",
@@ -524,7 +524,7 @@ def main():
     queue.join()
 
     log.info(f"\n{'='*65}")
-    log.info(f"  ✅ Completado: {success_count[0]}/{total} videos en {output_dir}")
+    log.info(f"  [OK] Completado: {success_count[0]}/{total} videos en {output_dir}")
     log.info(f"{'='*65}")
 
 if __name__ == "__main__":
