@@ -1,56 +1,42 @@
-# Studio IVR (VideoForge)
+# Studio IVR
 
-Aplicación de escritorio para automatización de generación de contenido multimedia con IA.
+VideoForge es una aplicación de escritorio desarrollada con PyWebView y Flask para automatizar tareas relacionadas con la generación de contenido multimedia.
 
----
+## Características
 
-##  Características
+- Interfaz nativa con PyWebView.
+- Backend desarrollado con Flask.
+- Código protegido con PyArmor.
+- Instalador para Windows.
+- Compilación para macOS (Universal2: Intel + Apple Silicon).
+- Actualizaciones desde GitHub Releases.
 
-- **Interfaz nativa** con PyWebView
-- **Backend Flask** para API y lógica de negocio
-- **Código protegido** con PyArmor (ofuscación)
-- **Instalador para Windows** con Inno Setup
-- **Compilación para macOS** (Universal2: Intel + Apple Silicon M1/M2/M3)
-- **WebSocket Bridge** para comunicación con extensión de Chrome
-- **Generación de imágenes** con Google Flow / Whisk
-- **Actualizaciones** desde GitHub Releases
+## Requisitos
 
----
+- Python 3.14+
+- Git
+- Windows 10/11
+- Inno Setup 6 (solo para Windows)
+- macOS 11+ (Big Sur)
+- Xcode Command Line Tools (solo para macOS)
 
-##  Requisitos
-
-| Requisito | Versión |
-|-----------|---------|
-| Python | 3.14+ |
-| Git | Cualquiera |
-| Windows | 10/11 |
-| macOS | 11+ (Big Sur) |
-| Inno Setup | 6 (solo para Windows) |
-| Xcode CLI | (solo para macOS) |
-
----
-
-##  Instalación para Desarrollo
+## Instalación
 
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/codedeveloper14/VideoForge.git
 cd VideoForge
 
-# 2. Crear entorno virtual
 python -m venv venv
 
-# 3. Activar entorno virtual
-# Windows:
+# Windows
 venv\Scripts\activate
-# macOS / Linux:
+
+# macOS / Linux
 source venv/bin/activate
 
-# 4. Instalar dependencias
 pip install -r requirements.txt
-```
 
 ## Autores
 
 - **David Bermudez** — Python Developer
-- **Gabriela Montilla** — Fullstack Developer
+- **Gabriela Montilla** — Fullstack Developer 
