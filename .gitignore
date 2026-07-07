@@ -20,15 +20,22 @@ __pycache__/
 dist/
 build/
 
+# Backups (NO SUBIR)
+*.bak
+
 # Archivos sensibles - NO SUBIR NUNCA
-Build and Instructions/"
+Build and Instructions/
+vf.cfg
 
-
-# Instaladores y binarios
-IVR_2.5.spec
+# Instaladores y binarios (NO SUBIR)
 IVR_2.5_Setup.exe
-installer_script.iss
+*.exe
+*.dmg
 
+# Archivos .spec - SÍ SUBIR (quitarlos del ignore)
+# IVR_2.5.spec   ← QUITAR
+# IVR_2.5_Base.spec   ← QUITAR
+# IVR_2.5_unix.spec   ← QUITAR
 
 # IDE
 .vscode/
@@ -37,4 +44,5 @@ installer_script.iss
 *.swo
 *~
 .DS_Store
-Thumbs.db
+Thumbs.dbvf.cfg
+vf.cfg
