@@ -34,3 +34,7 @@ def get_grok_downloads_dir() -> Path:
 
 def get_qwen_accounts_dir() -> Path:
     return _ensure(config.app_data_dir / "qwen_accounts")
+
+
+def get_meta_accounts_dir() -> Path:
+    return _ensure(config.app_data_dir / "meta_accounts")

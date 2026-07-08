@@ -11,6 +11,14 @@ PUBLIC_ROUTES = {
     "/api/health",
     "/stripe-success",
     "/favicon.ico",
+    # La extension de Chrome llama estas rutas desde la pagina de meta.ai/labs.google,
+    # sin cookie de sesion de VideoForge -- deben quedar publicas.
+    "/api/meta/ext-register",
+    "/api/meta/ext-poll",
+    "/api/meta/ext-result",
+    "/api/meta/ext-learn",
+    "/api/meta/ext-captured",
+    "/api/meta/ext-state",
 }
 PUBLIC_PREFIXES = ("/docs", "/openapi.json", "/redoc")
 
