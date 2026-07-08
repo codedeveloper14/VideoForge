@@ -14915,7 +14915,7 @@ def _openrouter_whisk_sanitize_prompt(original: str):
     o = (original or "").strip()
     if len(o) < 4:
         return None
-    OR_KEY = (os.environ.get("OPENROUTER_API_KEY") or "").strip() or _D1
+    OR_KEY = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
     _model = (os.environ.get("OPENROUTER_WHISK_SANITIZE_MODEL") or "openai/gpt-4o-mini").strip()
     system = (
         "Tu tarea es reescribir el prompt de generación de imagen del usuario para que sea más apto "
@@ -15630,7 +15630,7 @@ _FLOW_BASE_DIR_PW   = (
 _FLOW_COOKIES_DIR   = str(_FLOW_BASE_DIR_PW / "cookies")
 _FLOW_URL           = "https://labs.google/fx/tools/flow"
 _FLOW_SESSION_URL   = "https://labs.google/fx/api/auth/session"
-_FLOW_API_KEY       = "AIzaSyBtrm0o5ab1c-Ec8ZuLcGt3oJAA5VWt3pY"
+_FLOW_API_KEY       = os.getenv("GOOGLE_FLOW_API_KEY", "")
 _FLOW_SITE_KEY      = "6LdsFiUsAAAAAIjVDZcuLhaHiDn5nnHVXVRQGeMV"
 _FLOW_GEN_URL_TPL   = "https://aisandbox-pa.googleapis.com/v1/projects/{pid}/flowMedia:batchGenerateImages"
 
@@ -19219,7 +19219,7 @@ def guion_n8n_proxy():
         "the character."
     )
     estilo_efectivo = estilo_ref if estilo_ref else _default_estilo
-    OR_KEY      = (os.environ.get("OPENROUTER_API_KEY") or "").strip() or _D1
+    OR_KEY      = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
     if not guion_text:
         return jsonify({"error": "Guion vacio"}), 400
     # Fragmentación semántica (menos escenas): acumula cláusulas por puntuación
@@ -22369,14 +22369,7 @@ import urllib.request, urllib.parse
 
 EDITOR_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-def _k(a,b):
-    import base64,codecs
-    try: return codecs.decode(base64.b64decode(a).decode(),'rot13')
-    except: return b
-_D1=_k('ZngtYmUtaTEtMm9wc3ExMHM5cThxMTI4bjg4cm5vMDE3cXNzOHEzcjc2MDk2cW40bzlucTAzbzcybzE1bzI0N3I1MDFucW4wMw==','')
-_D2=_k('NTI5c3NvMXBvMHAzODdxcTNucjk3cTA2OG42MTQwMHFwcTNxNjM3cg==','')
-
-EDITOR_OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY","").strip() or _D1
+EDITOR_OPENROUTER_KEY = os.environ.get("OPENROUTER_API_KEY","").strip()
 
 def _editor_proj_dir(proj_name):
     import re as _re
@@ -22397,7 +22390,7 @@ def editor_analizar():
     escenas = data.get("escenas", [])        # [{texto, imagen_file}]
     proj_name = data.get("project_name", "")
     # Keys siempre desde los valores embebidos — ignorar lo que envíe el frontend
-    api_key = _D1
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
 
     if not escenas:
         return jsonify({"error": "Sin escenas"}), 400
@@ -22815,7 +22808,7 @@ def editor_buscar_imagen():
 
     # ── 1. Serper (Google Images via API) — el más preciso para refs históricas ──
     # Aceptar keys del frontend (tienen prioridad sobre env vars)
-    serper_key = data.get("serper_key", "").strip() or os.environ.get("SERPER_API_KEY", "").strip() or _D2
+    serper_key = data.get("serper_key", "").strip() or os.environ.get("SERPER_API_KEY", "").strip()
     pexels_key_req = data.get("pexels_key", "").strip() or os.environ.get("PEXELS_API_KEY", "").strip()
 
     if serper_key and not urls:
@@ -23044,7 +23037,7 @@ def editor_render_enriquecido():
             """Busca query en Serper/Pexels/Unsplash/Pixabay. Filtra SVGs. Retorna bytes o None."""
             if not query:
                 return None
-            serper_key   = os.environ.get("SERPER_API_KEY", "").strip() or _D2
+            serper_key   = os.environ.get("SERPER_API_KEY", "").strip()
             pexels_key   = os.environ.get("PEXELS_API_KEY", "").strip()
             unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
             pixabay_key  = os.environ.get("PIXABAY_API_KEY", "").strip()
@@ -23193,7 +23186,7 @@ def editor_render_enriquecido():
         print(f"[editor] ref_images resueltas: {len(ref_images)} -> {list(ref_images.keys())[:10]}")
 
         # Keys siempre desde los valores embebidos
-        _sk = _D2
+        _sk = os.environ.get("SERPER_API_KEY", "").strip()
         _pk = data.get("pexels_key","").strip()
         _uk = data.get("unsplash_key","").strip()
         os.environ["SERPER_API_KEY"] = _sk

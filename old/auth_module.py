@@ -164,27 +164,6 @@ def _chars_to_min(chars: int) -> str:
     return f"{m:.0f} min"
 
 # ─────────────────────────────────────────────────────────────────
-# CONFIGURACIÓN  ← Editar aquí con tus datos de Hostinger
-# ─────────────────────────────────────────────────────────────────
-
-DB_CONFIG = {
-    # Contabo VPS
-    "host": "vmi3378735.contaboserver.net",
-    "user":     "admin",
-    "password": "Videoforge2026*",
-    "database": "u330524705_VideoForge",
-    "port":     3306,
-    "connect_timeout": 10,
-    "charset":  "utf8mb4",
-}
-
-APP_SECRET_KEY      = "Videoforgepassa34432fsdsdfs"
-SESSION_MINUTES     = 40          # ← inactividad máxima (minutos)
-PUBLIC_ROUTES       = {"/api/login", "/login", "/api/change-password", "/favicon.ico", "/api/logout", "/shell", "/api/register", "/stripe-success"}
-MAX_FAILED_ATTEMPTS = 5
-LOCKOUT_SECONDS     = 300
-
-# ─────────────────────────────────────────────────────────────────
 # BOOT EPOCH  — invalida TODAS las sesiones previas al reiniciar
 # ─────────────────────────────────────────────────────────────────
 import tempfile as _tmplib, os as _oslib
