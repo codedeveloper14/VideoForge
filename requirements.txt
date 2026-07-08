@@ -10,3 +10,13 @@ curl_cffi>=0.7.0
 oss2>=2.18.0
 Pillow>=10.0.0
 psutil>=5.9.0
+
+# --- Render: backends de transcripcion (whisper_client.py) ---
+# Cada uno solo se importa si el usuario elige ese whisper_backend en /api/render_inteligente.
+# Instala solo los que vayas a usar; los otros 3 pueden faltar sin romper nada mas.
+openai>=1.0.0            # whisper_backend=api (Whisper API de OpenAI)
+replicate>=0.25.0        # whisper_backend=whisperx (WhisperX via Replicate)
+faster-whisper>=1.0.0    # whisper_backend=faster
+openai-whisper>=20231117 # whisper_backend=local (paquete "whisper")
+# whisperx>=3.1.0         # whisper_backend=whisperx_local -- instala manualmente si lo usas:
+                          # trae dependencias pesadas (torch) que conviene fijar segun tu GPU/CPU

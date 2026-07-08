@@ -1,6 +1,7 @@
 # Variables de entorno
 .env
 .env.*
+!.env.example
 
 venv/
 dist/
