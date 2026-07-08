@@ -127,3 +127,11 @@ def list_audio_files(project: str) -> list[Path]:
     files = [f for f in audio_dir.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXTS]
     files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
     return files
+
+
+def write_audio_file(project: str, filename: str, data: bytes) -> Path:
+    audio_dir = project_dir(project) / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    path = audio_dir / filename
+    path.write_bytes(data)
+    return path
