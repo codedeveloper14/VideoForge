@@ -25,6 +25,8 @@ class Config:
     replicate_whisperx_model: str | None = os.getenv("REPLICATE_WHISPERX_MODEL")
     stripe_api_key: str | None = os.getenv("STRIPE_API_KEY")
     stripe_secret_key: str | None = os.getenv("STRIPE_SECRET_KEY")
+    openrouter_api_key: str | None = os.getenv("OPENROUTER_API_KEY")
+    openrouter_whisk_sanitize_model: str = os.getenv("OPENROUTER_WHISK_SANITIZE_MODEL", "openai/gpt-4o-mini")
 
     db_host: str | None = os.getenv("DB_HOST")
     db_host_fallback: str | None = os.getenv("DB_HOST_FALLBACK")

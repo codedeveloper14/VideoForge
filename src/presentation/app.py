@@ -16,6 +16,7 @@ from src.presentation.routes.stripe import stripe_bp, stripe_pages_bp
 from src.presentation.routes.usage import usage_bp
 from src.presentation.routes.user import user_bp
 from src.presentation.routes.voice import voice_bp
+from src.presentation.routes.whisk import pollination_bp, whisk_bp
 
 
 def create_app() -> APIFlask:
@@ -41,4 +42,6 @@ def create_app() -> APIFlask:
     app.register_blueprint(stripe_pages_bp)
     app.register_blueprint(usage_bp)
     app.register_blueprint(voice_bp)
+    app.register_blueprint(whisk_bp)
+    app.register_blueprint(pollination_bp)
     return app
