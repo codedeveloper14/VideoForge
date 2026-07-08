@@ -22,3 +22,11 @@ def get_cookies_dir() -> Path:
 
 def get_whisk_downloads_dir() -> Path:
     return _ensure(config.app_data_dir / "whisk_downloads")
+
+
+def get_grok_accounts_dir() -> Path:
+    return _ensure(config.app_data_dir / "grok_accounts")
+
+
+def get_grok_downloads_dir() -> Path:
+    return _ensure(config.app_data_dir / "grok_downloads")
