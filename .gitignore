@@ -44,6 +44,11 @@ IVR_2.5_Setup.exe
 *.swo
 *~
 .DS_Store
-Thumbs.dbvf.cfg
+Thumbs.db
 vf.cfg
 cookies/*.txt
+**/cookies/*.txt
+
+# Logs (mantener carpeta, ignorar contenido)
+logs/*
+!logs/.gitkeep
