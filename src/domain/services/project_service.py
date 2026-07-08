@@ -8,7 +8,7 @@ from src.utils.platform_utils import open_folder
 _SCENE_NUM_RE = re.compile(r"^(?:img|flow)_(\d+)$", re.IGNORECASE)
 
 
-def _path_sort_key(path: Path):
+def scene_sort_key(path: Path):
     """Ordena por numero de escena (img_00001/flow_0001...); si no matchea, por fecha de creacion."""
     match = _SCENE_NUM_RE.match(path.stem)
     if match:
@@ -42,8 +42,8 @@ def get_project_content(project_name: str) -> dict:
     img_dir = project_repository.project_dir(project_name) / "imagen"
     vid_dir = project_repository.project_dir(project_name) / "video"
 
-    images = sorted(project_repository.list_images(project_name), key=_path_sort_key)
-    videos = sorted(project_repository.list_videos(project_name), key=_path_sort_key)
+    images = sorted(project_repository.list_images(project_name), key=scene_sort_key)
+    videos = sorted(project_repository.list_videos(project_name), key=scene_sort_key)
     vid_by_stem = {v.stem: v.name for v in videos}
 
     seen_stems = set()
@@ -58,14 +58,14 @@ def get_project_content(project_name: str) -> dict:
             seen_stems.add(v.stem)
             scenes.append({"index": v.stem, "image": None, "video": v.name, "has_video": True})
 
-    def _scene_sort_key(scene: dict):
+    def _content_scene_sort_key(scene: dict):
         if scene["image"] and (img_dir / scene["image"]).exists():
-            return _path_sort_key(img_dir / scene["image"])
+            return scene_sort_key(img_dir / scene["image"])
         if scene["video"] and (vid_dir / scene["video"]).exists():
-            return _path_sort_key(vid_dir / scene["video"])
+            return scene_sort_key(vid_dir / scene["video"])
         return (2, 0.0, "")
 
-    scenes.sort(key=_scene_sort_key)
+    scenes.sort(key=_content_scene_sort_key)
 
     return {
         "scenes": scenes,
