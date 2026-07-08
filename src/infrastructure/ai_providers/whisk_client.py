@@ -33,7 +33,7 @@ _LABS_HEADERS_BASE = {
 }
 
 
-def _mk_https_session(pool_maxsize: int) -> requests.Session:
+def mk_https_session(pool_maxsize: int) -> requests.Session:
     """Session con keep-alive + pool de conexiones. Reduce SSLEOF/EOF en Windows
     al evitar crear miles de handshakes en paralelo."""
     try:
@@ -51,8 +51,8 @@ def _mk_https_session(pool_maxsize: int) -> requests.Session:
     return s
 
 
-_LABS_SESSION = _mk_https_session(LABS_TLS_POOL)
-_AIS_SESSION = _mk_https_session(max(4, min(24, LABS_TLS_POOL)))
+_LABS_SESSION = mk_https_session(LABS_TLS_POOL)
+_AIS_SESSION = mk_https_session(max(4, min(24, LABS_TLS_POOL)))
 
 
 def tls_workers(n: int) -> int:

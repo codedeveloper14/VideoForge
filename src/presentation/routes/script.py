@@ -1,15 +1,18 @@
 from apiflask import APIBlueprint
 from flask import jsonify, send_file
 
-from src.domain.services import script_service
+from src.domain.services import scene_prompt_service, script_service
+from src.infrastructure.ai_providers import openai_vision_client
 from src.infrastructure.storage import project_repository
 from src.presentation.schemas.script import (
+    AnalyzeImageInSchema,
     AudioArchivoQuerySchema,
     AudioCargarOutSchema,
     AudioCargarQuerySchema,
     GuionCargarOutSchema,
     GuionCargarQuerySchema,
     GuionGuardarInSchema,
+    N8nProxyInSchema,
 )
 
 guion_bp = APIBlueprint("guion", __name__, url_prefix="/api/guion")
@@ -35,6 +38,31 @@ def guardar(json_data):
 @guion_bp.output(GuionCargarOutSchema)
 def cargar(query_data):
     return script_service.load_script(query_data["project"])
+
+
+@guion_bp.post("/analyze_image")
+@guion_bp.input(AnalyzeImageInSchema)
+def analyze_image(json_data):
+    out = openai_vision_client.analyze_image_b64(json_data["image_base64"], json_data["mime_type"])
+    if not out.get("ok"):
+        status = int(out.get("status") or 400)
+        return jsonify({k: v for k, v in out.items() if k != "ok"}), status
+    return jsonify({"ok": True, "descripcion_completa": out["descripcion_completa"], "json": out.get("json")})
+
+
+@guion_bp.post("/n8n_proxy")
+@guion_bp.input(N8nProxyInSchema)
+def n8n_proxy(json_data):
+    estilo_ref = (json_data["descripcion_estilo"].strip() or json_data["descripcion_referencia"].strip()
+                  or json_data["estilo"].strip())
+    try:
+        result = scene_prompt_service.generate_prompts(
+            json_data["guion"], json_data["output_mode"], json_data["prompt_mode"],
+            json_data["prompt_style"], estilo_ref,
+        )
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @audio_bp.get("/cargar")

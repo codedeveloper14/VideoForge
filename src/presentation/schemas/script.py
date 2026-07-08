@@ -31,3 +31,18 @@ class AudioCargarOutSchema(Schema):
 class AudioArchivoQuerySchema(Schema):
     project = String(required=True)
     file = String(required=True)
+
+
+class AnalyzeImageInSchema(Schema):
+    image_base64 = String(required=True)
+    mime_type = String(load_default="image/png")
+
+
+class N8nProxyInSchema(Schema):
+    guion = String(required=True)
+    output_mode = String(load_default="con_prompts")
+    prompt_mode = String(load_default="general")
+    prompt_style = String(load_default="default")
+    descripcion_estilo = String(load_default="")
+    descripcion_referencia = String(load_default="")
+    estilo = String(load_default="")
