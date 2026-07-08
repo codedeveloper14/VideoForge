@@ -16,6 +16,7 @@ from src.domain.services import scene_timestamp_service, usage_service
 from src.domain.services.project_service import scene_sort_key
 from src.infrastructure.ai_providers import modal_render_client, whisper_client
 from src.infrastructure.ai_providers.modal_render_client import ModalRequestError
+from src.infrastructure.jobs import job_registry
 from src.infrastructure.media import ffmpeg_utils
 from src.infrastructure.storage import project_repository, user_repository
 from src.utils.logger import get_logger
@@ -23,17 +24,16 @@ from src.utils.platform_utils import no_window_kwargs, open_folder
 
 logger = get_logger(__name__)
 
-_jobs: dict[str, dict] = {}
 _AUDIO_UPLOAD_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 _SCENE_NUM_RE = re.compile(r"^(?:img|flow)_(\d+)$", re.IGNORECASE)
 
 
 def get_job(job_id: str) -> dict | None:
-    return _jobs.get(job_id)
+    return job_registry.get_job(job_id)
 
 
 def get_job_video_path(job_id: str) -> str | None:
-    job = _jobs.get(job_id)
+    job = job_registry.get_job(job_id)
     if not job:
         return None
     path = job.get("video_path")
@@ -100,8 +100,9 @@ def start_render(*, project_name: str, render_mode: str, guion: str, resolucion:
         Path(guion_path).write_text(guion, encoding="utf-8")
 
     job_id = str(uuid.uuid4())[:8]
-    _jobs[job_id] = {"id": job_id, "estado": "procesando", "progreso": 0,
-                      "mensaje": "Iniciando...", "logs": [], "video_url": None, "inicio": time.time()}
+    job_registry.create_job(job_id, {"id": job_id, "estado": "procesando", "progreso": 0,
+                                      "mensaje": "Iniciando...", "logs": [], "video_url": None,
+                                      "inicio": time.time()})
 
     threading.Thread(
         target=_procesar_render_inteligente,
@@ -148,13 +149,14 @@ def _procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
         return s
 
     def log(msg, pct=None):
-        logs = _jobs[job_id]["logs"]
+        job = job_registry.get_job(job_id)
+        logs = job["logs"]
         logs.append(msg)
         if len(logs) > MAX_LOG_LINES:
             del logs[: len(logs) - MAX_LOG_LINES]
-        _jobs[job_id]["mensaje"] = msg
+        job["mensaje"] = msg
         if pct is not None:
-            _jobs[job_id]["progreso"] = pct
+            job["progreso"] = pct
         logger.info("[%s] %s", job_id, msg)
 
     tmp_dir = tempfile.mkdtemp()
@@ -185,8 +187,8 @@ def _procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
             dur_ok, dur_msg = usage_service.check_video_duration(ri_user, duracion_total)
             if not dur_ok:
                 log(dur_msg)
-                _jobs[job_id].update({"estado": "error", "error": dur_msg,
-                                       "limit_reached": True, "limit_type": "video_duration"})
+                job_registry.update_job(job_id, estado="error", error=dur_msg,
+                                         limit_reached=True, limit_type="video_duration")
                 shutil.rmtree(tmp_dir, ignore_errors=True)
                 return
 
@@ -795,14 +797,15 @@ def _procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
 
         size_mb = os.path.getsize(video_final) / (1024 * 1024)
         log(f"Video listo - {size_mb:.1f} MB", 100)
-        _jobs[job_id].update({
-            "estado": "completado",
-            "video_url": f"/api/descargar_render/{job_id}",
-            "video_path": video_final,
-            "size_mb": round(size_mb, 1),
-            "duracion": round(duracion_total, 1),
-            "escenas": len(scenes),
-        })
+        job_registry.update_job(
+            job_id,
+            estado="completado",
+            video_url=f"/api/descargar_render/{job_id}",
+            video_path=video_final,
+            size_mb=round(size_mb, 1),
+            duracion=round(duracion_total, 1),
+            escenas=len(scenes),
+        )
         open_folder(video_final)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -811,4 +814,4 @@ def _procesar_render_inteligente(job_id, images, vid_index, audio_path, guion,
         err_msg = str(exc)
         log(f"Error: {err_msg}")
         log(f"Carpeta temporal conservada para diagnostico: {tmp_dir}")
-        _jobs[job_id].update({"estado": "error", "error": err_msg, "tmp_dir": tmp_dir})
+        job_registry.update_job(job_id, estado="error", error=err_msg, tmp_dir=tmp_dir)

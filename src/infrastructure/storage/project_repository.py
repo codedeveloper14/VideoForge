@@ -1,3 +1,4 @@
+import json
 import re
 import shutil
 from pathlib import Path
@@ -120,6 +121,46 @@ def read_guion(project: str) -> tuple[str, str, bool]:
     return path_texto.read_text(encoding="utf-8"), prompts, True
 
 
+# El proyecto acumulo distintos nombres de archivo de guion segun que ruta lo escribio
+# (edicion normal, render directo, render desde el editor). Un solo orden de busqueda
+# aqui evita que cada ruta reinvente su propia lista de fallback (y las diverjan).
+_GUION_FALLBACK_NAMES = (
+    "guion_fragmentado.txt",
+    "guion_render.txt",
+    "guion_editor.txt",
+    "guion.txt",
+)
+
+
+def find_guion_file(project: str) -> Path | None:
+    guion_dir = project_dir(project) / "guion"
+    for name in _GUION_FALLBACK_NAMES:
+        candidate = guion_dir / name
+        if candidate.exists():
+            return candidate
+    root_fallback = project_dir(project) / "guion.txt"
+    return root_fallback if root_fallback.exists() else None
+
+
+def read_guion_lines(project: str) -> list[str]:
+    """Lineas no vacias del guion (una escena por linea), buscando en todos los
+    nombres de archivo conocidos por orden de prioridad. Vacia si no hay guion."""
+    path = find_guion_file(project)
+    if not path:
+        return []
+    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def write_guion_variant(project: str, filename: str, texto: str) -> Path:
+    """Escribe el guion en un nombre de archivo especifico (p. ej. guion_editor.txt),
+    sin tocar guion_fragmentado.txt (el archivo canonico del editor de guion normal)."""
+    guion_dir = project_dir(project) / "guion"
+    guion_dir.mkdir(parents=True, exist_ok=True)
+    path = guion_dir / filename
+    path.write_text(texto, encoding="utf-8")
+    return path
+
+
 def list_audio_files(project: str) -> list[Path]:
     audio_dir = project_dir(project) / "audio"
     if not audio_dir.exists():
@@ -135,3 +176,26 @@ def write_audio_file(project: str, filename: str, data: bytes) -> Path:
     path = audio_dir / filename
     path.write_bytes(data)
     return path
+
+
+def write_editor_plan(project: str, escenas: list[dict]) -> Path:
+    editor_dir = project_dir(project) / "editor"
+    editor_dir.mkdir(parents=True, exist_ok=True)
+    path = editor_dir / "plan_edicion.json"
+    path.write_text(json.dumps({"escenas": escenas}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def read_editor_plan(project: str) -> dict | None:
+    """Busca el plan de edicion guardado por write_editor_plan, con los mismos
+    fallbacks de ubicacion que el editor visual (proyecto/editor, raiz, guion/)."""
+    proj = project_dir(project)
+    for candidate in (proj / "editor" / "plan_edicion.json",
+                      proj / "plan_edicion.json",
+                      proj / "guion" / "plan_edicion.json"):
+        if candidate.exists():
+            try:
+                return json.loads(candidate.read_text(encoding="utf-8"))
+            except Exception:
+                return None
+    return None

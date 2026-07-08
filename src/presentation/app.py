@@ -5,6 +5,7 @@ from src.infrastructure.payments.stripe_service import ensure_stripe_table
 from src.infrastructure.storage.usage_repository import ensure_tables
 from src.presentation.auth_middleware import register_auth_middleware
 from src.presentation.routes.auth import auth_bp
+from src.presentation.routes.editor import editor_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
 from src.presentation.routes.meta import meta_bp
@@ -34,6 +35,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(user_bp)
     app.register_blueprint(plans_bp)
     app.register_blueprint(projects_bp)
+    app.register_blueprint(editor_bp)
     app.register_blueprint(grok_bp)
     app.register_blueprint(qwen_bp)
     app.register_blueprint(render_bp)
