@@ -2,13 +2,10 @@ import re
 from pathlib import Path
 
 from src.infrastructure.storage import project_repository
+from src.infrastructure.storage.project_repository import sanitize_name
 from src.utils.platform_utils import open_folder
 
 _SCENE_NUM_RE = re.compile(r"^(?:img|flow)_(\d+)$", re.IGNORECASE)
-
-
-def sanitize_name(raw: str) -> str:
-    return re.sub(r"[^\w\-]", "_", (raw or "").strip())[:60]
 
 
 def _path_sort_key(path: Path):

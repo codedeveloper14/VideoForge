@@ -1,3 +1,4 @@
+import re
 import shutil
 from pathlib import Path
 
@@ -12,8 +13,14 @@ def creation_time(path: Path) -> float:
     return getattr(st, "st_birthtime", None) or st.st_mtime
 
 
+def sanitize_name(raw: str) -> str:
+    return re.sub(r"[^\w\-]", "_", (raw or "").strip())[:60]
+
+
 def project_dir(name: str) -> Path:
-    return get_jobs_dir() / name
+    """Siempre resuelve dentro de jobs/: sanitiza el nombre para que ningun
+    llamador pueda escapar el directorio de jobs via el nombre de proyecto."""
+    return get_jobs_dir() / sanitize_name(name)
 
 
 def create_project(name: str) -> Path:
@@ -90,3 +97,33 @@ def ensure_final_videos_dir(project: str) -> Path:
     d = project_dir(project) / "video_final"
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
+
+
+def write_guion(project: str, texto: str, prompts: str = "") -> None:
+    guion_dir = project_dir(project) / "guion"
+    guion_dir.mkdir(parents=True, exist_ok=True)
+    (guion_dir / "guion_fragmentado.txt").write_text(texto, encoding="utf-8")
+    if prompts:
+        (guion_dir / "prompts_imagen.txt").write_text(prompts, encoding="utf-8")
+
+
+def read_guion(project: str) -> tuple[str, str, bool]:
+    guion_dir = project_dir(project) / "guion"
+    path_texto = guion_dir / "guion_fragmentado.txt"
+    path_prompts = guion_dir / "prompts_imagen.txt"
+    if not path_texto.exists():
+        return "", "", False
+    prompts = path_prompts.read_text(encoding="utf-8") if path_prompts.exists() else ""
+    return path_texto.read_text(encoding="utf-8"), prompts, True
+
+
+def list_audio_files(project: str) -> list[Path]:
+    audio_dir = project_dir(project) / "audio"
+    if not audio_dir.exists():
+        return []
+    files = [f for f in audio_dir.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXTS]
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    return files
