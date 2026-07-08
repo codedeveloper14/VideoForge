@@ -2,11 +2,24 @@ import logging
 import os
 import platform
 import subprocess
+import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 APP_NAME = "VideoForge"
+
+
+def is_frozen() -> bool:
+    """True cuando corre como ejecutable compilado (PyInstaller), en Windows o Mac."""
+    return getattr(sys, "frozen", False)
+
+
+def no_window_kwargs() -> dict:
+    """kwargs de subprocess para ocultar la consola en Windows; sin efecto en Mac/Linux."""
+    if platform.system() == "Windows":
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
 
 
 def get_app_data_dir(app_name: str = APP_NAME) -> Path:

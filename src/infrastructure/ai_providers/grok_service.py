@@ -1,6 +1,8 @@
 import base64
+import glob
 import json
 import mimetypes
+import os
 import random
 import sys
 import time
@@ -416,3 +418,181 @@ def make_clients(folder: Path, slots: int, prompt: str, aspect_ratio: str,
     logger.info("[%s] %d slot(s) - statsig=%s", folder.name, slots,
                 "[OK]" if meta.get("statsig_id") else "[ERROR]")
     return clients
+
+
+# ─────────────────────────────────────────────────────────────────
+# Gestion de cuentas/sesiones (usado por la UI "Sesiones")
+# ─────────────────────────────────────────────────────────────────
+
+def account_dir(accounts_dir: Path, name: str) -> Path:
+    """Sanitiza el nombre de cuenta para que no pueda escapar accounts_dir."""
+    import re
+    safe = re.sub(r"[^\w\-]", "_", (name or "").strip())[:60]
+    return accounts_dir / safe
+
+
+def ensure_accounts_setup(accounts_dir: Path, count: int = 10) -> None:
+    """Garantiza accounts_dir/account_1..account_N y un README."""
+    accounts_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(1, count + 1):
+        (accounts_dir / f"account_{i}").mkdir(parents=True, exist_ok=True)
+    readme = accounts_dir / "README.txt"
+    if not readme.exists():
+        readme.write_text(
+            "Carpetas de cuentas para Grok.\n"
+            "1) Abre 'Sesiones' en la app.\n"
+            "2) Inicia sesion en cada cuenta (account_1, account_2, ...).\n"
+            "3) El sistema guarda cookies en cookies_auto.json dentro de cada carpeta.\n",
+            encoding="utf-8",
+        )
+
+
+def list_account_sessions(accounts_dir: Path) -> list[dict]:
+    result = []
+    for folder in sorted(accounts_dir.iterdir()):
+        if not folder.is_dir():
+            continue
+        ck_file = folder / "cookies_auto.json"
+        active = False
+        user = ""
+        if ck_file.exists():
+            try:
+                cookies = json.loads(ck_file.read_text())
+                ck_dict = {c["name"]: c["value"] for c in cookies if isinstance(c, dict)}
+                active = bool(ck_dict.get("sso"))
+                uid_cookie = ck_dict.get("x-userid", "")
+                user = uid_cookie[:20] if uid_cookie else (f"{len(cookies)} ck" if active else "sin sesion")
+            except Exception:
+                active = ck_file.stat().st_size > 50
+        result.append({"name": folder.name, "active": active, "user": user, "has_cookies": ck_file.exists()})
+    return result
+
+
+def delete_account_session(accounts_dir: Path, account_name: str) -> None:
+    ck_file = account_dir(accounts_dir, account_name) / "cookies_auto.json"
+    if ck_file.exists():
+        ck_file.unlink()
+
+
+def _valid_statsig_id(sid) -> bool:
+    if not sid or not isinstance(sid, str):
+        return False
+    sid = sid.strip()
+    if len(sid) < 8 or len(sid) > 256:
+        return False
+    bad_markers = ("error", "undefined", "typeerror", "exception", "cannot read", "null", "nan", "syntaxerror")
+    return not any(bad in sid.lower() for bad in bad_markers)
+
+
+def _valid_sentry_release(release) -> bool:
+    if not release or not isinstance(release, str):
+        return False
+    release = release.strip()
+    if len(release) < 8 or len(release) > 64:
+        return False
+    return all(c in "0123456789abcdefABCDEF" for c in release)
+
+
+def login_account_managed(folder: Path, folder_name: str) -> tuple[bool, str]:
+    """Login interactivo con perfil temporal (usado por la UI HTTP 'Sesiones').
+
+    A diferencia de login_account() (perfil persistente, usado por el CLI de
+    scripts/grok_worker.py), este usa un perfil temporal limpio en cada intento
+    y valida mas estrictamente los tokens statsig/sentry capturados.
+    """
+    import shutil
+    import tempfile
+
+    from playwright.sync_api import sync_playwright
+
+    temp_profile = Path(tempfile.gettempdir()) / f"grok_tmp_{folder_name}"
+    if temp_profile.exists():
+        shutil.rmtree(temp_profile)
+    temp_profile.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with sync_playwright() as pw:
+            local_appdata = os.environ.get("LOCALAPPDATA", "")
+            candidates = (
+                glob.glob(str(Path(local_appdata) / "ms-playwright" / "chromium-*" / "chrome-win*" / "chrome.exe"))
+                if local_appdata else []
+            )
+            exe = candidates[0] if candidates else None
+
+            ctx = pw.chromium.launch_persistent_context(
+                str(temp_profile), headless=False, executable_path=exe,
+                args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--no-first-run"],
+                viewport={"width": 1280, "height": 900},
+            )
+            page = ctx.pages[0] if ctx.pages else ctx.new_page()
+
+            session_meta_capture: dict = {}
+
+            def on_req(req):
+                h = req.headers
+                sid = h.get("x-statsig-id", "")
+                if sid and _valid_statsig_id(sid) and not session_meta_capture.get("statsig_id"):
+                    session_meta_capture["statsig_id"] = sid.strip()
+                bag = h.get("baggage", "")
+                if "sentry-release=" in bag and not session_meta_capture.get("sentry_release"):
+                    for part in bag.split(","):
+                        if part.strip().startswith("sentry-release="):
+                            rel = part.split("=", 1)[1].strip()
+                            if _valid_sentry_release(rel):
+                                session_meta_capture["sentry_release"] = rel
+
+            page.on("request", on_req)
+
+            try:
+                page.goto("https://grok.com/imagine", timeout=30000)
+                page.wait_for_load_state("networkidle", timeout=30000)
+            except Exception:
+                pass
+
+            saved = False
+            deadline = time.time() + 300
+            while time.time() < deadline:
+                try:
+                    cookies = ctx.cookies("https://grok.com")
+                except Exception:
+                    break
+                ck_dict = {c["name"]: c["value"] for c in cookies}
+                if ck_dict.get("sso"):
+                    cookie_list = [
+                        {"name": c["name"], "value": c["value"], "domain": ".grok.com", "path": "/",
+                         "httpOnly": c.get("httpOnly", False), "secure": c.get("secure", True)}
+                        for c in cookies
+                    ]
+                    (folder / "cookies_auto.json").write_text(json.dumps(cookie_list, indent=2))
+                    meta_file = folder / "session_meta.json"
+                    if session_meta_capture:
+                        meta_file.write_text(json.dumps(session_meta_capture, indent=2))
+                    elif meta_file.exists():
+                        meta_file.unlink()
+                    saved = True
+                    time.sleep(1)
+                    try:
+                        ctx.close()
+                    except Exception:
+                        pass
+                    return True, (
+                        f"[OK] [{folder_name}] Sesion guardada (sso={ck_dict['sso'][:12]}... | "
+                        f"{len(cookies)} cookies{' | session_meta OK' if session_meta_capture else ''})."
+                    )
+                time.sleep(2)
+
+            if not saved:
+                try:
+                    ctx.close()
+                except Exception:
+                    pass
+                return False, f"[WARNING] [{folder_name}] Browser cerrado sin guardar sesion (cookie 'sso' no detectada)."
+    except ImportError:
+        return False, f"[ERROR] [{folder_name}] Playwright no instalado."
+    except Exception as exc:
+        return False, f"[ERROR] [{folder_name}] Error: {exc}"
+    finally:
+        try:
+            shutil.rmtree(temp_profile, ignore_errors=True)
+        except Exception:
+            pass
