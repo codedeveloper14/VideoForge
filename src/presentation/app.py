@@ -9,6 +9,7 @@ from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
 from src.presentation.routes.plans import plans_bp
 from src.presentation.routes.projects import projects_bp
+from src.presentation.routes.qwen import qwen_bp
 from src.presentation.routes.script import audio_bp, guion_bp
 from src.presentation.routes.stripe import stripe_bp, stripe_pages_bp
 from src.presentation.routes.usage import usage_bp
@@ -31,6 +32,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(plans_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(grok_bp)
+    app.register_blueprint(qwen_bp)
     app.register_blueprint(guion_bp)
     app.register_blueprint(audio_bp)
     app.register_blueprint(stripe_bp)

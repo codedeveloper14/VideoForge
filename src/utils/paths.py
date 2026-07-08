@@ -30,3 +30,7 @@ def get_grok_accounts_dir() -> Path:
 
 def get_grok_downloads_dir() -> Path:
     return _ensure(config.app_data_dir / "grok_downloads")
+
+
+def get_qwen_accounts_dir() -> Path:
+    return _ensure(config.app_data_dir / "qwen_accounts")
