@@ -370,10 +370,6 @@ echo ""
 echo " Tamaño del .dmg:"
 du -sh IVR_2.5.dmg 2>/dev/null || echo "   No se pudo calcular"
 echo ""
-echo " Probando la app..."
-./IVR_2.5.app/Contents/MacOS/IVR_2.5 &
-sleep 3
-
 echo ""
 echo "========================================="
 echo "  ¡LISTO! Los instaladores estan listos"

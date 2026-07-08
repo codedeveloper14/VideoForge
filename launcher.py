@@ -50,6 +50,7 @@ def get_app_data_folder():
 
 # USAR SIEMPRE ESTO
 APP_DATA = get_app_data_folder()
+ENV_PATH = os.path.join(APP_DATA, '.env')
 JOBS_FOLDER = os.path.join(APP_DATA, 'jobs')
 COOKIES_FOLDER = os.path.join(APP_DATA, 'cookies')
 WHISK_DOWNLOADS = os.path.join(APP_DATA, 'whisk_downloads')
@@ -58,6 +59,11 @@ FLOW_EXTENSION_FOLDER = os.path.join(APP_DATA, 'flow_extension')
 # Crear carpetas si no existen
 for folder in [JOBS_FOLDER, COOKIES_FOLDER, WHISK_DOWNLOADS, FLOW_EXTENSION_FOLDER]:
     os.makedirs(folder, exist_ok=True)
+
+# Crear archivo .env si no existe
+if not os.path.exists(ENV_PATH):
+    with open(ENV_PATH, 'w') as f:
+        f.write('')
 
 print(f"[OK] AppData: {APP_DATA}")
 print(f"[OK] Jobs: {JOBS_FOLDER}")
