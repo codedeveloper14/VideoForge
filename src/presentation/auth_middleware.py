@@ -11,6 +11,9 @@ PUBLIC_ROUTES = {
     "/api/health",
     "/stripe-success",
     "/favicon.ico",
+    # Contenido del centro de ayuda: publico en el original (sin auth), igual aqui.
+    "/api/docs",
+    "/api/help",
     # La extension de Chrome llama estas rutas desde la pagina de meta.ai/labs.google,
     # sin cookie de sesion de VideoForge -- deben quedar publicas.
     "/api/meta/ext-register",

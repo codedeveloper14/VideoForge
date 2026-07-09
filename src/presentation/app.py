@@ -2,9 +2,11 @@ from apiflask import APIFlask
 
 from src.core.config import config
 from src.infrastructure.payments.stripe_service import ensure_stripe_table
+from src.infrastructure.storage import docs_repository
 from src.infrastructure.storage.usage_repository import ensure_tables
 from src.presentation.auth_middleware import register_auth_middleware
 from src.presentation.routes.auth import auth_bp
+from src.presentation.routes.docs import admin_docs_bp, docs_bp
 from src.presentation.routes.editor import editor_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
@@ -27,6 +29,7 @@ def create_app() -> APIFlask:
 
     ensure_tables()
     ensure_stripe_table()
+    docs_repository.ensure_tables()
 
     register_auth_middleware(app)
 
@@ -48,4 +51,6 @@ def create_app() -> APIFlask:
     app.register_blueprint(voice_bp)
     app.register_blueprint(whisk_bp)
     app.register_blueprint(pollination_bp)
+    app.register_blueprint(docs_bp)
+    app.register_blueprint(admin_docs_bp)
     return app
