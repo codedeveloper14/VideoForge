@@ -40,5 +40,13 @@ class Config:
     max_failed_login_attempts: int = 5
     lockout_seconds: int = 300
 
+    @property
+    def session_cookie_secure(self) -> bool:
+        """La cookie de sesion solo debe llevar Secure cuando realmente se sirve por
+        HTTPS -- si no, el navegador nunca la reenvia y rompe el login. En local
+        (PUBLIC_BASE_URL=http://localhost:...) da False; en el servidor real, con
+        PUBLIC_BASE_URL=https://..., da True automaticamente."""
+        return self.public_base_url.startswith("https://")
+
 
 config = Config()

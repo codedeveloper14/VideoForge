@@ -29,7 +29,7 @@ def _session_response(payload: dict, username: str):
     resp.set_cookie(
         auth_service.SESSION_COOKIE,
         auth_service.make_token(username),
-        httponly=True, samesite="Lax", secure=False,
+        httponly=True, samesite="Lax", secure=config.session_cookie_secure,
         max_age=config.session_minutes * 60,
     )
     return resp

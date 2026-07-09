@@ -64,7 +64,7 @@ def register_auth_middleware(app) -> None:
                 auth_service.make_token(user),
                 httponly=True,
                 samesite="Lax",
-                secure=False,
+                secure=config.session_cookie_secure,
                 max_age=config.session_minutes * 60,
             )
         return response
