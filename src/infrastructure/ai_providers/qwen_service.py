@@ -1,4 +1,3 @@
-import glob
 import json
 import mimetypes
 import os
@@ -9,6 +8,7 @@ from pathlib import Path
 
 import requests
 
+from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -434,12 +434,7 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
         tmp_profile.mkdir(parents=True, exist_ok=True)
 
         with sync_playwright() as pw:
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            bins = (
-                glob.glob(str(Path(local_appdata) / "ms-playwright" / "chromium-*" / "chrome-win*" / "chrome.exe"))
-                if local_appdata else []
-            )
-            exe = bins[0] if bins else None
+            exe = find_chromium_exe()
             ctx = pw.chromium.launch_persistent_context(
                 str(tmp_profile), headless=False, executable_path=exe,
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--no-first-run"],

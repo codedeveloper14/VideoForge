@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import requests
 
 from src.infrastructure.ai_providers import meta_accounts
+from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
 from src.infrastructure.ai_providers.meta_gql_client import META_BASE, META_UA
 from src.utils.logger import get_logger
 
@@ -257,9 +258,6 @@ def generate_playwright_intercept(
 def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], None] = _NoOpLog) -> None:
     """Login interactivo (perfil persistente) que intercepta headers Set-Cookie
     para capturar la cookie de sesion 'ecto_*' de meta.ai/facebook.com."""
-    import glob
-    import os
-
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -299,12 +297,7 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
 
     try:
         with sync_playwright() as pw:
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            bins = (
-                glob.glob(os.path.join(local_appdata, "ms-playwright", "chromium-*", "chrome-win*", "chrome.exe"))
-                if local_appdata else []
-            )
-            exe = bins[0] if bins else None
+            exe = find_chromium_exe()
 
             ctx = pw.chromium.launch_persistent_context(
                 tmp_profile, headless=False, executable_path=exe,

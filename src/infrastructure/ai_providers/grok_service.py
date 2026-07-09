@@ -1,8 +1,6 @@
 import base64
-import glob
 import json
 import mimetypes
-import os
 import random
 import sys
 import time
@@ -11,6 +9,7 @@ from pathlib import Path
 
 import requests
 
+from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -512,12 +511,7 @@ def login_account_managed(folder: Path, folder_name: str) -> tuple[bool, str]:
 
     try:
         with sync_playwright() as pw:
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            candidates = (
-                glob.glob(str(Path(local_appdata) / "ms-playwright" / "chromium-*" / "chrome-win*" / "chrome.exe"))
-                if local_appdata else []
-            )
-            exe = candidates[0] if candidates else None
+            exe = find_chromium_exe()
 
             ctx = pw.chromium.launch_persistent_context(
                 str(temp_profile), headless=False, executable_path=exe,

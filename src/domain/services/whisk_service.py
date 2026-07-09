@@ -10,6 +10,7 @@ from pathlib import Path
 import requests
 
 from src.infrastructure.ai_providers import openrouter_client
+from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
 from src.infrastructure.ai_providers.whisk_client import WhiskClient, WhiskExpired, tls_workers, to_b64
 from src.infrastructure.ai_providers.whisk_pool import WhiskPool
 from src.utils.logger import get_logger
@@ -642,11 +643,7 @@ def _playwright_login(profile_id: int) -> None:
 
     try:
         with sync_playwright() as pw:
-            import glob
-            local = os.environ.get("LOCALAPPDATA", "")
-            candidates = glob.glob(os.path.join(local, "ms-playwright", "chromium-*", "chrome-win*", "chrome.exe")) \
-                if local else []
-            exe = candidates[0] if candidates else None
+            exe = find_chromium_exe()
             ctx = pw.chromium.launch_persistent_context(
                 profile_dir, headless=False, executable_path=exe,
                 args=["--no-first-run", "--disable-blink-features=AutomationControlled"],
