@@ -1,7 +1,8 @@
 from apiflask import APIFlask
 
 from src.core.config import config
-from src.domain.services import gentube_animation_service
+from src.domain.services import flow_animation_service, gentube_animation_service
+from src.infrastructure.ai_providers import flow_bridge
 from src.infrastructure.payments.stripe_service import ensure_stripe_table
 from src.infrastructure.jobs.task_tracker import register_task_tracker
 from src.infrastructure.storage import docs_repository
@@ -64,4 +65,5 @@ def create_app() -> APIFlask:
     app.register_blueprint(flow_bp)
 
     gentube_animation_service.sync_profiles_async()
+    flow_bridge.start_ws_server(flow_animation_service.log)
     return app

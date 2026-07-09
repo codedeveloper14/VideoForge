@@ -2,6 +2,7 @@ from apiflask import APIBlueprint
 from flask import Response, jsonify, request
 
 from src.domain.services import flow_animation_service
+from src.infrastructure.ai_providers import flow_bridge
 from src.presentation.schemas.flow import FlowProfileDumpQuerySchema
 from src.utils.logger import get_logger
 
@@ -43,3 +44,9 @@ def profile_dump(query_data):
 @flow_bp.get("/accounts")
 def accounts():
     return jsonify({"accounts": flow_animation_service.check_accounts()})
+
+
+@flow_bp.get("/bridge-status")
+def bridge_status():
+    flow_bridge.start_bridge(flow_animation_service.log)
+    return _cors(jsonify(flow_bridge.status()))
