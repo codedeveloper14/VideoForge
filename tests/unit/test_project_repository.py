@@ -1,3 +1,5 @@
+import os
+
 from src.infrastructure.storage import project_repository as repo
 
 
@@ -39,5 +41,9 @@ def test_resolve_safe_file_bloquea_traversal_con_puntos():
 
 
 def test_resolve_safe_file_bloquea_traversal_absoluto():
-    path = repo.resolve_safe_file("proyecto_test", "imagen", "C:\\Windows\\System32\\config")
+    # "C:\Windows\..." solo se interpreta como ruta absoluta en Windows -- en POSIX
+    # (Mac/Linux) esa cadena con backslashes es un simple nombre de archivo raro
+    # (pathlib POSIX no separa por "\"), y el ataque real ahi es "/etc/passwd".
+    attack = "C:\\Windows\\System32\\config" if os.name == "nt" else "/etc/passwd"
+    path = repo.resolve_safe_file("proyecto_test", "imagen", attack)
     assert path is None
