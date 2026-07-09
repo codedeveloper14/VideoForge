@@ -96,6 +96,52 @@ def enqueue_request(request_data: dict) -> None:
         _bridge_queue.append(request_data)
 
 
+def remove_from_queue(request_id: str) -> None:
+    with _bridge_q_lock:
+        _bridge_queue[:] = [r for r in _bridge_queue if r.get("requestId") != request_id]
+
+
+def clear_queue_for_account(account_hash: str) -> None:
+    with _bridge_q_lock:
+        _bridge_queue[:] = [r for r in _bridge_queue if r.get("account_hash") != account_hash]
+
+
+def clear_queue() -> None:
+    with _bridge_q_lock:
+        _bridge_queue.clear()
+
+
+def get_ws_clients() -> dict:
+    with _ws_clients_lock:
+        return dict(_ws_clients)
+
+
+def remove_ws_client(account_hash: str) -> None:
+    with _ws_clients_lock:
+        _ws_clients.pop(account_hash, None)
+
+
+def get_http_seen_accounts() -> set[str]:
+    now = time.time()
+    with _http_seen_lock:
+        stale = [a for a, t in _http_seen.items() if now - t > _HTTP_SEEN_TTL]
+        for a in stale:
+            del _http_seen[a]
+        return set(_http_seen.keys())
+
+
+def remove_http_seen(account_hash: str) -> None:
+    with _http_seen_lock:
+        _http_seen.pop(account_hash, None)
+
+
+def get_bearer_cache_hashes() -> set[str]:
+    """Hashes con bearer en cache, sin filtrar por antiguedad (a diferencia de
+    get_connected_accounts, que solo cuenta bearers de los ultimos 10 min)."""
+    with _bearer_cache_lock:
+        return {h for h, e in _bearer_cache.items() if e.get("bearer")}
+
+
 def register_result_waiter(request_id: str) -> threading.Event:
     event = threading.Event()
     with _bridge_r_lock:
@@ -103,10 +149,17 @@ def register_result_waiter(request_id: str) -> threading.Event:
     return event
 
 
-def pop_result(request_id: str) -> dict | None:
+def try_pop_result(request_id: str) -> dict | None:
+    """No bloqueante: devuelve el resultado si ya llego, sin tocar el waiter (el
+    llamador sigue esperando en su propio Event hasta el timeout)."""
+    with _bridge_r_lock:
+        return _bridge_results.pop(request_id, None)
+
+
+def cleanup_waiter(request_id: str) -> None:
     with _bridge_r_lock:
         _bridge_r_events.pop(request_id, None)
-        return _bridge_results.pop(request_id, None)
+        _bridge_results.pop(request_id, None)
 
 
 def status() -> dict:
