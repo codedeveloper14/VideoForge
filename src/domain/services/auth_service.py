@@ -55,7 +55,15 @@ def is_locked_out(ip: str) -> tuple[bool, int]:
             return False, 0
         if time.time() < data.get("until", 0):
             return True, int(data["until"] - time.time())
-        _failed_attempts.pop(ip, None)
+        # Solo limpiar si HUBO un lockout que ya expiro (until>0). Si until==0 todavia
+        # se esta acumulando el conteo de fallos (aun no llego al umbral) -- si se
+        # limpiara aca tambien, el conteo nunca podria acumularse: login() llama
+        # register_fail() seguido de is_locked_out() en cada intento, y este pop
+        # borraria el contador antes de que llegara a bloquear nada (bug real
+        # heredado del original, confirmado con un test que ejercita la ruta /api/login
+        # tal como se usa de verdad, no solo register_fail() en un loop aislado).
+        if data.get("until", 0) > 0:
+            _failed_attempts.pop(ip, None)
         return False, 0
 
 
