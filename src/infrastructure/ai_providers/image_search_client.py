@@ -99,10 +99,11 @@ def _search_pixabay(query: str, n: int, api_key: str) -> list[str]:
         return []
 
 
-def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str = "") -> list[str]:
+def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str = "",
+                   unsplash_key: str = "") -> list[str]:
     """Cascada Serper (Google Images) -> Pexels -> Unsplash -> Pixabay, primer resultado
-    no vacio gana. serper_key/pexels_key (si vienen del frontend) tienen prioridad sobre
-    las variables de entorno; Unsplash/Pixabay solo usan variables de entorno."""
+    no vacio gana. Las claves pasadas por parametro (p. ej. suministradas por el frontend)
+    tienen prioridad sobre las variables de entorno; Pixabay solo usa variable de entorno."""
     n = min(int(n or 4), 8)
     query = (query or "").strip()
     if not query:
@@ -111,7 +112,7 @@ def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str 
     urls: list[str] = []
     serper_key = (serper_key or "").strip() or os.environ.get("SERPER_API_KEY", "").strip()
     pexels_key = (pexels_key or "").strip() or os.environ.get("PEXELS_API_KEY", "").strip()
-    unsplash_key = os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
+    unsplash_key = (unsplash_key or "").strip() or os.environ.get("UNSPLASH_ACCESS_KEY", "").strip()
     pixabay_key = os.environ.get("PIXABAY_API_KEY", "").strip()
 
     if serper_key and not urls:
@@ -128,11 +129,13 @@ def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str 
     return urls[:n]
 
 
-def fetch_image_bytes(query: str, n: int = 6) -> bytes | None:
+def fetch_image_bytes(query: str, n: int = 6, serper_key: str = "", pexels_key: str = "",
+                       unsplash_key: str = "") -> bytes | None:
     """Busca `query` en la misma cascada de proveedores y descarga la primera imagen
-    valida (no SVG/GIF, magic bytes JPEG/PNG/WEBP). Usado server-side (sin claves del
-    frontend) cuando una escena necesita una referencia y no trajo una propia."""
-    urls = search_images(query, n=n)
+    valida (no SVG/GIF, magic bytes JPEG/PNG/WEBP). Usado server-side cuando una escena
+    necesita una referencia y no trajo una propia; acepta claves puntuales del frontend
+    igual que search_images."""
+    urls = search_images(query, n=n, serper_key=serper_key, pexels_key=pexels_key, unsplash_key=unsplash_key)
     for url in urls:
         try:
             resp = requests.get(url, timeout=_TIMEOUT, stream=True, headers={"User-Agent": "Mozilla/5.0"})

@@ -289,3 +289,28 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
             t = resultado[idx]["fin"]
 
     return resultado
+
+
+def assign_timestamps_auto(escenas: list[str], segmentos: list[dict], all_words: list[dict] | None,
+                            duracion_total: float, on_fallback=None) -> list[dict]:
+    """Asigna timestamps con word-level (n-gram) si hay palabras, y cae a segment-level
+    si el resultado de word-level parece fallido: heuristica >40% de escenas sin match
+    Y el ultimo match cae en el ultimo 15% del audio (voz TTS que lee numeros/siglas
+    distinto al guion, el n-gram matching falla silenciosamente en esos casos).
+    on_fallback(unmatched, total, last_ok, duracion_total), si se pasa, se invoca justo
+    antes de recalcular con segment-level (para que el llamador pueda loguear el motivo)."""
+    if not segmentos and not all_words:
+        return proporcional(escenas, duracion_total)
+    if not all_words:
+        return asignar_timestamps(escenas, segmentos, duracion_total)
+
+    timestamps = asignar_timestamps_words(escenas, all_words, duracion_total)
+    unmatched = sum(1 for ts in timestamps if ts.get("score", 0) == 0)
+    last_ok = max((ts["fin"] for ts in timestamps if ts.get("score", 0) > 0), default=0.0)
+    ratio = unmatched / max(1, len(timestamps))
+    late = last_ok > duracion_total * 0.85
+    if ratio > 0.40 and late:
+        if on_fallback:
+            on_fallback(unmatched, len(timestamps), last_ok, duracion_total)
+        return asignar_timestamps(escenas, segmentos, duracion_total)
+    return timestamps

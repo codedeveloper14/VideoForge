@@ -1,7 +1,7 @@
 from apiflask import APIBlueprint
 from flask import jsonify, request
 
-from src.domain.services import editor_scene_analysis_service
+from src.domain.services import editor_scene_analysis_service, enriched_render_service
 from src.infrastructure.ai_providers import image_search_client
 from src.infrastructure.storage import project_repository
 from src.presentation.schemas.editor import (
@@ -73,3 +73,29 @@ def proxy_imagen(json_data):
     if "error" in result:
         return jsonify(result), 400
     return jsonify(result)
+
+
+@editor_bp.post("/render_enriquecido")
+def render_enriquecido():
+    """Render con efectos del editor: overlays de texto sincronizados, Ken Burns,
+    split-screen, imagenes de referencia. Body libre: {project_name, escenas,
+    resolucion, transicion, trans_dur, pexels_key, unsplash_key}. Reutiliza el mismo
+    job registry que /api/render_inteligente -- se consulta via /api/estado/<job_id>
+    y se descarga via /api/descargar_render/<job_id>."""
+    data = request.get_json(silent=True) or {}
+    try:
+        result = enriched_render_service.start_render(
+            project_name=data.get("project_name", ""),
+            escenas=data.get("escenas", []),
+            resolucion=data.get("resolucion", "1920x1080"),
+            transicion=data.get("transicion", "xfade"),
+            trans_dur=float(data.get("trans_dur", 0.6)),
+            pexels_key=data.get("pexels_key", ""),
+            unsplash_key=data.get("unsplash_key", ""),
+        )
+        return jsonify(result)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        logger.exception("editor_render_enriquecido error")
+        return jsonify({"error": str(exc)}), 500
