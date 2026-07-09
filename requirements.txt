@@ -25,3 +25,9 @@ openai-whisper>=20231117 # whisper_backend=local (paquete "whisper")
 
 # --- Testing ---
 pytest>=8.0.0
+
+# --- Herramientas de codigo (desarrollo, no hacen falta para correr la app) ---
+black>=24.0.0
+ruff>=0.6.0
+mypy>=1.10.0
+pre-commit>=3.7.0
