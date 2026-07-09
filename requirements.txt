@@ -11,6 +11,7 @@ curl_cffi>=0.7.0
 oss2>=2.18.0
 Pillow>=10.0.0
 psutil>=5.9.0
+pywebview>=5.0
 
 # --- Render: backends de transcripcion (whisper_client.py) ---
 # Cada uno solo se importa si el usuario elige ese whisper_backend en /api/render_inteligente.
