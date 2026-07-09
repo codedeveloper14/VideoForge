@@ -199,3 +199,19 @@ def read_editor_plan(project: str) -> dict | None:
             except Exception:
                 return None
     return None
+
+
+def find_timestamps_file(project: str) -> Path | None:
+    proj = project_dir(project)
+    for candidate in (proj / "editor" / "timestamps_escenas.json",
+                      proj / "timestamps_escenas.json",
+                      proj / "guion" / "timestamps_escenas.json"):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def write_scene_timestamps(project: str, records: list[dict]) -> Path:
+    path = project_dir(project) / "timestamps_escenas.json"
+    path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path

@@ -2,6 +2,9 @@ import os
 import threading
 
 from src.core.config import config
+from src.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 _WHISPERX_REPLICATE_MODEL = (
     "victor-upmeet/whisperx:84d2ad2d6194fe98a17d2b60bef1c7f910c46b2f6fd38996ca457afd9c8abfcb"
@@ -172,3 +175,31 @@ def transcribe_local(audio_path: str, model: str) -> list[dict]:
     wm = whisper.load_model(model)
     resultado = wm.transcribe(audio_path, language=None, word_timestamps=True)
     return resultado.get("segments", [])
+
+
+def transcribe_with_fallback(audio_path: str) -> tuple[list[dict], list[dict], str]:
+    """Cascada automatica whisperx (Replicate) -> faster-whisper -> whisper local ->
+    sin transcripcion, usando cada paso solo si el anterior fallo. A diferencia de
+    render_service (que usa el backend elegido explicitamente por el usuario, sin
+    cascada), esto es para flujos donde no se pide un backend concreto (editor visual)."""
+    try:
+        segmentos, all_words = transcribe_whisperx_replicate(audio_path, language=None)
+        return segmentos, all_words, "whisperx_replicate"
+    except Exception as exc:
+        logger.info("transcribe_with_fallback: whisperx fallo (%s), probando faster-whisper...", exc)
+
+    try:
+        segmentos = transcribe_faster(audio_path, "medium")
+        all_words = [w for s in segmentos for w in s.get("words", [])]
+        return segmentos, all_words, "faster_whisper"
+    except ImportError:
+        pass
+
+    try:
+        segmentos = transcribe_local(audio_path, "medium")
+        all_words = [w for s in segmentos for w in s.get("words", [])]
+        return segmentos, all_words, "openai_whisper"
+    except ImportError:
+        pass
+
+    return [], [], "guion_estimate"

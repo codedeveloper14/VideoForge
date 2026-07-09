@@ -39,6 +39,11 @@ def get_current_user() -> str | None:
 def register_auth_middleware(app) -> None:
     @app.before_request
     def check_auth():
+        # Un preflight CORS nunca lleva cookies de sesion (el browser lo envia sin
+        # credenciales por diseno) -- bloquearlo con 401 rompe el CORS real para
+        # cualquier ruta que necesite responder a peticiones cross-origin.
+        if request.method == "OPTIONS":
+            return None
         if _is_public(request.path):
             return None
         user = get_current_user()

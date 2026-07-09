@@ -1,7 +1,9 @@
-from apiflask import APIBlueprint
-from flask import jsonify, request
+import re
 
-from src.domain.services import editor_scene_analysis_service, enriched_render_service
+from apiflask import APIBlueprint
+from flask import Response, jsonify, request, send_file
+
+from src.domain.services import editor_scene_analysis_service, editor_visual_service, enriched_render_service, render_service
 from src.infrastructure.ai_providers import image_search_client
 from src.infrastructure.storage import project_repository
 from src.presentation.schemas.editor import (
@@ -99,3 +101,107 @@ def render_enriquecido():
     except Exception as exc:
         logger.exception("editor_render_enriquecido error")
         return jsonify({"error": str(exc)}), 500
+
+
+@editor_bp.get("/proyecto/<proj_name>")
+def proyecto(proj_name):
+    """Datos del proyecto para el editor visual (imagenes, guion, audio, plan, timestamps)."""
+    proj_name = re.sub(r"[^\w\-]", "_", proj_name.strip())
+    if not proj_name:
+        return jsonify({"error": "proyecto requerido"}), 400
+    try:
+        data = editor_visual_service.get_project_data(proj_name)
+    except FileNotFoundError:
+        return jsonify({"error": "proyecto no encontrado"}), 404
+    resp = jsonify(data)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@editor_bp.get("/imagen/<proj_name>/<filename>")
+def imagen(proj_name, filename):
+    path = project_repository.resolve_safe_file(proj_name, "imagen", filename)
+    if not path or not path.exists():
+        return jsonify({"error": "no encontrado"}), 404
+    resp = send_file(str(path))
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return resp
+
+
+@editor_bp.get("/audio/<proj_name>/<filename>")
+def audio(proj_name, filename):
+    path = project_repository.resolve_safe_file(proj_name, "audio", filename)
+    if not path or not path.exists():
+        return jsonify({"error": "no encontrado"}), 404
+    resp = send_file(str(path))
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return resp
+
+
+@editor_bp.get("/transcribir/<proj_name>")
+def transcribir(proj_name):
+    """Transcribe (cascada automatica de backends) y asigna timestamps por escena,
+    con el mismo algoritmo que el Render normal. Cachea en timestamps_escenas.json."""
+    proj_name = re.sub(r"[^\w\-]", "_", proj_name.strip())
+    if not proj_name:
+        return jsonify({"error": "proyecto requerido"}), 400
+    try:
+        result = editor_visual_service.transcribe_project(proj_name)
+    except FileNotFoundError:
+        return jsonify({"error": "proyecto no encontrado"}), 404
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        logger.exception("editor_transcribir error")
+        return jsonify({"error": str(exc)}), 500
+    resp = jsonify(result)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@editor_bp.route("/renderizar", methods=["POST", "OPTIONS"])
+def renderizar():
+    """Dispara el render final desde el editor visual (delega en render_service,
+    el mismo worker/job registry que /api/render_inteligente). Sin limite de plan
+    por decision explicita -- asi se comportaba el original."""
+    if request.method == "OPTIONS":
+        resp = Response("", 204)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return resp
+
+    data = request.get_json(force=True, silent=True) or {}
+    proj_name = re.sub(r"[^\w\-]", "_", (data.get("project") or "").strip())
+    if not proj_name:
+        return jsonify({"error": "proyecto requerido"}), 400
+
+    try:
+        result = editor_visual_service.start_render(
+            project=proj_name,
+            guion=data.get("guion", ""),
+            resolucion=data.get("resolucion", "1920x1080"),
+            transicion=data.get("transicion", "xfade"),
+            trans_dur=float(data.get("trans_dur", 0.6)),
+            movimiento=data.get("movimiento", "none"),
+            modelo=data.get("modelo", "base"),
+            render_mode=data.get("render_mode", "smart"),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    resp = jsonify(result)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@editor_bp.get("/estado/<job_id>")
+def estado(job_id):
+    """Polling de estado para el editor visual -- mismo job registry que /api/estado."""
+    job = render_service.get_job(job_id)
+    if job is None:
+        return jsonify({"error": "no encontrado"}), 404
+    resp = jsonify(job)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
