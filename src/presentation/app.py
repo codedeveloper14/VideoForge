@@ -10,6 +10,7 @@ from src.presentation.auth_middleware import register_auth_middleware
 from src.presentation.routes.auth import auth_bp
 from src.presentation.routes.docs import admin_docs_bp, docs_bp
 from src.presentation.routes.editor import editor_bp
+from src.presentation.routes.flow import flow_bp
 from src.presentation.routes.gentube import gentube_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
@@ -60,6 +61,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(docs_bp)
     app.register_blueprint(admin_docs_bp)
     app.register_blueprint(gentube_bp)
+    app.register_blueprint(flow_bp)
 
     gentube_animation_service.sync_profiles_async()
     return app
