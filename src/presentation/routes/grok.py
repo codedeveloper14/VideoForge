@@ -55,7 +55,13 @@ def iniciar():
 
     try:
         result = grok_animation_service.start_batch(
-            project_name, images, prompt, slots, aspect_ratio, video_length, resolution,
+            project_name,
+            images,
+            prompt,
+            slots,
+            aspect_ratio,
+            video_length,
+            resolution,
         )
         return jsonify(result)
     except ValueError as exc:
@@ -67,8 +73,12 @@ def iniciar():
 def regenerar(json_data):
     try:
         result = grok_animation_service.start_regen(
-            json_data["project_name"], json_data["video_name"], json_data["prompt"],
-            json_data["aspect_ratio"], json_data["video_length"], json_data["resolution"],
+            json_data["project_name"],
+            json_data["video_name"],
+            json_data["prompt"],
+            json_data["aspect_ratio"],
+            json_data["video_length"],
+            json_data["resolution"],
         )
         return jsonify(result)
     except ValueError as exc:
@@ -102,8 +112,11 @@ def video(query_data):
     if not path or not path.exists():
         return jsonify({"error": "not found"}), 404
     return send_file(
-        str(path), as_attachment=query_data["dl"] == "1",
-        download_name=query_data["file"], mimetype="video/mp4", conditional=True,
+        str(path),
+        as_attachment=query_data["dl"] == "1",
+        download_name=query_data["file"],
+        mimetype="video/mp4",
+        conditional=True,
     )
 
 

@@ -3,8 +3,8 @@ import json
 import re
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import requests
 
@@ -28,7 +28,9 @@ META_UA = (
 )
 _META_GQL_ACCEPT = "*/*"  # application/json --> HTTP 406; Meta solo acepta */*
 
-_NoOpLog: Callable[[str], None] = lambda msg: None
+
+def _NoOpLog(msg: str) -> None:
+    pass
 
 
 def cookies_for_requests(cookie_list: list) -> dict:
@@ -143,7 +145,7 @@ def _find_generated_video_url(buf: str) -> str | None:
                     break
         if obj_end == -1:
             return None  # objeto incompleto, esperar mas datos
-        inner = buf[vi + 1:obj_end]
+        inner = buf[vi + 1 : obj_end]
         url_m = re.search(r'"url"\s*:\s*"(https?:[^"]+)"', inner)
         if url_m:
             return url_m.group(1).replace("\\/", "/")
@@ -189,17 +191,27 @@ def generate_http(
     msg_id = str(uuid.uuid4())
 
     try:
-        r = sess.post(META_GQL, headers=gql_h,
-                      json={"doc_id": _META_DOC_WARMUP, "variables": {"conversationId": conv_id}}, timeout=20)
+        r = sess.post(
+            META_GQL,
+            headers=gql_h,
+            json={"doc_id": _META_DOC_WARMUP, "variables": {"conversationId": conv_id}},
+            timeout=20,
+        )
         r.raise_for_status()
     except Exception as exc:
         result["error"] = f"Warmup fallo: {exc}"
         return result
 
     try:
-        r = sess.post(META_GQL, headers=gql_h,
-                      json={"doc_id": _META_DOC_MODE,
-                            "variables": {"input": {"conversationId": conv_id, "mode": "create"}}}, timeout=20)
+        r = sess.post(
+            META_GQL,
+            headers=gql_h,
+            json={
+                "doc_id": _META_DOC_MODE,
+                "variables": {"input": {"conversationId": conv_id, "mode": "create"}},
+            },
+            timeout=20,
+        )
         r.raise_for_status()
     except Exception as exc:
         result["error"] = f"SetMode fallo: {exc}"
@@ -220,7 +232,13 @@ def generate_http(
             log(f"[S{slot_id}] rupload raw: {raw_txt[:120]}")
             try:
                 body = r.json()
-                doc_ref = body.get("h") or body.get("handle") or body.get("doc_id") or body.get("id") or body.get("media_id")
+                doc_ref = (
+                    body.get("h")
+                    or body.get("handle")
+                    or body.get("doc_id")
+                    or body.get("id")
+                    or body.get("media_id")
+                )
             except Exception:
                 doc_ref = None
             if not doc_ref and raw_txt:
@@ -240,11 +258,14 @@ def generate_http(
     send_msg_tpl_raw = api_state.get("send_msg_tpl") or send_msg_tpl_fallback
     if send_msg_tpl_raw:
         try:
-            send_msg_tpl_obj = json.loads(send_msg_tpl_raw) if isinstance(send_msg_tpl_raw, str) else send_msg_tpl_raw
+            send_msg_tpl_obj = (
+                json.loads(send_msg_tpl_raw) if isinstance(send_msg_tpl_raw, str) else send_msg_tpl_raw
+            )
             sm_vars = _patch_vars(send_msg_tpl_obj, prompt, conv_id, doc_ref, msg_id)
             log(f"[S{slot_id}] sendMessage --> conv={conv_id[:8]}... vars={json.dumps(sm_vars)[:200]}")
-            r_sm = sess.post(META_GQL, headers=gql_h,
-                              json={"doc_id": _META_DOC_SEND_MSG, "variables": sm_vars}, timeout=30)
+            r_sm = sess.post(
+                META_GQL, headers=gql_h, json={"doc_id": _META_DOC_SEND_MSG, "variables": sm_vars}, timeout=30
+            )
             if r_sm.ok:
                 log(f"[S{slot_id}] [OK] sendMessage OK (HTTP {r_sm.status_code})")
             else:
@@ -263,8 +284,13 @@ def generate_http(
     while gen_attempt <= GEN_MAX_RETRY and time.time() < deadline_ts:
         gen_attempt += 1
         try:
-            r = sess.post(META_GQL, headers=gql_h, json={"doc_id": gen_doc_id, "variables": gen_vars},
-                          timeout=(15, 90), stream=True)
+            r = sess.post(
+                META_GQL,
+                headers=gql_h,
+                json={"doc_id": gen_doc_id, "variables": gen_vars},
+                timeout=(15, 90),
+                stream=True,
+            )
             if not r.ok:
                 err_txt = ""
                 try:
@@ -323,8 +349,10 @@ def generate_http(
             if video_url_direct:
                 break
 
-            log(f"[S{slot_id}] Stream cerrado sin URL (intento {gen_attempt}) had_progress={had_progress} "
-                f"buf={len(buf)}B ultimo: {buf[-300:]!r}")
+            log(
+                f"[S{slot_id}] Stream cerrado sin URL (intento {gen_attempt}) had_progress={had_progress} "
+                f"buf={len(buf)}B ultimo: {buf[-300:]!r}"
+            )
 
             if "event: complete" in buf and time.time() < deadline_ts:
                 log(f"[S{slot_id}] SSE event:complete --> polling fetchConversation (conv={conv_id[:8]}...)")
@@ -335,9 +363,12 @@ def generate_http(
                     time.sleep(poll_interval)
                     poll_count += 1
                     try:
-                        r_fc = sess.post(META_GQL, headers=gql_h,
-                                         json={"doc_id": _META_DOC_FETCH_CONV, "variables": {"id": conv_id}},
-                                         timeout=30)
+                        r_fc = sess.post(
+                            META_GQL,
+                            headers=gql_h,
+                            json={"doc_id": _META_DOC_FETCH_CONV, "variables": {"id": conv_id}},
+                            timeout=30,
+                        )
                         fc_txt = r_fc.text
                         fc_url = _find_generated_video_url(fc_txt)
                         if not fc_url:
@@ -345,11 +376,15 @@ def generate_http(
                             if fc_fbm:
                                 fc_url = fc_fbm.group(0).replace("\\/", "/")
                         if fc_url:
-                            log(f"[S{slot_id}] [OK] URL via fetchConversation poll #{poll_count}: {fc_url[:80]}")
+                            log(
+                                f"[S{slot_id}] [OK] URL via fetchConversation poll #{poll_count}: {fc_url[:80]}"
+                            )
                             video_url_direct = fc_url
                             break
-                        log(f"[S{slot_id}] fetchConv poll #{poll_count}/{MAX_POLLS} - sin URL. "
-                            f"ultimos 200B: {fc_txt[-200:]!r}")
+                        log(
+                            f"[S{slot_id}] fetchConv poll #{poll_count}/{MAX_POLLS} - sin URL. "
+                            f"ultimos 200B: {fc_txt[-200:]!r}"
+                        )
                     except Exception as fc_e:
                         log(f"[S{slot_id}] [WARNING] fetchConv poll #{poll_count} error: {fc_e}")
                 if video_url_direct:
@@ -370,8 +405,10 @@ def generate_http(
             result["error"] = f"Gen trigger fallo: {exc}"
             return result
 
-    log(f"[S{slot_id}] HTTP gen --> videoUrl={str(video_url_direct)[:60] or 'no encontrado'} "
-        f"(intentos={gen_attempt} buf={len(buf)}B)")
+    log(
+        f"[S{slot_id}] HTTP gen --> videoUrl={str(video_url_direct)[:60] or 'no encontrado'} "
+        f"(intentos={gen_attempt} buf={len(buf)}B)"
+    )
     if not video_url_direct:
         log(f"[S{slot_id}] Ultimos 400B del stream: {buf[-400:]!r}")
         result["error"] = f"Stream SSE termino sin generatedVideo URL (intentos={gen_attempt})"

@@ -36,8 +36,12 @@ def login():
 def run_prompts(json_data):
     try:
         result = gentube_animation_service.start_run(
-            json_data["prompts"], json_data["slots"], json_data["repeat"],
-            json_data["output_dir"], json_data["ratio"], json_data["quality"],
+            json_data["prompts"],
+            json_data["slots"],
+            json_data["repeat"],
+            json_data["output_dir"],
+            json_data["ratio"],
+            json_data["quality"],
         )
         return jsonify(result)
     except (ValueError, RuntimeError) as exc:

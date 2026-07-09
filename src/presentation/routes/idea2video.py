@@ -19,8 +19,11 @@ idea2video_bp = APIBlueprint("idea2video", __name__, url_prefix="/api/idea2video
 def script(json_data):
     try:
         result = idea2video_service.generate_script(
-            idea=json_data["idea"], dur_sec=json_data["dur"], style=json_data["style"],
-            tone=json_data["tone"], audience=json_data["audience"],
+            idea=json_data["idea"],
+            dur_sec=json_data["dur"],
+            style=json_data["style"],
+            tone=json_data["tone"],
+            audience=json_data["audience"],
         )
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
@@ -32,8 +35,10 @@ def script(json_data):
 def autopilot(json_data):
     try:
         result = idea2video_service.start_autopilot(
-            script=json_data["script"], title=json_data.get("title", ""),
-            voice_id=json_data.get("voice_id", ""), ref_image=json_data.get("ref_image"),
+            script=json_data["script"],
+            title=json_data.get("title", ""),
+            voice_id=json_data.get("voice_id", ""),
+            ref_image=json_data.get("ref_image"),
             mode=json_data.get("mode", "rapido"),
         )
         return jsonify(result)

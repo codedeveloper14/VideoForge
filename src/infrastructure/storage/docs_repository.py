@@ -9,7 +9,8 @@ def ensure_tables() -> None:
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vf_docs (
                     id            INT AUTO_INCREMENT PRIMARY KEY,
                     type          ENUM('video','text') NOT NULL DEFAULT 'video',
@@ -27,8 +28,10 @@ def ensure_tables() -> None:
                     updated_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     created_by    VARCHAR(100)  DEFAULT ''
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
-            cur.execute("""
+            """
+            )
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vf_help_reports (
                     id          INT AUTO_INCREMENT PRIMARY KEY,
                     username    VARCHAR(255),
@@ -45,7 +48,8 @@ def ensure_tables() -> None:
                     INDEX idx_type (type), INDEX idx_status (status),
                     INDEX idx_user (username), INDEX idx_created (created_at)
                 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
-            """)
+            """
+            )
         conn.commit()
         conn.close()
         logger.info("Tablas vf_docs / vf_help_reports OK.")
@@ -87,9 +91,20 @@ def create_doc(fields: dict, created_by: str) -> int:
             "INSERT INTO vf_docs(type,category,title,description,url,content,"
             "thumbnail_url,duration_label,tags,sort_order,is_published,created_by) "
             "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (fields["type"], fields["category"], fields["title"], fields["description"],
-             fields["url"], fields["content"], fields["thumbnail_url"], fields["duration_label"],
-             fields["tags"], fields["sort_order"], 1 if fields["is_published"] else 0, created_by),
+            (
+                fields["type"],
+                fields["category"],
+                fields["title"],
+                fields["description"],
+                fields["url"],
+                fields["content"],
+                fields["thumbnail_url"],
+                fields["duration_label"],
+                fields["tags"],
+                fields["sort_order"],
+                1 if fields["is_published"] else 0,
+                created_by,
+            ),
         )
         new_id = cur.lastrowid
     conn.commit()
@@ -104,9 +119,20 @@ def update_doc(doc_id: int, fields: dict) -> None:
             "UPDATE vf_docs SET type=%s,category=%s,title=%s,description=%s,url=%s,"
             "content=%s,thumbnail_url=%s,duration_label=%s,tags=%s,"
             "sort_order=%s,is_published=%s WHERE id=%s",
-            (fields["type"], fields["category"], fields["title"], fields["description"],
-             fields["url"], fields["content"], fields["thumbnail_url"], fields["duration_label"],
-             fields["tags"], fields["sort_order"], 1 if fields["is_published"] else 0, doc_id),
+            (
+                fields["type"],
+                fields["category"],
+                fields["title"],
+                fields["description"],
+                fields["url"],
+                fields["content"],
+                fields["thumbnail_url"],
+                fields["duration_label"],
+                fields["tags"],
+                fields["sort_order"],
+                1 if fields["is_published"] else 0,
+                doc_id,
+            ),
         )
     conn.commit()
     conn.close()
@@ -120,8 +146,9 @@ def delete_doc(doc_id: int) -> None:
     conn.close()
 
 
-def insert_help_report(username: str, email: str, report_type: str, category: str,
-                        title: str, description: str) -> None:
+def insert_help_report(
+    username: str, email: str, report_type: str, category: str, title: str, description: str
+) -> None:
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(

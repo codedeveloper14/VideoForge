@@ -55,16 +55,20 @@ def test_borrar_proyecto(client, login_as):
 def test_imagen_file_bloquea_traversal(client, login_as):
     login_as()
     client.post("/api/proyectos/crear", json={"nombre": "seguridad_test"})
-    resp = client.get("/api/proyectos/imagen_file",
-                       query_string={"project": "seguridad_test", "file": "../../../etc/passwd"})
+    resp = client.get(
+        "/api/proyectos/imagen_file",
+        query_string={"project": "seguridad_test", "file": "../../../etc/passwd"},
+    )
     assert resp.status_code == 404
 
 
 def test_video_final_bloquea_traversal(client, login_as):
     login_as()
     client.post("/api/proyectos/crear", json={"nombre": "seguridad_test2"})
-    resp = client.get("/api/proyectos/video_final",
-                       query_string={"project": "seguridad_test2", "file": "../../../etc/passwd", "dl": "0"})
+    resp = client.get(
+        "/api/proyectos/video_final",
+        query_string={"project": "seguridad_test2", "file": "../../../etc/passwd", "dl": "0"},
+    )
     assert resp.status_code == 404
 
 

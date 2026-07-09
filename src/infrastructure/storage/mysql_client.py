@@ -31,7 +31,8 @@ def get_connection():
             conn = pymysql.connect(host=config.db_host_fallback, **base_kwargs)
             logger.warning(
                 "Conectado via fallback host '%s' (principal fallo: %s)",
-                config.db_host_fallback, last_err,
+                config.db_host_fallback,
+                last_err,
             )
             return conn
         except Exception:

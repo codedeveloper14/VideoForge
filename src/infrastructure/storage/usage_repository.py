@@ -11,7 +11,8 @@ def ensure_tables() -> None:
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vf_usage (
                     id               INT AUTO_INCREMENT PRIMARY KEY,
                     user_id          INT  NOT NULL,
@@ -21,7 +22,8 @@ def ensure_tables() -> None:
                     shorts_generated INT DEFAULT 0,
                     UNIQUE KEY uq_user_date (user_id, usage_date)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
+            """
+            )
             try:
                 cur.execute("ALTER TABLE vf_usage ADD COLUMN shorts_generated INT DEFAULT 0 NOT NULL")
             except Exception:

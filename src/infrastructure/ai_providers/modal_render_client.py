@@ -27,6 +27,7 @@ def encode_image_b64(img_path: str, max_size: int = 960, quality: int = 78) -> s
     """JPEG re-encode + resize (960px) para reducir el payload enviado a Modal."""
     try:
         from PIL import Image
+
         with Image.open(img_path) as im:
             if im.mode != "RGB":
                 im = im.convert("RGB")
@@ -41,8 +42,15 @@ def encode_image_b64(img_path: str, max_size: int = 960, quality: int = 78) -> s
             return base64.b64encode(f.read()).decode()
 
 
-def post_batch(session: requests.Session, payload: dict, connect_timeout: float, read_timeout: float,
-               max_retries: int, on_retry=None, on_reset_session=None) -> dict:
+def post_batch(
+    session: requests.Session,
+    payload: dict,
+    connect_timeout: float,
+    read_timeout: float,
+    max_retries: int,
+    on_retry=None,
+    on_reset_session=None,
+) -> dict:
     """POST a Modal con reintentos (SSL/conexion/timeout/5xx). Lanza ModalRequestError
     si se agotan los reintentos o el error no es transitorio - el llamador decide si
     hace fallback local con ese error."""

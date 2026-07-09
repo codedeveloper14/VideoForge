@@ -45,7 +45,7 @@ def n8n_request(method: str, url: str, *, json_payload=None, timeout=120, attemp
         except _RETRYABLE as exc:
             last = exc
             if i < attempts - 1:
-                time.sleep((2 ** i) + random.uniform(0.2, 0.8))
+                time.sleep((2**i) + random.uniform(0.2, 0.8))
         except Exception as exc:
             last = exc
             if i < attempts - 1:

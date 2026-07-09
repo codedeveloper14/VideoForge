@@ -19,8 +19,12 @@ guion_bp = APIBlueprint("guion", __name__, url_prefix="/api/guion")
 audio_bp = APIBlueprint("audio", __name__, url_prefix="/api/audio")
 
 _AUDIO_MIME = {
-    ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4",
-    ".aac": "audio/aac", ".ogg": "audio/ogg", ".flac": "audio/flac",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
 }
 
 
@@ -53,12 +57,18 @@ def analyze_image(json_data):
 @guion_bp.post("/n8n_proxy")
 @guion_bp.input(N8nProxyInSchema)
 def n8n_proxy(json_data):
-    estilo_ref = (json_data["descripcion_estilo"].strip() or json_data["descripcion_referencia"].strip()
-                  or json_data["estilo"].strip())
+    estilo_ref = (
+        json_data["descripcion_estilo"].strip()
+        or json_data["descripcion_referencia"].strip()
+        or json_data["estilo"].strip()
+    )
     try:
         result = scene_prompt_service.generate_prompts(
-            json_data["guion"], json_data["output_mode"], json_data["prompt_mode"],
-            json_data["prompt_style"], estilo_ref,
+            json_data["guion"],
+            json_data["output_mode"],
+            json_data["prompt_mode"],
+            json_data["prompt_style"],
+            estilo_ref,
         )
         return jsonify(result)
     except ValueError as exc:

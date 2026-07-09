@@ -1,8 +1,8 @@
 import json
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 from urllib.parse import urlparse
 
 import requests
@@ -14,7 +14,9 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_NoOpLog: Callable[[str], None] = lambda msg: None
+
+def _NoOpLog(msg: str) -> None:
+    pass
 
 
 def _sanitize_vars(obj, prompt_val):
@@ -76,8 +78,11 @@ def generate_playwright_intercept(
                     body = json.loads(post_data)
                     doc_id = body.get("doc_id", "")
                     variables = body.get("variables", {})
-                    skip = {"e7f802582dbfed8e181b012e010993eb", "c32bbe999c48e64e855dc63177d5153f",
-                            "344570a4b8110dd9848829731d35c74a"}
+                    skip = {
+                        "e7f802582dbfed8e181b012e010993eb",
+                        "c32bbe999c48e64e855dc63177d5153f",
+                        "344570a4b8110dd9848829731d35c74a",
+                    }
                     if doc_id and doc_id not in skip and not captured_gen_doc[0]:
                         captured_gen_doc[0] = doc_id
                         captured_gen_vars[0] = _sanitize_vars(variables, prompt)
@@ -103,18 +108,25 @@ def generate_playwright_intercept(
             url = resp.url
             host = url.split("/")[2].lower() if url.startswith("http") else ""
             if (
-                "video/mp4" in ct or "video/webm" in ct
-                or ".mp4" in url or ".webm" in url
-                or (host.startswith("video-") and "fbcdn.net" in host)
-            ) and url.startswith("http") and url not in video_candidates:
+                (
+                    "video/mp4" in ct
+                    or "video/webm" in ct
+                    or ".mp4" in url
+                    or ".webm" in url
+                    or (host.startswith("video-") and "fbcdn.net" in host)
+                )
+                and url.startswith("http")
+                and url not in video_candidates
+            ):
                 video_candidates.append(url)
                 log(f"[S{slot_id}] {url[:90]}...")
         except Exception:
             pass
 
     try:
-        ctx = browser.new_context(viewport={"width": 1280, "height": 900}, ignore_https_errors=True,
-                                   user_agent=META_UA)
+        ctx = browser.new_context(
+            viewport={"width": 1280, "height": 900}, ignore_https_errors=True, user_agent=META_UA
+        )
         if cookie_list:
             try:
                 ctx.add_cookies(cookie_list)
@@ -136,8 +148,12 @@ def generate_playwright_intercept(
             try:
                 file_input = page.query_selector("input[type='file']")
                 if not file_input:
-                    for sel in ("button[aria-label*='ttach']", "button[aria-label*='mage']",
-                                "div[role='button'][aria-label*='ttach']", "[data-testid*='attach']"):
+                    for sel in (
+                        "button[aria-label*='ttach']",
+                        "button[aria-label*='mage']",
+                        "div[role='button'][aria-label*='ttach']",
+                        "[data-testid*='attach']",
+                    ):
                         try:
                             btn = page.query_selector(sel)
                             if btn:
@@ -157,8 +173,13 @@ def generate_playwright_intercept(
                 log(f"[S{slot_id}] [WARNING] Adjuntar: {exc}")
 
         typed = False
-        for sel in ("div[contenteditable='true']", "div[role='textbox']",
-                    "textarea[placeholder]", "textarea", "input[type='text']"):
+        for sel in (
+            "div[contenteditable='true']",
+            "div[role='textbox']",
+            "textarea[placeholder]",
+            "textarea",
+            "input[type='text']",
+        ):
             try:
                 el = page.query_selector(sel)
                 if el and el.is_visible():
@@ -177,9 +198,14 @@ def generate_playwright_intercept(
         else:
             sent = False
             submitted[0] = True
-            for sel in ("button[aria-label*='end']", "button[type='submit']",
-                        "div[role='button'][aria-label*='end']", "[data-testid*='send']",
-                        "button[aria-label*='enerate']", "button[aria-label*='nimate']"):
+            for sel in (
+                "button[aria-label*='end']",
+                "button[type='submit']",
+                "div[role='button'][aria-label*='end']",
+                "[data-testid*='send']",
+                "button[aria-label*='enerate']",
+                "button[aria-label*='nimate']",
+            ):
                 try:
                     btn = page.query_selector(sel)
                     if btn and btn.is_enabled():
@@ -287,8 +313,13 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
                 except Exception:
                     dom = ".meta.ai"
                 intercepted[name] = {
-                    "name": name, "value": value, "domain": dom, "path": "/",
-                    "httpOnly": False, "secure": True, "sameSite": "None",
+                    "name": name,
+                    "value": value,
+                    "domain": dom,
+                    "path": "/",
+                    "httpOnly": False,
+                    "secure": True,
+                    "sameSite": "None",
                 }
                 if name in ("ecto", "datr", "ps_l", "ps_n"):
                     log(f"Cookie interceptada: {name}={value[:16]}... (dom={dom})")
@@ -300,7 +331,9 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
             exe = find_chromium_exe()
 
             ctx = pw.chromium.launch_persistent_context(
-                tmp_profile, headless=False, executable_path=exe,
+                tmp_profile,
+                headless=False,
+                executable_path=exe,
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--no-first-run"],
                 viewport={"width": 1280, "height": 900},
             )
@@ -316,8 +349,12 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
                 pass
 
             meta_domains = [
-                "https://www.meta.ai", "https://meta.ai", "https://auth.meta.ai",
-                "https://auth.meta.com", "https://www.facebook.com", "https://facebook.com",
+                "https://www.meta.ai",
+                "https://meta.ai",
+                "https://auth.meta.ai",
+                "https://auth.meta.com",
+                "https://www.facebook.com",
+                "https://facebook.com",
             ]
 
             def collect_all_cookies():
@@ -347,20 +384,30 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
                     last_log_t = now
                     all_names = [c["name"] for c in all_cookies]
                     ecto_found = [n for n in all_names if n.startswith("ecto")]
-                    log(f"[{folder_name}] Todos los nombres: {all_names} | ecto*={ecto_found} "
-                        f"| intercept={list(intercepted.keys())}")
+                    log(
+                        f"[{folder_name}] Todos los nombres: {all_names} | ecto*={ecto_found} "
+                        f"| intercept={list(intercepted.keys())}"
+                    )
 
                 ecto_cookie = next((c for c in all_cookies if c["name"].startswith("ecto")), None)
                 if ecto_cookie:
                     cookie_list = [
-                        {"name": c["name"], "value": c["value"], "domain": c.get("domain", ".meta.ai"),
-                         "path": c.get("path", "/"), "httpOnly": c.get("httpOnly", False),
-                         "secure": c.get("secure", True), "sameSite": c.get("sameSite", "None")}
+                        {
+                            "name": c["name"],
+                            "value": c["value"],
+                            "domain": c.get("domain", ".meta.ai"),
+                            "path": c.get("path", "/"),
+                            "httpOnly": c.get("httpOnly", False),
+                            "secure": c.get("secure", True),
+                            "sameSite": c.get("sameSite", "None"),
+                        }
                         for c in all_cookies
                     ]
                     (folder / "cookies_auto.json").write_text(json.dumps(cookie_list, indent=2))
-                    log(f"[OK] [{folder_name}] Sesion guardada! {ecto_cookie['name']}={ecto_cookie['value'][:16]}... "
-                        f"| {len(cookie_list)} cookies")
+                    log(
+                        f"[OK] [{folder_name}] Sesion guardada! {ecto_cookie['name']}={ecto_cookie['value'][:16]}... "
+                        f"| {len(cookie_list)} cookies"
+                    )
                     saved = True
                     time.sleep(1)
                     try:
@@ -373,8 +420,10 @@ def login_account_managed(folder: Path, folder_name: str, log: Callable[[str], N
                 all_cookies_f = collect_all_cookies()
                 all_names_f = [c["name"] for c in all_cookies_f]
                 ecto_names = [n for n in all_names_f if n.startswith("ecto")]
-                log(f"[WARNING] [{folder_name}] Timeout. Cookies: {all_names_f} | ecto*={ecto_names} "
-                    f"| intercept={list(intercepted.keys())}")
+                log(
+                    f"[WARNING] [{folder_name}] Timeout. Cookies: {all_names_f} | ecto*={ecto_names} "
+                    f"| intercept={list(intercepted.keys())}"
+                )
                 try:
                     ctx.close()
                 except Exception:

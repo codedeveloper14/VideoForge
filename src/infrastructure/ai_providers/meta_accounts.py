@@ -72,6 +72,7 @@ def tokens_for_run(accounts_dir: Path) -> list[tuple[str, list]]:
 # api_state.json (por cuenta) - tokens para el modo HTTP directo
 # ─────────────────────────────────────────────────────────────────
 
+
 def api_state_path(acct_folder: Path) -> Path:
     return acct_folder / "api_state.json"
 
@@ -105,6 +106,7 @@ def http_state_complete(api_state: dict) -> bool:
 # ─────────────────────────────────────────────────────────────────
 # Estado global aprendido por la extension (compartido entre cuentas/tabs)
 # ─────────────────────────────────────────────────────────────────
+
 
 class GlobalState:
     """Estado en memoria + persistido de lo que la extension aprendio de la red.

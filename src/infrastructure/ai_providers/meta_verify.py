@@ -1,8 +1,8 @@
 import subprocess
 import tempfile
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Callable
 
 from src.utils.logger import get_logger
 
@@ -11,12 +11,15 @@ logger = get_logger(__name__)
 # Umbral empirico de hash de 64 bits -- bits distintos permitidos para considerar match.
 MATCH_THRESHOLD = 14
 
-_NoOpLog: Callable[[str], None] = lambda msg: None
+
+def _NoOpLog(msg: str) -> None:
+    pass
 
 
 def img_dhash(path, hash_size: int = 8) -> int:
     """Difference-hash perceptual de una imagen (64 bits por defecto)."""
     from PIL import Image
+
     img = Image.open(path).convert("L").resize((hash_size + 1, hash_size), Image.BILINEAR)
     pixels = list(img.getdata())
     val = 0
@@ -36,7 +39,8 @@ def extract_first_frame(video_path, out_jpg) -> bool:
     try:
         r = subprocess.run(
             ["ffmpeg", "-y", "-i", str(video_path), "-vframes", "1", "-q:v", "4", str(out_jpg)],
-            capture_output=True, timeout=15,
+            capture_output=True,
+            timeout=15,
         )
         return r.returncode == 0 and Path(out_jpg).is_file()
     except Exception:
@@ -87,7 +91,7 @@ def verify_batch_fix(images_meta: list, vid_dir: Path, log: Callable[[str], None
             video_hashes = list(ex.map(_hash_one, existing))
 
         pairs = []
-        for (idx, stem, vp, vhash) in video_hashes:
+        for idx, stem, vp, vhash in video_hashes:
             if vhash is None:
                 continue
             for cand_idx, cand_hash in source_hashes.items():
@@ -99,7 +103,7 @@ def verify_batch_fix(images_meta: list, vid_dir: Path, log: Callable[[str], None
         claimed_index = set()
         claimed_video = set()
         assignment = {}
-        for (d, idx, stem, vp, cand_idx) in pairs:
+        for d, idx, stem, vp, cand_idx in pairs:
             vkey = str(vp)
             if vkey in claimed_video or cand_idx in claimed_index:
                 continue
@@ -107,7 +111,7 @@ def verify_batch_fix(images_meta: list, vid_dir: Path, log: Callable[[str], None
             claimed_index.add(cand_idx)
             assignment[vkey] = (cand_idx, d, stem)
 
-        for (idx, stem, vp, vhash) in video_hashes:
+        for idx, stem, vp, vhash in video_hashes:
             vkey = str(vp)
             if vhash is None:
                 continue
@@ -123,11 +127,13 @@ def verify_batch_fix(images_meta: list, vid_dir: Path, log: Callable[[str], None
                 if correct_path.exists():
                     correct_path.unlink()
                 vp.rename(correct_path)
-                log(f"[verificador] {stem}.mp4 no coincidia con su imagen - reasignado a {correct_stem}.mp4 (dist={d})")
+                log(
+                    f"[verificador] {stem}.mp4 no coincidia con su imagen - reasignado a {correct_stem}.mp4 (dist={d})"
+                )
             except Exception as exc:
                 log(f"[WARNING] [verificador] no se pudo reasignar {stem}.mp4 --> {correct_stem}.mp4: {exc}")
 
-        for (idx, stem, vp, vhash) in video_hashes:
+        for idx, stem, vp, vhash in video_hashes:
             vkey = str(vp)
             if vhash is None or vkey in assignment:
                 continue
@@ -138,8 +144,10 @@ def verify_batch_fix(images_meta: list, vid_dir: Path, log: Callable[[str], None
             if vp.exists():
                 try:
                     vp.unlink()
-                    log(f"[verificador] {stem}.mp4 descartado - no coincide con su propia imagen "
-                        f"ni con ninguna otra del lote (dist propia={own_dist})")
+                    log(
+                        f"[verificador] {stem}.mp4 descartado - no coincide con su propia imagen "
+                        f"ni con ninguna otra del lote (dist propia={own_dist})"
+                    )
                 except Exception:
                     pass
     except Exception as exc:

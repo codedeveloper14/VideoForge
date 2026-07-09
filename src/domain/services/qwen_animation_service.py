@@ -40,6 +40,7 @@ def _log(msg: str) -> None:
 # Sesiones
 # ─────────────────────────────────────────────────────────────────
 
+
 def list_sessions() -> list[dict]:
     accounts_dir = get_qwen_accounts_dir()
     qwen_service.ensure_accounts(accounts_dir)
@@ -51,7 +52,7 @@ def start_account_login(account_name: str) -> None:
     qwen_service.ensure_accounts(accounts_dir)
     folder = qwen_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    _log(f"Abriendo Chromium - inicia sesion en chat.qwen.ai y cierra.")
+    _log("Abriendo Chromium - inicia sesion en chat.qwen.ai y cierra.")
 
     def _run():
         qwen_service.login_account_managed(folder, log_callback=_log)
@@ -67,12 +68,20 @@ def delete_session(account_name: str) -> None:
 # Animacion por lote (in-process, ThreadPoolExecutor)
 # ─────────────────────────────────────────────────────────────────
 
+
 def _is_retryable_error(msg: str) -> bool:
     m = (msg or "").lower()
-    return any(s in m for s in (
-        "ratelimited", "too many requests", "queue limit exceeded",
-        "task queue limit exceeded", "internal_error", "429",
-    ))
+    return any(
+        s in m
+        for s in (
+            "ratelimited",
+            "too many requests",
+            "queue limit exceeded",
+            "task queue limit exceeded",
+            "internal_error",
+            "429",
+        )
+    )
 
 
 def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_sec: int) -> None:
@@ -81,7 +90,8 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
         vid_dir = proj_dir / "video"
         vid_dir.mkdir(parents=True, exist_ok=True)
         imgs = [
-            p for p in sorted(img_dir.iterdir())
+            p
+            for p in sorted(img_dir.iterdir())
             if p.is_file() and p.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS
         ]
         if not imgs:
@@ -99,9 +109,13 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
         n_accounts = max(1, len(tokens))
         maxw = max(1, min(max(1, int(slots or 1)), 8))
         submit_delay = 0.35 if maxw > 1 else 0.0
-        _log(f"Iniciando lote Qwen: {len(imgs)} imagen(es), {n_accounts} cuenta(s), "
-             f"slots={slots} --> efectivos={maxw}, delay={submit_delay:.1f}s")
-        _log(f"Transporte HTTP: {'curl_cffi(chromium impersonation)' if qwen_service.HAS_CURL_CFFI else 'requests estandar'}")
+        _log(
+            f"Iniciando lote Qwen: {len(imgs)} imagen(es), {n_accounts} cuenta(s), "
+            f"slots={slots} --> efectivos={maxw}, delay={submit_delay:.1f}s"
+        )
+        _log(
+            f"Transporte HTTP: {'curl_cffi(chromium impersonation)' if qwen_service.HAS_CURL_CFFI else 'requests estandar'}"
+        )
 
         cancel_ev = _state["cancel_event"]
         done = {"n": 0}
@@ -125,8 +139,14 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
                     return
                 try:
                     qwen_service.generate_one(
-                        token, str(img_path), prompt, size, out_path,
-                        timeout_sec=timeout_sec, cookie_header=cookie_header, session_meta=session_meta,
+                        token,
+                        str(img_path),
+                        prompt,
+                        size,
+                        out_path,
+                        timeout_sec=timeout_sec,
+                        cookie_header=cookie_header,
+                        session_meta=session_meta,
                     )
                     with done_lock:
                         done["n"] += 1
@@ -136,7 +156,9 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
                     err = str(exc)
                     if attempt < max_attempts and _is_retryable_error(err):
                         wait_s = min(90, 12 * attempt)
-                        _log(f"[{account_name}] {out_name} retry {attempt}/{max_attempts - 1} en {wait_s}s ({err[:90]})")
+                        _log(
+                            f"[{account_name}] {out_name} retry {attempt}/{max_attempts - 1} en {wait_s}s ({err[:90]})"
+                        )
                         time.sleep(wait_s)
                         continue
                     with done_lock:
@@ -163,8 +185,15 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
         _log(f"[ERROR] Error batch Qwen: {exc}")
 
 
-def start_batch(project_name: str, images: list[tuple[str, object]], prompt: str, slots: int,
-                 size: str, timeout_sec: int, aspect_ratio: str) -> dict:
+def start_batch(
+    project_name: str,
+    images: list[tuple[str, object]],
+    prompt: str,
+    slots: int,
+    size: str,
+    timeout_sec: int,
+    aspect_ratio: str,
+) -> dict:
     name = sanitize_name(project_name)
     if not name:
         raise ValueError("Selecciona un proyecto en la barra superior antes de animar.")
@@ -186,15 +215,25 @@ def start_batch(project_name: str, images: list[tuple[str, object]], prompt: str
 
     (proj_dir / "guion").mkdir(parents=True, exist_ok=True)
     (proj_dir / "guion" / "config_qwen.txt").write_text(
-        f"prompt: {prompt}\nslots: {slots}\nsize: {size}\naspect_ratio: {aspect_ratio}\n", encoding="utf-8",
+        f"prompt: {prompt}\nslots: {slots}\nsize: {size}\naspect_ratio: {aspect_ratio}\n",
+        encoding="utf-8",
     )
 
     cancel_ev = threading.Event()
-    _state.update({
-        "running": True, "log_lines": [], "finished": False, "project_dir": str(proj_dir),
-        "images": images_meta, "total": len(images_meta), "cancel_event": cancel_ev,
-    })
-    threading.Thread(target=_batch_worker, args=(proj_dir, prompt, size, slots, timeout_sec), daemon=True).start()
+    _state.update(
+        {
+            "running": True,
+            "log_lines": [],
+            "finished": False,
+            "project_dir": str(proj_dir),
+            "images": images_meta,
+            "total": len(images_meta),
+            "cancel_event": cancel_ev,
+        }
+    )
+    threading.Thread(
+        target=_batch_worker, args=(proj_dir, prompt, size, slots, timeout_sec), daemon=True
+    ).start()
 
     return {"ok": True, "pid": f"qwen-{int(time.time())}", "project_dir": str(proj_dir), "project_name": name}
 
@@ -235,8 +274,14 @@ def start_regen(project_name: str, video_name: str, prompt: str, size: str) -> d
         try:
             _log(f"[{account_name}] Regen {img_stem}.mp4")
             qwen_service.generate_one(
-                token, str(matches[0]), prompt, size, str(proj_dir / "video" / f"{img_stem}.mp4"),
-                timeout_sec=900, cookie_header=cookie_header, session_meta=session_meta,
+                token,
+                str(matches[0]),
+                prompt,
+                size,
+                str(proj_dir / "video" / f"{img_stem}.mp4"),
+                timeout_sec=900,
+                cookie_header=cookie_header,
+                session_meta=session_meta,
             )
             _log(f"[{account_name}] [OK] Regen completado: {img_stem}.mp4")
         except Exception as exc:
@@ -263,8 +308,11 @@ def get_log_state(offset: int) -> dict:
     except Exception:
         videos_done = 0
     return {
-        "lines": lines, "next_offset": offset + len(lines), "finished": bool(_state["finished"]),
-        "videos_done": videos_done, "videos_total": int(_state.get("total") or 0),
+        "lines": lines,
+        "next_offset": offset + len(lines),
+        "finished": bool(_state["finished"]),
+        "videos_done": videos_done,
+        "videos_total": int(_state.get("total") or 0),
     }
 
 
@@ -272,14 +320,18 @@ def get_log_state(offset: int) -> dict:
 # Videos generados
 # ─────────────────────────────────────────────────────────────────
 
+
 def list_videos(project_name: str) -> dict:
     if not project_name:
         return {"videos": [], "total": 0, "done": 0, "project_dir": "", "project_name": ""}
     name = sanitize_name(project_name)
     videos = sorted(f.name for f in project_repository.list_videos(name))
     return {
-        "videos": videos, "total": len(videos), "done": len(videos),
-        "project_dir": str(project_repository.project_dir(name)), "project_name": name,
+        "videos": videos,
+        "total": len(videos),
+        "done": len(videos),
+        "project_dir": str(project_repository.project_dir(name)),
+        "project_name": name,
     }
 
 

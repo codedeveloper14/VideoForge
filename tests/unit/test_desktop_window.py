@@ -1,6 +1,5 @@
 import http.server
 import threading
-import time
 
 from desktop import window
 

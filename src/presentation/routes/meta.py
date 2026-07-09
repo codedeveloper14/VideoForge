@@ -24,6 +24,7 @@ def _cors_empty():
 # Bridge de la extension de Chrome (meta_bridge.js hace polling aqui)
 # ─────────────────────────────────────────────────────────────────
 
+
 @meta_bp.route("/ext-register", methods=["GET", "POST", "OPTIONS"])
 def ext_register():
     if request.method == "OPTIONS":
@@ -45,7 +46,9 @@ def ext_poll():
         max_take = max(0, int(max_raw)) if max_raw is not None else 1
     except (ValueError, TypeError):
         max_take = 1
-    return bridge.cors(jsonify(bridge.poll(account, tab_url, max_take, log=meta_animation_service.log_message)))
+    return bridge.cors(
+        jsonify(bridge.poll(account, tab_url, max_take, log=meta_animation_service.log_message))
+    )
 
 
 @meta_bp.route("/ext-result", methods=["POST", "OPTIONS"])
@@ -53,8 +56,9 @@ def ext_result():
     if request.method == "OPTIONS":
         return _cors_empty(), 204
     data = request.get_json(silent=True) or {}
-    bridge.post_result(data.get("requestId", ""), data.get("url"), data.get("error"),
-                        log=meta_animation_service.log_message)
+    bridge.post_result(
+        data.get("requestId", ""), data.get("url"), data.get("error"), log=meta_animation_service.log_message
+    )
     return bridge.cors(jsonify({"ok": True}))
 
 
@@ -98,13 +102,16 @@ def ext_captured():
     rid = data.get("requestId", "")
     cap = data.get("captured", [])
     if cap:
-        meta_animation_service.log_message(f"[{rid[:8]}] Capturadas {len(cap)} llamadas de red [{account[:12]}]")
+        meta_animation_service.log_message(
+            f"[{rid[:8]}] Capturadas {len(cap)} llamadas de red [{account[:12]}]"
+        )
     return bridge.cors(jsonify({"ok": True}))
 
 
 # ─────────────────────────────────────────────────────────────────
 # Sesiones
 # ─────────────────────────────────────────────────────────────────
+
 
 @meta_bp.get("/sesiones")
 def sesiones():
@@ -131,6 +138,7 @@ def borrar_sesion(json_data):
 # ─────────────────────────────────────────────────────────────────
 # Generacion por lote
 # ─────────────────────────────────────────────────────────────────
+
 
 @meta_bp.post("/iniciar")
 def iniciar():
@@ -180,8 +188,11 @@ def video(query_data):
     if not path or not path.exists():
         return jsonify({"error": "not found"}), 404
     return send_file(
-        str(path), as_attachment=query_data["dl"] == "1",
-        download_name=query_data["file"], mimetype="video/mp4", conditional=True,
+        str(path),
+        as_attachment=query_data["dl"] == "1",
+        download_name=query_data["file"],
+        mimetype="video/mp4",
+        conditional=True,
     )
 
 
@@ -208,6 +219,7 @@ def abrir_carpeta(json_data):
 # ─────────────────────────────────────────────────────────────────
 # Lanzar Chrome manualmente (worker permanente / modo dev)
 # ─────────────────────────────────────────────────────────────────
+
 
 @meta_bp.post("/launch_chrome")
 @meta_bp.input(MetaLaunchChromeInSchema)

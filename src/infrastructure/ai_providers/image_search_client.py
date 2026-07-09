@@ -23,15 +23,18 @@ def _search_serper(query: str, n: int, api_key: str) -> list[str]:
         resp = requests.post(
             "https://google.serper.dev/images",
             headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-            json={"q": query, "num": 20}, timeout=12,
+            json={"q": query, "num": 20},
+            timeout=12,
         )
         if resp.status_code != 200:
             return []
         images = resp.json().get("images") or []
         min_w, min_h = 400, 300
         urls = [
-            img.get("imageUrl", "") for img in images
-            if img.get("imageWidth", 0) >= min_w and img.get("imageHeight", 0) >= min_h
+            img.get("imageUrl", "")
+            for img in images
+            if img.get("imageWidth", 0) >= min_w
+            and img.get("imageHeight", 0) >= min_h
             and _valid_url(img.get("imageUrl", ""))
         ]
         return urls[:n]
@@ -85,8 +88,14 @@ def _search_pixabay(query: str, n: int, api_key: str) -> list[str]:
     try:
         resp = requests.get(
             "https://pixabay.com/api/",
-            params={"key": api_key, "q": query, "image_type": "photo",
-                    "per_page": n, "safesearch": "true", "order": "popular"},
+            params={
+                "key": api_key,
+                "q": query,
+                "image_type": "photo",
+                "per_page": n,
+                "safesearch": "true",
+                "order": "popular",
+            },
             timeout=_TIMEOUT,
         )
         if resp.status_code != 200:
@@ -99,8 +108,9 @@ def _search_pixabay(query: str, n: int, api_key: str) -> list[str]:
         return []
 
 
-def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str = "",
-                   unsplash_key: str = "") -> list[str]:
+def search_images(
+    query: str, n: int = 4, serper_key: str = "", pexels_key: str = "", unsplash_key: str = ""
+) -> list[str]:
     """Cascada Serper (Google Images) -> Pexels -> Unsplash -> Pixabay, primer resultado
     no vacio gana. Las claves pasadas por parametro (p. ej. suministradas por el frontend)
     tienen prioridad sobre las variables de entorno; Pixabay solo usa variable de entorno."""
@@ -129,8 +139,9 @@ def search_images(query: str, n: int = 4, serper_key: str = "", pexels_key: str 
     return urls[:n]
 
 
-def fetch_image_bytes(query: str, n: int = 6, serper_key: str = "", pexels_key: str = "",
-                       unsplash_key: str = "") -> bytes | None:
+def fetch_image_bytes(
+    query: str, n: int = 6, serper_key: str = "", pexels_key: str = "", unsplash_key: str = ""
+) -> bytes | None:
     """Busca `query` en la misma cascada de proveedores y descarga la primera imagen
     valida (no SVG/GIF, magic bytes JPEG/PNG/WEBP). Usado server-side cuando una escena
     necesita una referencia y no trajo una propia; acepta claves puntuales del frontend

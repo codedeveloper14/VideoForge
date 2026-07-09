@@ -20,14 +20,12 @@ def app(monkeypatch):
     # que hizo el import), no en su modulo de origen -- si no, el parche no aplica.
     monkeypatch.setattr("src.presentation.app.ensure_tables", lambda: None)
     monkeypatch.setattr("src.presentation.app.ensure_stripe_table", lambda: None)
-    monkeypatch.setattr(
-        "src.infrastructure.storage.docs_repository.ensure_tables", lambda: None)
-    monkeypatch.setattr(
-        "src.domain.services.gentube_animation_service.sync_profiles_async", lambda: None)
-    monkeypatch.setattr(
-        "src.infrastructure.ai_providers.flow_bridge.start_ws_server", lambda *a, **kw: None)
+    monkeypatch.setattr("src.infrastructure.storage.docs_repository.ensure_tables", lambda: None)
+    monkeypatch.setattr("src.domain.services.gentube_animation_service.sync_profiles_async", lambda: None)
+    monkeypatch.setattr("src.infrastructure.ai_providers.flow_bridge.start_ws_server", lambda *a, **kw: None)
 
     from src.presentation.app import create_app
+
     application = create_app()
     application.config["TESTING"] = True
     return application
@@ -43,15 +41,23 @@ def login_as(client, monkeypatch):
     """Factory fixture: login_as() -> "usuario_test" logueado (cookie de sesion real
     en el jar del test client). Mockea solo la consulta de credenciales -- el resto
     del flujo (hash/verify, token firmado, cookie) corre real."""
+
     def _do(username="usuario_test", password="clave-correcta-123", role="user", ip="203.0.113.99"):
         from src.domain.services import auth_service
         from src.infrastructure.storage import user_repository
 
-        monkeypatch.setattr(user_repository, "get_user_for_auth",
-                             lambda u: (1, u, auth_service.hash_password(password), role, 1, 0))
-        resp = client.post("/api/login", json={"username": username, "password": password},
-                            environ_overrides={"REMOTE_ADDR": ip})
+        monkeypatch.setattr(
+            user_repository,
+            "get_user_for_auth",
+            lambda u: (1, u, auth_service.hash_password(password), role, 1, 0),
+        )
+        resp = client.post(
+            "/api/login",
+            json={"username": username, "password": password},
+            environ_overrides={"REMOTE_ADDR": ip},
+        )
         assert resp.status_code == 200, resp.get_json()
         auth_service.clear_fails(ip)
         return username
+
     return _do

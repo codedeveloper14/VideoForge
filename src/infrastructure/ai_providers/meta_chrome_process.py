@@ -5,14 +5,16 @@ import shutil
 import subprocess
 import sys
 import threading
-from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_NoOpLog: Callable[[str], None] = lambda msg: None
+
+def _NoOpLog(msg: str) -> None:
+    pass
+
 
 # ─────────────────────────────────────────────────────────────────
 # Foco automatico de la ventana de Chrome (Windows only)
@@ -42,6 +44,7 @@ def _collect_descendant_pids(pid: int) -> set[int]:
     pids = {pid}
     try:
         import psutil
+
         try:
             proc = psutil.Process(pid)
             for child in proc.children(recursive=True):
@@ -52,7 +55,9 @@ def _collect_descendant_pids(pid: int) -> set[int]:
         try:
             out = subprocess.run(
                 ["wmic", "process", "where", f"(ParentProcessId={pid})", "get", "ProcessId"],
-                capture_output=True, text=True, timeout=3,
+                capture_output=True,
+                text=True,
+                timeout=3,
             ).stdout
             for line in out.splitlines():
                 line = line.strip()
@@ -86,8 +91,10 @@ def bring_pid_to_front(pid: int, log: Callable[[str], None] = _NoOpLog) -> bool:
 
         user32.EnumWindows(enum_cb, 0)
         if not found:
-            log(f"[WARNING] [focus] ninguna ventana visible coincide con PID {pid} "
-                f"ni sus {len(target_pids) - 1} hijo(s)")
+            log(
+                f"[WARNING] [focus] ninguna ventana visible coincide con PID {pid} "
+                f"ni sus {len(target_pids) - 1} hijo(s)"
+            )
             return False
         hwnd = found[0]
 
@@ -99,21 +106,26 @@ def bring_pid_to_front(pid: int, log: Callable[[str], None] = _NoOpLog) -> bool:
         user32.keybd_event(VK_MENU, 0, 0, 0)
         user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0)
         ok = bool(user32.SetForegroundWindow(hwnd))
-        log(f"[focus] ventana de Chrome (PID {pid}) puesta en primer plano" if ok
-            else f"[WARNING] [focus] SetForegroundWindow devolvio False para PID {pid}")
+        log(
+            f"[focus] ventana de Chrome (PID {pid}) puesta en primer plano"
+            if ok
+            else f"[WARNING] [focus] SetForegroundWindow devolvio False para PID {pid}"
+        )
         return ok
     except Exception as exc:
         log(f"[WARNING] [focus] excepcion robando el foco (PID {pid}): {exc}")
         return False
 
 
-def focus_loop(get_running: Callable[[], bool], get_downloaded: Callable[[], int],
-                log: Callable[[str], None] = _NoOpLog) -> None:
+def focus_loop(
+    get_running: Callable[[], bool], get_downloaded: Callable[[], int], log: Callable[[str], None] = _NoOpLog
+) -> None:
     """Corre en un hilo daemon; roba el foco 1 vez cada FOCUS_EVERY_N_JOBS videos
     descargados (no cada N segundos -- confirmado molesto e inefectivo)."""
     if sys.platform != "win32":
         return
     import time
+
     state = {"last_done": 0, "was_running": False}
     while True:
         try:
@@ -143,6 +155,7 @@ def focus_loop(get_running: Callable[[], bool], get_downloaded: Callable[[], int
 # Deteccion de procesos Chrome/Chromium (Windows: wmic, macOS: ps)
 # ─────────────────────────────────────────────────────────────────
 
+
 def wmic_lines() -> list[str]:
     """CommandLine de procesos chrome/chromium. Solo Windows; vacio en macOS/Linux."""
     if platform.system() != "Windows":
@@ -150,9 +163,12 @@ def wmic_lines() -> list[str]:
     try:
         r = subprocess.run(
             ["wmic", "process", "where", "name='chrome.exe' or name='chromium.exe'", "get", "CommandLine"],
-            capture_output=True, text=True, timeout=6, creationflags=0x08000000,
+            capture_output=True,
+            text=True,
+            timeout=6,
+            creationflags=0x08000000,
         )
-        return [l.replace("\\", "/").lower() for l in r.stdout.splitlines()]
+        return [line.replace("\\", "/").lower() for line in r.stdout.splitlines()]
     except Exception:
         return []
 
@@ -163,7 +179,9 @@ def ps_mac_lines() -> list[str]:
         return []
     try:
         r = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=6)
-        return [l for l in r.stdout.splitlines() if "chrome" in l.lower() or "chromium" in l.lower()]
+        return [
+            line for line in r.stdout.splitlines() if "chrome" in line.lower() or "chromium" in line.lower()
+        ]
     except Exception:
         return []
 
@@ -204,7 +222,7 @@ def clean_profile_for_fresh_start(profile_dir: str, log: Callable[[str], None] =
     try:
         prefs = {}
         if os.path.exists(prefs_path):
-            with open(prefs_path, "r", encoding="utf-8", errors="ignore") as pf:
+            with open(prefs_path, encoding="utf-8", errors="ignore") as pf:
                 prefs = json.load(pf)
         prefs.setdefault("profile", {})["exit_type"] = "Normal"
         prefs.setdefault("session", {})["restore_on_startup"] = 5
@@ -212,11 +230,16 @@ def clean_profile_for_fresh_start(profile_dir: str, log: Callable[[str], None] =
             json.dump(prefs, pf, indent=2)
     except Exception:
         pass
-    log(f"Sesion limpiada" + (f" (borrados: {', '.join(removed)})" if removed else " (sin archivos previos)"))
+    log("Sesion limpiada" + (f" (borrados: {', '.join(removed)})" if removed else " (sin archivos previos)"))
 
 
-def launch_chrome_with_extension(exe: str, profile_dir: str, extension_dirs: list[str],
-                                   urls: list[str], extra_args: list[str] | None = None) -> subprocess.Popen:
+def launch_chrome_with_extension(
+    exe: str,
+    profile_dir: str,
+    extension_dirs: list[str],
+    urls: list[str],
+    extra_args: list[str] | None = None,
+) -> subprocess.Popen:
     ext_list = ",".join(extension_dirs)
     args = [
         exe,

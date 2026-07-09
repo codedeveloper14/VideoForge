@@ -1,7 +1,6 @@
 import json
 import tempfile
 import threading
-import time
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -39,6 +38,7 @@ def _tail_process(proc):
 # Sesiones de cuenta
 # ─────────────────────────────────────────────────────────────────
 
+
 def list_sessions() -> list[dict]:
     accounts_dir = get_grok_accounts_dir()
     grok_service.ensure_accounts_setup(accounts_dir)
@@ -51,7 +51,7 @@ def start_account_login(account_name: str) -> None:
     grok_service.ensure_accounts_setup(accounts_dir)
     folder = grok_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    _state["log_lines"].append(f"Abriendo Chrome — inicia sesion en grok.com y cierra la ventana.")
+    _state["log_lines"].append("Abriendo Chrome — inicia sesion en grok.com y cierra la ventana.")
 
     def _run():
         ok, message = grok_service.login_account_managed(folder, folder.name)
@@ -69,9 +69,16 @@ def delete_session(account_name: str) -> None:
 # Animacion por lote
 # ─────────────────────────────────────────────────────────────────
 
-def start_batch(project_name: str, images: list[tuple[str, object]],
-                 prompt: str, slots: int, aspect_ratio: str, video_length: int,
-                 resolution: str) -> dict:
+
+def start_batch(
+    project_name: str,
+    images: list[tuple[str, object]],
+    prompt: str,
+    slots: int,
+    aspect_ratio: str,
+    video_length: int,
+    resolution: str,
+) -> dict:
     """`images` es una lista de (filename, file_storage) donde file_storage tiene .save(path)."""
     if _state["proc"] and _state["proc"].poll() is None:
         _state["proc"].terminate()
@@ -104,24 +111,39 @@ def start_batch(project_name: str, images: list[tuple[str, object]],
         f"video_length: {video_length}\nresolution: {resolution}\n"
     )
 
-    _state.update({
-        "log_lines": [], "finished": False, "project_dir": str(proj_dir),
-        "images": images_meta, "total": len(images_meta),
-    })
+    _state.update(
+        {
+            "log_lines": [],
+            "finished": False,
+            "project_dir": str(proj_dir),
+            "images": images_meta,
+            "total": len(images_meta),
+        }
+    )
 
     stage_list_path = proj_dir / "guion" / "animate_this_run.json"
     stage_list_path.write_text(json.dumps(stage_names))
 
-    proc = grok_process.spawn_worker([
-        str(img_dir),
-        "--output-dir", str(proj_dir / "video"),
-        "--filter-file", str(stage_list_path),
-        "--slots", str(slots),
-        "--prompt", prompt,
-        "--aspect-ratio", aspect_ratio,
-        "--video-length", str(video_length),
-        "--resolution", resolution,
-    ], cwd=accounts_dir.parent)
+    proc = grok_process.spawn_worker(
+        [
+            str(img_dir),
+            "--output-dir",
+            str(proj_dir / "video"),
+            "--filter-file",
+            str(stage_list_path),
+            "--slots",
+            str(slots),
+            "--prompt",
+            prompt,
+            "--aspect-ratio",
+            aspect_ratio,
+            "--video-length",
+            str(video_length),
+            "--resolution",
+            resolution,
+        ],
+        cwd=accounts_dir.parent,
+    )
     _state["proc"] = proc
 
     threading.Thread(target=_tail_process, args=(proc,), daemon=True).start()
@@ -129,8 +151,9 @@ def start_batch(project_name: str, images: list[tuple[str, object]],
     return {"ok": True, "pid": proc.pid, "project_dir": str(proj_dir), "project_name": name}
 
 
-def start_regen(project_name: str, video_name: str, prompt: str, aspect_ratio: str,
-                 video_length: int, resolution: str) -> dict:
+def start_regen(
+    project_name: str, video_name: str, prompt: str, aspect_ratio: str, video_length: int, resolution: str
+) -> dict:
     name = sanitize_name(project_name)
     if _state["project_dir"]:
         proj_dir = Path(_state["project_dir"])
@@ -146,8 +169,10 @@ def start_regen(project_name: str, video_name: str, prompt: str, aspect_ratio: s
     vid_stem = Path(video_name).stem
     img_dir = proj_dir / "imagen"
     matches = [
-        p for p in img_dir.iterdir()
-        if p.is_file() and p.stem == vid_stem
+        p
+        for p in img_dir.iterdir()
+        if p.is_file()
+        and p.stem == vid_stem
         and p.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS
     ]
     if not matches:
@@ -160,6 +185,7 @@ def start_regen(project_name: str, video_name: str, prompt: str, aspect_ratio: s
 
     tmp_dir = Path(tempfile.mkdtemp())
     import shutil
+
     shutil.copy2(str(img_path), str(tmp_dir / img_path.name))
 
     accounts_dir = get_grok_accounts_dir()
@@ -168,15 +194,24 @@ def start_regen(project_name: str, video_name: str, prompt: str, aspect_ratio: s
     def _run():
         video_dir = proj_dir / "video"
         snap_before = {f.name for f in video_dir.glob("*.mp4")}
-        proc = grok_process.spawn_worker([
-            str(tmp_dir),
-            "--output-dir", str(video_dir),
-            "--slots", "1",
-            "--prompt", prompt,
-            "--aspect-ratio", aspect_ratio,
-            "--video-length", str(video_length),
-            "--resolution", resolution,
-        ], cwd=accounts_dir.parent)
+        proc = grok_process.spawn_worker(
+            [
+                str(tmp_dir),
+                "--output-dir",
+                str(video_dir),
+                "--slots",
+                "1",
+                "--prompt",
+                prompt,
+                "--aspect-ratio",
+                aspect_ratio,
+                "--video-length",
+                str(video_length),
+                "--resolution",
+                resolution,
+            ],
+            cwd=accounts_dir.parent,
+        )
         for line in iter(proc.stdout.readline, b""):
             _state["log_lines"].append(line.decode("utf-8", errors="replace").rstrip())
         proc.wait()
@@ -236,14 +271,18 @@ def get_log_state(offset: int) -> dict:
 # Videos generados
 # ─────────────────────────────────────────────────────────────────
 
+
 def list_videos(project_name: str) -> dict:
     if not project_name:
         return {"videos": [], "total": 0, "done": 0, "project_dir": "", "project_name": ""}
     name = sanitize_name(project_name)
     videos = sorted(f.name for f in project_repository.list_videos(name))
     return {
-        "videos": videos, "total": len(videos), "done": len(videos),
-        "project_dir": str(project_repository.project_dir(name)), "project_name": name,
+        "videos": videos,
+        "total": len(videos),
+        "done": len(videos),
+        "project_dir": str(project_repository.project_dir(name)),
+        "project_name": name,
     }
 
 

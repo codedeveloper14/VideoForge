@@ -26,7 +26,8 @@ def ensure_stripe_table() -> None:
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            cur.execute("""
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vf_stripe_payments (
                     id                INT AUTO_INCREMENT PRIMARY KEY,
                     username          VARCHAR(120) NOT NULL,
@@ -36,7 +37,8 @@ def ensure_stripe_table() -> None:
                     paid_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY uq_session (stripe_session_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-            """)
+            """
+            )
             for col, ddl in [
                 ("amount_usd", "DECIMAL(10,2) DEFAULT 0"),
                 ("paid_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"),
@@ -102,12 +104,14 @@ def get_payment_history(username: str, limit: int = 20) -> list[dict]:
         for plan, amount_usd, paid_at, session_id in rows:
             if hasattr(paid_at, "strftime"):
                 paid_at = paid_at.strftime("%Y-%m-%d %H:%M")
-            payments.append({
-                "plan": plan,
-                "amount_usd": float(amount_usd) if amount_usd else 0,
-                "paid_at": str(paid_at),
-                "session_id": session_id,
-            })
+            payments.append(
+                {
+                    "plan": plan,
+                    "amount_usd": float(amount_usd) if amount_usd else 0,
+                    "paid_at": str(paid_at),
+                    "session_id": session_id,
+                }
+            )
         return payments
     except Exception as exc:
         logger.error("get_payment_history error: %s", exc)
@@ -121,6 +125,7 @@ def create_checkout_session(username: str, plan_key: str, user_email: str | None
 
     try:
         import stripe as _stripe
+
         _stripe.api_key = config.stripe_secret_key
         price_info = STRIPE_PRICES[plan_key]
 
@@ -129,8 +134,10 @@ def create_checkout_session(username: str, plan_key: str, user_email: str | None
         if product_id:
             try:
                 prices = _stripe.Price.list(
-                    product=product_id, active=True,
-                    recurring={"interval": "month"}, limit=1,
+                    product=product_id,
+                    active=True,
+                    recurring={"interval": "month"},
+                    limit=1,
                 )
                 if prices.data:
                     price_id = prices.data[0].id
@@ -139,13 +146,16 @@ def create_checkout_session(username: str, plan_key: str, user_email: str | None
 
         line_item = (
             {"price": price_id, "quantity": 1}
-            if price_id else
-            {"price_data": {
-                "currency": "usd",
-                "product_data": {"name": price_info["name"]},
-                "unit_amount": price_info["amount"],
-                "recurring": {"interval": "month"},
-            }, "quantity": 1}
+            if price_id
+            else {
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {"name": price_info["name"]},
+                    "unit_amount": price_info["amount"],
+                    "recurring": {"interval": "month"},
+                },
+                "quantity": 1,
+            }
         )
 
         session = _stripe.checkout.Session.create(
@@ -170,12 +180,10 @@ def verify_stripe_session(session_id: str) -> dict | None:
     """Verifica una sesion de Stripe. Devuelve {paid, plan, customer_email, session_id} o None si hay error."""
     try:
         import stripe as _stripe
+
         _stripe.api_key = config.stripe_secret_key
         session = _stripe.checkout.Session.retrieve(session_id, expand=["line_items"])
-        paid = (
-            session.payment_status in ("paid", "no_payment_required")
-            or session.status == "complete"
-        )
+        paid = session.payment_status in ("paid", "no_payment_required") or session.status == "complete"
         meta_plan = None
         if session.metadata:
             meta_plan = session.metadata.get("plan") or session.metadata.get("plan_key")

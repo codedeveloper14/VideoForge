@@ -3,8 +3,8 @@ from apiflask import APIFlask
 from src.core.config import config
 from src.domain.services import flow_animation_service, gentube_animation_service
 from src.infrastructure.ai_providers import flow_bridge
-from src.infrastructure.payments.stripe_service import ensure_stripe_table
 from src.infrastructure.jobs.task_tracker import register_task_tracker
+from src.infrastructure.payments.stripe_service import ensure_stripe_table
 from src.infrastructure.storage import docs_repository
 from src.infrastructure.storage.usage_repository import ensure_tables
 from src.presentation.auth_middleware import register_auth_middleware

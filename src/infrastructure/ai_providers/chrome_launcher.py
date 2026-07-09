@@ -83,8 +83,12 @@ def find_chromium_exe() -> str | None:
         os.path.expanduser("~/.cache/ms-playwright"),
     ):
         for pat in [
-            os.path.join(cache_base, "chromium-*", "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"),
-            os.path.join(cache_base, "chromium-*", "chrome-mac-arm", "Chromium.app", "Contents", "MacOS", "Chromium"),
+            os.path.join(
+                cache_base, "chromium-*", "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium"
+            ),
+            os.path.join(
+                cache_base, "chromium-*", "chrome-mac-arm", "Chromium.app", "Contents", "MacOS", "Chromium"
+            ),
         ]:
             hits = sorted(glob.glob(pat))
             if hits:

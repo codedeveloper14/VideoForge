@@ -85,9 +85,11 @@ def clear_fails(ip: str) -> None:
 # Password hashing
 # ─────────────────────────────────────────────────────────────────
 
+
 def hash_password(password: str) -> str:
     try:
         import bcrypt
+
         return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     except ImportError:
         salt = "videoforge_salt_2024_"
@@ -104,6 +106,7 @@ def verify_password(plain: str, hashed: str | None) -> bool:
             return hmac.compare_digest(hashed, expected)
         try:
             import bcrypt
+
             return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
         except ImportError:
             logger.warning("bcrypt no disponible - usando sha256 fallback")
@@ -118,6 +121,7 @@ def verify_password(plain: str, hashed: str | None) -> bool:
 # ─────────────────────────────────────────────────────────────────
 # Sesiones — token deslizante firmado con HMAC-SHA256
 # ─────────────────────────────────────────────────────────────────
+
 
 def _sign(payload: str, secret: str) -> str:
     return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
@@ -149,6 +153,7 @@ def verify_token(token: str) -> str | None:
 # ─────────────────────────────────────────────────────────────────
 # Autenticacion / registro
 # ─────────────────────────────────────────────────────────────────
+
 
 def authenticate_user(username: str, password: str) -> tuple[dict | None, str | None]:
     try:

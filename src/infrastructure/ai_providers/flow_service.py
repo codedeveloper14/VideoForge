@@ -46,8 +46,9 @@ def get_session(cookie_str: str) -> dict:
     """Consulta la sesion de Flow con la cookie dada. {"bearer","email"} vacios si
     la cookie es invalida/expirada o la request falla."""
     try:
-        r = requests.get(SESSION_URL, headers={"cookie": cookie_str, "Content-Type": "application/json"},
-                          timeout=20)
+        r = requests.get(
+            SESSION_URL, headers={"cookie": cookie_str, "Content-Type": "application/json"}, timeout=20
+        )
         if r.status_code == 200:
             data = r.json()
             bearer = data.get("access_token", "")

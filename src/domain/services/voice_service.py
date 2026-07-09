@@ -119,8 +119,11 @@ def generate_voice(username: str | None, voice_id: str, text: str) -> dict:
         allowed, message, extra = usage_service.check_limit(username, "tts", char_count)
         if not allowed:
             return {
-                "error": message, "limit_reached": True, "limit_type": "tts",
-                "extra": extra, "status_code": 429,
+                "error": message,
+                "limit_reached": True,
+                "limit_type": "tts",
+                "extra": extra,
+                "status_code": 429,
             }
     else:
         char_count = 0
@@ -132,9 +135,11 @@ def generate_voice(username: str | None, voice_id: str, text: str) -> dict:
     for chunk in chunks:
         try:
             r = n8n_client.n8n_request(
-                "POST", n8n_client.GENERAR_URL,
+                "POST",
+                n8n_client.GENERAR_URL,
                 json_payload={"data": chunk, "voice_id": voice_id},
-                timeout=300, attempts=3,
+                timeout=300,
+                attempts=3,
             )
             result = r.json()
             res = result[0] if isinstance(result, list) else result
@@ -166,7 +171,11 @@ def merge_audio(project_name: str, payload: dict) -> tuple[str, int]:
     """Fusiona fragmentos de audio via n8n y guarda el resultado en el proyecto. Devuelve (body, status)."""
     try:
         r = n8n_client.n8n_request(
-            "POST", n8n_client.FUSIONAR_URL, json_payload=payload, timeout=360, attempts=5,
+            "POST",
+            n8n_client.FUSIONAR_URL,
+            json_payload=payload,
+            timeout=360,
+            attempts=5,
         )
     except Exception as exc:
         return json.dumps({"error": str(exc)}), 500
@@ -195,7 +204,9 @@ def merge_audio(project_name: str, payload: dict) -> tuple[str, int]:
 
 def clone_voice(payload: dict) -> tuple[str, int]:
     try:
-        r = n8n_client.n8n_request("POST", n8n_client.CLONAR_URL, json_payload=payload, timeout=120, attempts=3)
+        r = n8n_client.n8n_request(
+            "POST", n8n_client.CLONAR_URL, json_payload=payload, timeout=120, attempts=3
+        )
         return r.text, r.status_code
     except Exception as exc:
         return json.dumps({"error": str(exc)}), 500

@@ -43,8 +43,9 @@ def test_extract_narration_trunca_a_8000_caracteres():
 
 
 def test_template_script_genera_estructura_esperada():
-    result = i2v._template_script("el cambio climatico", dur_sec=60, style="tutorial",
-                                    tone="profesional", audience="general")
+    result = i2v._template_script(
+        "el cambio climatico", dur_sec=60, style="tutorial", tone="profesional", audience="general"
+    )
     assert result["scenes"] >= 4
     assert "[ESCENA 1" in result["script"]
     assert "el cambio climatico" in result["script"]
@@ -53,8 +54,9 @@ def test_template_script_genera_estructura_esperada():
 
 
 def test_template_script_estilo_desconocido_usa_default():
-    result = i2v._template_script("tema x", dur_sec=30, style="no_existe",
-                                    tone="no_existe", audience="general")
+    result = i2v._template_script(
+        "tema x", dur_sec=30, style="no_existe", tone="no_existe", audience="general"
+    )
     assert result["scenes"] >= 4  # no explota, usa fallback cinematic/inspirador
 
 
@@ -67,8 +69,9 @@ def test_generate_script_clampa_duracion(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
 
-    result = i2v.generate_script("una idea", dur_sec=99999, style="cinematic",
-                                  tone="inspirador", audience="general")
+    result = i2v.generate_script(
+        "una idea", dur_sec=99999, style="cinematic", tone="inspirador", audience="general"
+    )
     # dur_sec se clampa a 1200 antes de generar -> dur_label debe reflejar 20 minutos.
     assert result["dur"] == "20m00s"
 
@@ -77,8 +80,9 @@ def test_generate_script_sin_api_key_usa_template(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
 
-    result = i2v.generate_script("una idea cualquiera", dur_sec=45, style="viral",
-                                  tone="urgente", audience="jovenes")
+    result = i2v.generate_script(
+        "una idea cualquiera", dur_sec=45, style="viral", tone="urgente", audience="jovenes"
+    )
     assert "[ESCENA 1" in result["script"]
     assert result["dur"] == "45s"
 

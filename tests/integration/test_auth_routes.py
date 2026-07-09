@@ -5,8 +5,7 @@ from src.domain.services import auth_service
 from src.infrastructure.storage import user_repository
 
 
-def _user_row(username="usuario_test", password="clave-correcta-123", role="user",
-              active=1, must_change=0):
+def _user_row(username="usuario_test", password="clave-correcta-123", role="user", active=1, must_change=0):
     return (1, username, auth_service.hash_password(password), role, active, must_change)
 
 
@@ -20,11 +19,15 @@ def _clean_lockout_state():
 
 
 def test_login_exitoso_devuelve_cookie(client, monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_for_auth",
-                         lambda u: _user_row(username=u, password="clave-correcta-123"))
+    monkeypatch.setattr(
+        user_repository, "get_user_for_auth", lambda u: _user_row(username=u, password="clave-correcta-123")
+    )
 
-    resp = client.post("/api/login", json={"username": "usuario_test", "password": "clave-correcta-123"},
-                        environ_overrides={"REMOTE_ADDR": "203.0.113.10"})
+    resp = client.post(
+        "/api/login",
+        json={"username": "usuario_test", "password": "clave-correcta-123"},
+        environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+    )
 
     assert resp.status_code == 200
     body = resp.get_json()
@@ -34,11 +37,15 @@ def test_login_exitoso_devuelve_cookie(client, monkeypatch):
 
 
 def test_login_password_incorrecta_da_401(client, monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_for_auth",
-                         lambda u: _user_row(username=u, password="clave-correcta-123"))
+    monkeypatch.setattr(
+        user_repository, "get_user_for_auth", lambda u: _user_row(username=u, password="clave-correcta-123")
+    )
 
-    resp = client.post("/api/login", json={"username": "usuario_test", "password": "clave-mala"},
-                        environ_overrides={"REMOTE_ADDR": "203.0.113.11"})
+    resp = client.post(
+        "/api/login",
+        json={"username": "usuario_test", "password": "clave-mala"},
+        environ_overrides={"REMOTE_ADDR": "203.0.113.11"},
+    )
 
     assert resp.status_code == 401
     assert resp.get_json()["ok"] is False
@@ -47,18 +54,27 @@ def test_login_password_incorrecta_da_401(client, monkeypatch):
 def test_login_usuario_inexistente_da_401(client, monkeypatch):
     monkeypatch.setattr(user_repository, "get_user_for_auth", lambda u: None)
 
-    resp = client.post("/api/login", json={"username": "fantasma", "password": "cualquiera123"},
-                        environ_overrides={"REMOTE_ADDR": "203.0.113.12"})
+    resp = client.post(
+        "/api/login",
+        json={"username": "fantasma", "password": "cualquiera123"},
+        environ_overrides={"REMOTE_ADDR": "203.0.113.12"},
+    )
 
     assert resp.status_code == 401
 
 
 def test_login_must_change_password_no_setea_cookie(client, monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_for_auth",
-                         lambda u: _user_row(username=u, password="clave-correcta-123", must_change=1))
+    monkeypatch.setattr(
+        user_repository,
+        "get_user_for_auth",
+        lambda u: _user_row(username=u, password="clave-correcta-123", must_change=1),
+    )
 
-    resp = client.post("/api/login", json={"username": "usuario_test", "password": "clave-correcta-123"},
-                        environ_overrides={"REMOTE_ADDR": "203.0.113.10"})
+    resp = client.post(
+        "/api/login",
+        json={"username": "usuario_test", "password": "clave-correcta-123"},
+        environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+    )
 
     assert resp.status_code == 200
     body = resp.get_json()
@@ -67,17 +83,24 @@ def test_login_must_change_password_no_setea_cookie(client, monkeypatch):
 
 
 def test_login_bloquea_ip_tras_intentos_fallidos(client, monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_for_auth",
-                         lambda u: _user_row(username=u, password="clave-correcta-123"))
+    monkeypatch.setattr(
+        user_repository, "get_user_for_auth", lambda u: _user_row(username=u, password="clave-correcta-123")
+    )
     ip = "203.0.113.10"
 
     for _ in range(config.max_failed_login_attempts):
-        resp = client.post("/api/login", json={"username": "usuario_test", "password": "mala"},
-                            environ_overrides={"REMOTE_ADDR": ip})
+        resp = client.post(
+            "/api/login",
+            json={"username": "usuario_test", "password": "mala"},
+            environ_overrides={"REMOTE_ADDR": ip},
+        )
 
     # El intento que completa el umbral ya viene bloqueado (429), y cualquiera despues tambien.
-    resp = client.post("/api/login", json={"username": "usuario_test", "password": "clave-correcta-123"},
-                        environ_overrides={"REMOTE_ADDR": ip})
+    resp = client.post(
+        "/api/login",
+        json={"username": "usuario_test", "password": "clave-correcta-123"},
+        environ_overrides={"REMOTE_ADDR": ip},
+    )
     assert resp.status_code == 429
     assert resp.get_json()["lockout"] is True
 
@@ -88,10 +111,14 @@ def test_me_sin_auth_da_401(client):
 
 
 def test_me_autenticado_devuelve_username(client, monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_for_auth",
-                         lambda u: _user_row(username=u, password="clave-correcta-123"))
-    client.post("/api/login", json={"username": "usuario_test", "password": "clave-correcta-123"},
-                environ_overrides={"REMOTE_ADDR": "203.0.113.10"})
+    monkeypatch.setattr(
+        user_repository, "get_user_for_auth", lambda u: _user_row(username=u, password="clave-correcta-123")
+    )
+    client.post(
+        "/api/login",
+        json={"username": "usuario_test", "password": "clave-correcta-123"},
+        environ_overrides={"REMOTE_ADDR": "203.0.113.10"},
+    )
 
     resp = client.get("/api/auth/me")
     assert resp.status_code == 200

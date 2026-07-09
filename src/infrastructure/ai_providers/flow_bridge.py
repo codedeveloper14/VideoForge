@@ -59,7 +59,9 @@ def get_connected_accounts() -> list[str]:
     # Cuentas con bearer reciente en cache (<=10 min) tambien cuentan como conectadas,
     # aunque el service worker haya muerto y ya no se rastreen por WS/HTTP.
     with _bearer_cache_lock:
-        bearer_accounts = {h for h, e in _bearer_cache.items() if e.get("bearer") and now - e.get("ts", 0) < 600}
+        bearer_accounts = {
+            h for h, e in _bearer_cache.items() if e.get("bearer") and now - e.get("ts", 0) < 600
+        }
     return list(ws_accounts | http_accounts | bearer_accounts)
 
 
@@ -168,9 +170,12 @@ def status() -> dict:
     with _ws_clients_lock:
         ws_clients = list(_ws_clients.keys())
     return {
-        "pending": pending, "ws_clients": ws_clients,
-        "bridge_port": BRIDGE_PORT, "ws_port": WS_PORT,
-        "bridge_ok": _bind_ok["bridge"], "ws_ok": _bind_ok["ws"],
+        "pending": pending,
+        "ws_clients": ws_clients,
+        "bridge_port": BRIDGE_PORT,
+        "ws_port": WS_PORT,
+        "bridge_ok": _bind_ok["bridge"],
+        "ws_ok": _bind_ok["ws"],
     }
 
 
@@ -252,7 +257,9 @@ def _cors_headers(handler: BaseHTTPRequestHandler) -> None:
     else:
         handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network")
+    handler.send_header(
+        "Access-Control-Allow-Headers", "Content-Type, Access-Control-Request-Private-Network"
+    )
     handler.send_header("Access-Control-Allow-Private-Network", "true")
 
 
@@ -328,7 +335,9 @@ def start_bridge(log) -> None:
                             ev = _bridge_r_events.get(rid)
                         if ev:
                             ev.set()
-                        log(f"[Flow] Bridge: resultado recibido {rid[:12]}... status={body.get('status', '?')}")
+                        log(
+                            f"[Flow] Bridge: resultado recibido {rid[:12]}... status={body.get('status', '?')}"
+                        )
                     self._json_resp(200, {"ok": True})
                 except Exception:
                     self._json_resp(400, {"ok": False})

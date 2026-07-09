@@ -12,9 +12,9 @@ import argparse
 import json
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from queue import Empty, Queue
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -34,8 +34,7 @@ def _worker(client, queue, total, success_count, lock, output_dir, pending_file)
             break
         dest = output_dir / f"{img.stem}.mp4"
         if dest.exists() and dest.stat().st_size > 10_000:
-            logger.info("[%s] [%03d] Ya existe (%dKB) - skip",
-                        client.label, idx, dest.stat().st_size // 1024)
+            logger.info("[%s] [%03d] Ya existe (%dKB) - skip", client.label, idx, dest.stat().st_size // 1024)
             with lock:
                 success_count[0] += 1
             queue.task_done()
@@ -61,26 +60,38 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     p.add_argument("images", help="Carpeta con imagenes (se ordenan por fecha de creacion)")
-    p.add_argument("--prompt", default="Animate this image with smooth natural motion",
-                   help="Prompt de animacion")
-    p.add_argument("--aspect-ratio", default="2:3",
-                   choices=["1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2"],
-                   help="Aspect ratio del video (default: 2:3)")
+    p.add_argument(
+        "--prompt", default="Animate this image with smooth natural motion", help="Prompt de animacion"
+    )
+    p.add_argument(
+        "--aspect-ratio",
+        default="2:3",
+        choices=["1:1", "16:9", "9:16", "4:3", "3:4", "2:3", "3:2"],
+        help="Aspect ratio del video (default: 2:3)",
+    )
     p.add_argument("--video-length", type=int, default=6, help="Duracion en segundos (default: 6)")
-    p.add_argument("--resolution", default="480p", choices=["480p", "720p", "1080p"],
-                   help="Resolucion (default: 480p)")
-    p.add_argument("--login", action="store_true",
-                   help="Re-login de todas las cuentas (abre browser por cuenta)")
-    p.add_argument("--output-dir", default="",
-                   help="Carpeta destino para los .mp4 (default: AppData/grok_downloads)")
-    p.add_argument("--slots", type=int, default=1, metavar="N",
-                   help=(
-                       "Videos en paralelo POR cuenta [1-12, default: 1]\n"
-                       "  --slots 1  --> 1 video/cuenta (mas estable)\n"
-                       "  --slots 3  --> 3 videos/cuenta (recomendado)\n"
-                       "  --slots 12 --> maximo permitido\n"
-                       "Total = cuentas x slots (ej: 3 cuentas x 3 = 9 en paralelo)"
-                   ))
+    p.add_argument(
+        "--resolution", default="480p", choices=["480p", "720p", "1080p"], help="Resolucion (default: 480p)"
+    )
+    p.add_argument(
+        "--login", action="store_true", help="Re-login de todas las cuentas (abre browser por cuenta)"
+    )
+    p.add_argument(
+        "--output-dir", default="", help="Carpeta destino para los .mp4 (default: AppData/grok_downloads)"
+    )
+    p.add_argument(
+        "--slots",
+        type=int,
+        default=1,
+        metavar="N",
+        help=(
+            "Videos en paralelo POR cuenta [1-12, default: 1]\n"
+            "  --slots 1  --> 1 video/cuenta (mas estable)\n"
+            "  --slots 3  --> 3 videos/cuenta (recomendado)\n"
+            "  --slots 12 --> maximo permitido\n"
+            "Total = cuentas x slots (ej: 3 cuentas x 3 = 9 en paralelo)"
+        ),
+    )
     p.add_argument("--filter-file", default="", help="JSON con lista de nombres de archivos a procesar")
     args = p.parse_args()
 
@@ -105,10 +116,17 @@ def main():
 
     all_clients = []
     for folder in account_folders:
-        all_clients.extend(grok_service.make_clients(
-            folder, args.slots, args.prompt, args.aspect_ratio,
-            args.video_length, args.resolution, output_dir,
-        ))
+        all_clients.extend(
+            grok_service.make_clients(
+                folder,
+                args.slots,
+                args.prompt,
+                args.aspect_ratio,
+                args.video_length,
+                args.resolution,
+                output_dir,
+            )
+        )
     if not all_clients:
         logger.error("Sin clientes disponibles. Ejecuta con --login primero.")
         sys.exit(1)
@@ -133,8 +151,9 @@ def main():
     fp = grok_service.http_browser_fingerprint()
     logger.info("Cliente HTTP: Chrome 124 / sec-ch-ua-platform %s", fp["sec_ch_ua_platform"])
     logger.info("Imagenes  : %d (ordenadas por fecha de creacion)", total)
-    logger.info("Cuentas   : %d x %d slot(s) = %d en paralelo",
-                len(account_folders), args.slots, len(all_clients))
+    logger.info(
+        "Cuentas   : %d x %d slot(s) = %d en paralelo", len(account_folders), args.slots, len(all_clients)
+    )
     logger.info("Slots     : %s", [c.label for c in all_clients])
     logger.info("Prompt    : %s", args.prompt[:60])
     logger.info("Aspect    : %s | %ss | %s", args.aspect_ratio, args.video_length, args.resolution)

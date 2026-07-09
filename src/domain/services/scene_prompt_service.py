@@ -59,12 +59,18 @@ def segment_script(guion_text: str) -> tuple[list[dict], list[str]]:
     bloques = []
     for bloque_id, t in enumerate(chunks, 1):
         palabras = len(t.split())
-        bloques.append({
-            "bloque_global_id": bloque_id, "fragmento_id": bloque_id, "bloque_id": 1,
-            "texto_original": t, "palabras": palabras,
-            "segundos_estimados": max(2, round(palabras / 2.5)),
-            "prompt_imagen": None, "palabras_clave": [],
-        })
+        bloques.append(
+            {
+                "bloque_global_id": bloque_id,
+                "fragmento_id": bloque_id,
+                "bloque_id": 1,
+                "texto_original": t,
+                "palabras": palabras,
+                "segundos_estimados": max(2, round(palabras / 2.5)),
+                "prompt_imagen": None,
+                "palabras_clave": [],
+            }
+        )
     return bloques, fragmentos
 
 
@@ -137,15 +143,26 @@ def _select_system_prompt(prompt_mode: str, prompt_style: str) -> str:
 def _openrouter_models() -> list[str]:
     env_model = (os.environ.get("OPENROUTER_MODEL") or "").strip()
     models = [env_model] if env_model else []
-    for m in ("openai/gpt-4o-mini", "anthropic/claude-3.5-haiku-20241022",
-              "anthropic/claude-3.5-haiku", "anthropic/claude-sonnet-4.6"):
+    for m in (
+        "openai/gpt-4o-mini",
+        "anthropic/claude-3.5-haiku-20241022",
+        "anthropic/claude-3.5-haiku",
+        "anthropic/claude-sonnet-4.6",
+    ):
         if m not in models:
             models.append(m)
     return models
 
 
-def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
-               prompt_mode: str, active_sys: str, or_models: list[str], temperature: float) -> dict[int, str]:
+def _gen_batch(
+    batch: list[dict],
+    guion_text: str,
+    estilo_efectivo: str,
+    prompt_mode: str,
+    active_sys: str,
+    or_models: list[str],
+    temperature: float,
+) -> dict[int, str]:
     if not batch:
         return {}
     if prompt_mode == "stick":
@@ -153,8 +170,10 @@ def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
         user_msg = f"Guión completo del video (contexto):\n{guion_text}\n\nEscena actual: {scene_txt}"
         max_tokens = 700
     else:
-        user_msg = (f"Descripción de imagen de referencia (estilo): {estilo_efectivo}\n"
-                    f"Escenas a generar: {_escenas_texto(batch)}")
+        user_msg = (
+            f"Descripción de imagen de referencia (estilo): {estilo_efectivo}\n"
+            f"Escenas a generar: {_escenas_texto(batch)}"
+        )
         n_scenes = len(batch)
         try:
             tps = int((os.environ.get("OPENROUTER_MAX_TOKENS_PER_SCENE") or "68").strip())
@@ -180,8 +199,10 @@ def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
                     },
                     json={
                         "model": model,
-                        "messages": [{"role": "system", "content": active_sys},
-                                     {"role": "user", "content": user_msg}],
+                        "messages": [
+                            {"role": "system", "content": active_sys},
+                            {"role": "user", "content": user_msg},
+                        ],
                         "max_tokens": max_tokens,
                         "temperature": temperature,
                     },
@@ -197,7 +218,9 @@ def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
                     continue
                 if r.status_code == 200:
                     try:
-                        content = str((d.get("choices") or [{}])[0].get("message", {}).get("content") or "").strip()
+                        content = str(
+                            (d.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+                        ).strip()
                     except Exception:
                         content = ""
                     if content:
@@ -218,16 +241,20 @@ def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
                     continue
                 return {}
             if hit_rate_limit:
-                time.sleep(min(4.0, 0.35 * (2 ** attempt)) + random.random() * 0.12)
+                time.sleep(min(4.0, 0.35 * (2**attempt)) + random.random() * 0.12)
                 continue
             if saw_400:
-                time.sleep(min(2.0, 0.25 * (2 ** attempt)) + random.random() * 0.08)
+                time.sleep(min(2.0, 0.25 * (2**attempt)) + random.random() * 0.08)
                 continue
             return {}
-        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError,
-                requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError) as exc:
+        except (
+            requests.exceptions.SSLError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+        ) as exc:
             last_net = exc
-            time.sleep(min(3.5, 0.28 * (2 ** attempt)) + random.random() * 0.1)
+            time.sleep(min(3.5, 0.28 * (2**attempt)) + random.random() * 0.1)
         except Exception as exc:
             logger.warning("[prompt-batch] Error: %s", exc)
             return {}
@@ -236,7 +263,9 @@ def _gen_batch(batch: list[dict], guion_text: str, estilo_efectivo: str,
     return {}
 
 
-def _gen_batch_safe(batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature) -> dict:
+def _gen_batch_safe(
+    batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature
+) -> dict:
     """Si OpenRouter devuelve menos lineas de las esperadas, subdivide el lote
     hasta completar o agotar sublotes."""
     if not batch:
@@ -252,8 +281,12 @@ def _gen_batch_safe(batch, guion_text, estilo_efectivo, prompt_mode, active_sys,
     if not right:
         return mapping
     merged = {}
-    merged.update(_gen_batch_safe(left, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature))
-    merged.update(_gen_batch_safe(right, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature))
+    merged.update(
+        _gen_batch_safe(left, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature)
+    )
+    merged.update(
+        _gen_batch_safe(right, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature)
+    )
     merged.update(mapping)
     return merged
 
@@ -279,8 +312,9 @@ def _fallback_fill(bloques: list[dict], prompt_mode: str, estilo_efectivo: str) 
         ).strip()
 
 
-def generate_prompts(guion_text: str, output_mode: str, prompt_mode: str, prompt_style: str,
-                      estilo_ref: str) -> dict:
+def generate_prompts(
+    guion_text: str, output_mode: str, prompt_mode: str, prompt_style: str, estilo_ref: str
+) -> dict:
     """Segmenta el guion en escenas y genera un prompt de imagen por escena via OpenRouter.
     Reproduce el mismo systemMessage/plantilla que el flujo n8n original."""
     if not guion_text.strip():
@@ -293,7 +327,11 @@ def generate_prompts(guion_text: str, output_mode: str, prompt_mode: str, prompt
 
     if output_mode == "solo_saltos":
         return {
-            "metadata": {"total_escenas": len(bloques), "total_prompts": 0, "total_fragmentos": len(fragmentos)},
+            "metadata": {
+                "total_escenas": len(bloques),
+                "total_prompts": 0,
+                "total_fragmentos": len(fragmentos),
+            },
             "escenas": bloques,
         }
 
@@ -317,11 +355,13 @@ def generate_prompts(guion_text: str, output_mode: str, prompt_mode: str, prompt
     default_parallel = max(6, min(12, cpu + 2))
     parallel_batches = max(1, int(os.environ.get("OPENROUTER_PARALLEL_BATCHES", str(default_parallel))))
 
-    chunks = [bloques[i:i + scene_batch] for i in range(0, len(bloques), scene_batch)]
+    chunks = [bloques[i : i + scene_batch] for i in range(0, len(bloques), scene_batch)]
     workers = min(parallel_batches, len(chunks))
 
     def run_chunk(chunk):
-        return _gen_batch_safe(chunk, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, or_temperature)
+        return _gen_batch_safe(
+            chunk, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, or_temperature
+        )
 
     if workers <= 1:
         mappings = [run_chunk(c) for c in chunks]
@@ -345,13 +385,16 @@ def generate_prompts(guion_text: str, output_mode: str, prompt_mode: str, prompt
         if retry_cap > 0:
             to_retry = missing[:retry_cap]
             sub_step = 12
-            subs = [to_retry[i:i + sub_step] for i in range(0, len(to_retry), sub_step)]
+            subs = [to_retry[i : i + sub_step] for i in range(0, len(to_retry), sub_step)]
             with ThreadPoolExecutor(max_workers=2) as ex:
-                maps = list(ex.map(
-                    lambda s: _gen_batch(s, guion_text, estilo_efectivo, prompt_mode, active_sys,
-                                          or_models, or_temperature),
-                    subs,
-                ))
+                maps = list(
+                    ex.map(
+                        lambda s: _gen_batch(
+                            s, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, or_temperature
+                        ),
+                        subs,
+                    )
+                )
             for sub, m in zip(subs, maps):
                 for b in sub:
                     v = (m.get(b["bloque_global_id"]) or "").strip()

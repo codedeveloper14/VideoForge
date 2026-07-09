@@ -81,33 +81,118 @@ _OVERLAY_LIMITS = {
     "ref_doble": (3, 25),
 }
 _NARRATION_PREFIXES = (
-    "alguna", "algun", "por que", "sabes", "sabias", "imagina",
-    "has ", "que ", "como ", "cuando ", "donde ", "si ",
+    "alguna",
+    "algun",
+    "por que",
+    "sabes",
+    "sabias",
+    "imagina",
+    "has ",
+    "que ",
+    "como ",
+    "cuando ",
+    "donde ",
+    "si ",
 )
-_REF_TIPOS_SHIFT = {"ref_persona", "ref_lugar", "google_fullscreen",
-                     "broll", "lower_third", "nombre_persona", "texto_enfasis"}
-_SHIFT_FROM_TIPOS = ("normal", "lower_third", "texto_enfasis",
-                      "texto_lateral", "broll", "google_fullscreen")
-_KW_TRANS = {
-    "north korea": "corea", "korea": "corea", "tokyo": "tokio",
-    "south china": "china del sur", "china": "china",
-    "japan": "japón", "russia": "rusia", "soviet": "soviét",
-    "syria": "siria", "iran": "irán", "iraq": "irak",
-    "ukraine": "ucrania", "israel": "israel", "pakistan": "pakistán",
-    "france": "franci", "germany": "alemani",
-    "london": "londre", "paris": "paris", "berlin": "berlín",
-    "washington": "washington", "virginia": "virginia",
-    "cold war": "guerra fría",
-    "convoy": "convoy", "nuclear": "nuclear",
-    "vessel": "barco", "submarine": "submarino",
+_REF_TIPOS_SHIFT = {
+    "ref_persona",
+    "ref_lugar",
+    "google_fullscreen",
+    "broll",
+    "lower_third",
+    "nombre_persona",
+    "texto_enfasis",
 }
-_WEAK_KWS = {"para", "este", "esta", "como", "pero", "cada", "solo", "todo",
-             "tres", "otro", "otra", "del", "las", "los", "una", "unos", "unas",
-             "que", "con", "sin", "por", "entre", "sobre", "desde", "hasta",
-             "hay", "fue", "era", "son", "sus", "muy", "bien", "nada", "algo",
-             "cuando", "donde", "porque", "aunque", "siempre", "nunca",
-             "año", "años", "vez", "veces", "parte", "lugar", "tiempo", "vida",
-             "de", "la", "el", "en", "al", "se", "su", "un", "es", "no", "lo"}
+_SHIFT_FROM_TIPOS = ("normal", "lower_third", "texto_enfasis", "texto_lateral", "broll", "google_fullscreen")
+_KW_TRANS = {
+    "north korea": "corea",
+    "korea": "corea",
+    "tokyo": "tokio",
+    "south china": "china del sur",
+    "china": "china",
+    "japan": "japón",
+    "russia": "rusia",
+    "soviet": "soviét",
+    "syria": "siria",
+    "iran": "irán",
+    "iraq": "irak",
+    "ukraine": "ucrania",
+    "israel": "israel",
+    "pakistan": "pakistán",
+    "france": "franci",
+    "germany": "alemani",
+    "london": "londre",
+    "paris": "paris",
+    "berlin": "berlín",
+    "washington": "washington",
+    "virginia": "virginia",
+    "cold war": "guerra fría",
+    "convoy": "convoy",
+    "nuclear": "nuclear",
+    "vessel": "barco",
+    "submarine": "submarino",
+}
+_WEAK_KWS = {
+    "para",
+    "este",
+    "esta",
+    "como",
+    "pero",
+    "cada",
+    "solo",
+    "todo",
+    "tres",
+    "otro",
+    "otra",
+    "del",
+    "las",
+    "los",
+    "una",
+    "unos",
+    "unas",
+    "que",
+    "con",
+    "sin",
+    "por",
+    "entre",
+    "sobre",
+    "desde",
+    "hasta",
+    "hay",
+    "fue",
+    "era",
+    "son",
+    "sus",
+    "muy",
+    "bien",
+    "nada",
+    "algo",
+    "cuando",
+    "donde",
+    "porque",
+    "aunque",
+    "siempre",
+    "nunca",
+    "año",
+    "años",
+    "vez",
+    "veces",
+    "parte",
+    "lugar",
+    "tiempo",
+    "vida",
+    "de",
+    "la",
+    "el",
+    "en",
+    "al",
+    "se",
+    "su",
+    "un",
+    "es",
+    "no",
+    "lo",
+}
 
 
 def _robust_parse(text: str):
@@ -169,7 +254,7 @@ def _robust_parse(text: str):
                     elif ch == "}":
                         depth2 -= 1
                         if depth2 == 0 and obj_start >= 0:
-                            obj_text = re.sub(r",\s*([}\]])", r"\1", frag[obj_start:ci + 1])
+                            obj_text = re.sub(r",\s*([}\]])", r"\1", frag[obj_start : ci + 1])
                             try:
                                 recovered.append(json.loads(obj_text))
                                 obj_start = -1
@@ -213,6 +298,7 @@ def _robust_parse(text: str):
 
     try:
         from json_repair import repair_json
+
         repaired = repair_json(s, return_objects=True)
         if repaired:
             return repaired
@@ -231,8 +317,11 @@ def _sanitize_overlay(text, tipo: str) -> str | None:
         return t[:150] if len(t) > 150 else t
     if tipo == "intro_dinamica":
         narration_signs = (
-            t.startswith("¿"), t.startswith("¡"), t.startswith("?"),
-            "?" in t, len(t.split()) > 5,
+            t.startswith("¿"),
+            t.startswith("¡"),
+            t.startswith("?"),
+            "?" in t,
+            len(t.split()) > 5,
             any(t.lower().startswith(w) for w in _NARRATION_PREFIXES),
         )
         if any(narration_signs):
@@ -260,8 +349,10 @@ def _call_openrouter_batch(system_prompt: str, user_text: str, api_key: str) -> 
         try:
             payload = {
                 "model": model,
-                "messages": [{"role": "system", "content": system_prompt},
-                             {"role": "user", "content": user_text}],
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_text},
+                ],
                 "max_tokens": 6000,
                 "temperature": 0.5,
             }
@@ -333,9 +424,9 @@ def analizar_escenas(escenas: list[dict], project_name: str) -> list[dict]:
         n = len(sub)
         user_text = (
             f"Video: {project_name or 'sin nombre'}\n"
-            f"Escenas {ini + 1} a {fin} de {n_total} totales:\n" +
-            "\n".join(f"{ini + j + 1}. {e.get('texto', '').strip()}" for j, e in enumerate(sub)) +
-            f"\n\nRECUERDA: De estas {n} escenas, MINIMO {max(1, n // 2)} deben ser tipo != normal. "
+            f"Escenas {ini + 1} a {fin} de {n_total} totales:\n"
+            + "\n".join(f"{ini + j + 1}. {e.get('texto', '').strip()}" for j, e in enumerate(sub))
+            + f"\n\nRECUERDA: De estas {n} escenas, MINIMO {max(1, n // 2)} deben ser tipo != normal. "
             f"Busca activamente: nombres propios-->nombre_persona/ref_persona, "
             f"lugares-->ref_lugar, cifras/fechas-->texto_enfasis, "
             f"oficios-->texto_lateral, citas textuales-->quote_animado, "
@@ -367,35 +458,47 @@ def analizar_escenas(escenas: list[dict], project_name: str) -> list[dict]:
             pn_words = project_name.replace("_", " ").replace("-", " ").strip().split()
             overlay = " ".join(pn_words[:5]) if pn_words else None
 
-        result.append({
-            "indice": i,
-            "texto": esc.get("texto", ""),
-            "imagen_file": esc.get("imagen_file", ""),
-            "tipo": tipo,
-            "texto_overlay": overlay,
-            "texto_overlay_pos": meta.get("texto_overlay_pos", "bottom_center"),
-            "texto_secundario": meta.get("texto_secundario"),
-            "ref_label": meta.get("ref_label"),
-            "google_query": meta.get("google_query"),
-            "google_query_2": meta.get("google_query_2"),
-            "split_lado": meta.get("split_lado", "left"),
-            "split_label_1": meta.get("split_label_1"),
-            "split_label_2": meta.get("split_label_2"),
-            "color_accent": meta.get("color_accent", "#ffffff"),
-            "numero_capitulo": meta.get("numero_capitulo"),
-            "ref_image_url": None,
-            "ref_image_b64": None,
-            "ref_image_url_2": None,
-            "ref_image_b64_2": None,
-            "habilitado": True,
-        })
+        result.append(
+            {
+                "indice": i,
+                "texto": esc.get("texto", ""),
+                "imagen_file": esc.get("imagen_file", ""),
+                "tipo": tipo,
+                "texto_overlay": overlay,
+                "texto_overlay_pos": meta.get("texto_overlay_pos", "bottom_center"),
+                "texto_secundario": meta.get("texto_secundario"),
+                "ref_label": meta.get("ref_label"),
+                "google_query": meta.get("google_query"),
+                "google_query_2": meta.get("google_query_2"),
+                "split_lado": meta.get("split_lado", "left"),
+                "split_label_1": meta.get("split_label_1"),
+                "split_label_2": meta.get("split_label_2"),
+                "color_accent": meta.get("color_accent", "#ffffff"),
+                "numero_capitulo": meta.get("numero_capitulo"),
+                "ref_image_url": None,
+                "ref_image_b64": None,
+                "ref_image_url_2": None,
+                "ref_image_b64_2": None,
+                "habilitado": True,
+            }
+        )
 
     # Correccion de desfase: el LLM a veces asigna el tipo visual a la escena que
     # EMPIEZA con el tema, pero la mencion oral ocurre al FINAL de la escena anterior.
     # Si las keywords del tipo visual aparecen en el texto de la escena anterior, adelantar.
-    move_fields = ["tipo", "texto_overlay", "texto_overlay_pos", "texto_secundario",
-                   "ref_label", "google_query", "google_query_2",
-                   "split_label_1", "split_label_2", "color_accent", "numero_capitulo"]
+    move_fields = [
+        "tipo",
+        "texto_overlay",
+        "texto_overlay_pos",
+        "texto_secundario",
+        "ref_label",
+        "google_query",
+        "google_query_2",
+        "split_label_1",
+        "split_label_2",
+        "color_accent",
+        "numero_capitulo",
+    ]
     for i in range(1, len(result)):
         scene, prev = result[i], result[i - 1]
         if scene["tipo"] not in _REF_TIPOS_SHIFT or prev["tipo"] not in _SHIFT_FROM_TIPOS:
@@ -414,6 +517,7 @@ def analizar_escenas(escenas: list[dict], project_name: str) -> list[dict]:
         result[i]["google_query"] = None
         result[i]["ref_label"] = None
         result[i]["texto_overlay"] = _sanitize_overlay(
-            analisis[i].get("texto_overlay") if i < len(analisis) else None, "normal")
+            analisis[i].get("texto_overlay") if i < len(analisis) else None, "normal"
+        )
 
     return result

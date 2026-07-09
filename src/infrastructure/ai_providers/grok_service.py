@@ -124,8 +124,11 @@ def _resolve(raw: str) -> str:
 def _deep(obj, depth: int = 0):
     if depth > 6:
         return None
-    if isinstance(obj, str) and obj.startswith("http") and \
-       any(x in obj for x in [".mp4", ".webm", "vidgen", "video"]):
+    if (
+        isinstance(obj, str)
+        and obj.startswith("http")
+        and any(x in obj for x in [".mp4", ".webm", "vidgen", "video"])
+    ):
         return obj
     if isinstance(obj, dict):
         for v in obj.values():
@@ -143,8 +146,18 @@ def _deep(obj, depth: int = 0):
 class GrokAccountClient:
     """Cada slot usa su propia instancia (requests.Session no es thread-safe)."""
 
-    def __init__(self, account_name, slot_id, cookies_dict, session_meta,
-                 prompt, aspect_ratio, video_length, resolution, sse_dump_dir: Path):
+    def __init__(
+        self,
+        account_name,
+        slot_id,
+        cookies_dict,
+        session_meta,
+        prompt,
+        aspect_ratio,
+        video_length,
+        resolution,
+        sse_dump_dir: Path,
+    ):
         self.label = f"{account_name}-s{slot_id}"
         self.prompt = prompt
         self.aspect_ratio = aspect_ratio
@@ -162,8 +175,12 @@ class GrokAccountClient:
         mime = mime or "image/jpeg"
         with open(image_path, "rb") as f:
             b64 = base64.b64encode(f.read()).decode()
-        payload = {"fileName": image_path.name, "fileMimeType": mime,
-                   "content": b64, "fileSource": "IMAGINE_SELF_UPLOAD_FILE_SOURCE"}
+        payload = {
+            "fileName": image_path.name,
+            "fileMimeType": mime,
+            "content": b64,
+            "fileSource": "IMAGINE_SELF_UPLOAD_FILE_SOURCE",
+        }
         logger.info("[%s] [1/3] Subiendo %s...", self.label, image_path.name)
         for attempt in range(2):
             try:
@@ -176,13 +193,19 @@ class GrokAccountClient:
                     logger.error("[%s] Upload %s: %s", self.label, r.status_code, r.text[:200])
                     return None, None
                 data = r.json()
-                fid = (data.get("fileMetadataId") or data.get("fileId") or
-                       data.get("id") or data.get("attachmentId"))
+                fid = (
+                    data.get("fileMetadataId")
+                    or data.get("fileId")
+                    or data.get("id")
+                    or data.get("attachmentId")
+                )
                 furi = data.get("fileUri", "")
                 uid = self.session.cookies.get("x-userid", "x")
-                aurl = (f"{ASSET_BASE}/{furi}" if furi else
-                        data.get("url") or data.get("assetUrl") or
-                        f"{ASSET_BASE}/users/{uid}/{fid}/content")
+                aurl = (
+                    f"{ASSET_BASE}/{furi}"
+                    if furi
+                    else data.get("url") or data.get("assetUrl") or f"{ASSET_BASE}/users/{uid}/{fid}/content"
+                )
                 logger.info("[%s] fileId=%s", self.label, fid)
                 return fid, aurl
             except Exception as exc:
@@ -192,9 +215,11 @@ class GrokAccountClient:
 
     def _build_payload(self, fid, aurl):
         return {
-            "temporary": True, "modelName": "grok-3",
+            "temporary": True,
+            "modelName": "grok-3",
             "message": f"{aurl} {self.prompt} --mode=custom",
-            "fileAttachments": [fid], "toolOverrides": {"videoGen": True},
+            "fileAttachments": [fid],
+            "toolOverrides": {"videoGen": True},
             "enableSideBySide": False,
             "responseMetadata": {"experiments": [], "modelConfigOverride": {"modelMap": {}}},
         }
@@ -219,8 +244,7 @@ class GrokAccountClient:
             result = data.get("result", {})
             if not conv_id:
                 conv = result.get("conversation", {})
-                conv_id = (conv.get("conversationId") or result.get("conversationId")
-                           or result.get("id"))
+                conv_id = conv.get("conversationId") or result.get("conversationId") or result.get("id")
             resp = result.get("response", {})
             svgr = resp.get("streamingVideoGenerationResponse")
             if svgr:
@@ -236,7 +260,7 @@ class GrokAccountClient:
                 if prog == 100 and rv:
                     logger.info("[%s] [OK] 100%% url=%s", self.label, video_url)
                     break
-            for media in (resp.get("generatedMedia") or result.get("generatedMedia") or []):
+            for media in resp.get("generatedMedia") or result.get("generatedMedia") or []:
                 ru = media.get("url") or media.get("videoUrl") or media.get("mediaUrl") or ""
                 mt = (media.get("mediaType") or "").lower()
                 if ru:
@@ -316,8 +340,13 @@ class GrokAccountClient:
                     with open(dest, "wb") as f:
                         for chunk in r.iter_content(65536):
                             f.write(chunk)
-                    logger.info("[%s] [OK] %s (%dKB) intento %d",
-                                self.label, dest.name, dest.stat().st_size // 1024, attempt)
+                    logger.info(
+                        "[%s] [OK] %s (%dKB) intento %d",
+                        self.label,
+                        dest.name,
+                        dest.stat().st_size // 1024,
+                        attempt,
+                    )
                     return True
             except requests.exceptions.HTTPError as exc:
                 code = exc.response.status_code if exc.response else "?"
@@ -341,19 +370,26 @@ def login_account(folder: Path) -> bool:
     captured: dict = {}
     with sync_playwright() as pw:
         ctx = pw.chromium.launch_persistent_context(
-            str(profile_dir), headless=False,
-            args=["--no-sandbox", "--disable-blink-features=AutomationControlled",
-                  "--disable-features=IsolateOrigins,site-per-process"],
+            str(profile_dir),
+            headless=False,
+            args=[
+                "--no-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process",
+            ],
             ignore_default_args=["--enable-automation"],
             viewport={"width": 1280, "height": 800},
-            locale="es-CO", timezone_id="America/Bogota",
+            locale="es-CO",
+            timezone_id="America/Bogota",
         )
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        page.add_init_script("""
+        page.add_init_script(
+            """
             Object.defineProperty(navigator,'webdriver',{get:()=>undefined});
             Object.defineProperty(navigator,'plugins',{get:()=>[1,2,3,4,5]});
             window.chrome={runtime:{},loadTimes:function(){},csi:function(){},app:{}};
-        """)
+        """
+        )
 
         def on_req(req):
             h = req.headers
@@ -391,16 +427,32 @@ def login_account(folder: Path) -> bool:
         raw = ctx.cookies("https://grok.com")
         ctx.close()
 
-    clist = [{"name": c["name"], "value": c["value"], "domain": ".grok.com",
-              "path": "/", "httpOnly": False, "secure": True} for c in raw]
+    clist = [
+        {
+            "name": c["name"],
+            "value": c["value"],
+            "domain": ".grok.com",
+            "path": "/",
+            "httpOnly": False,
+            "secure": True,
+        }
+        for c in raw
+    ]
     (folder / "cookies_auto.json").write_text(json.dumps(clist, indent=2))
     (folder / "session_meta.json").write_text(json.dumps(captured, indent=2))
     logger.info("[%s] Cookies y meta guardados [OK]", folder.name)
     return True
 
 
-def make_clients(folder: Path, slots: int, prompt: str, aspect_ratio: str,
-                  video_length: int, resolution: str, sse_dump_dir: Path) -> list[GrokAccountClient]:
+def make_clients(
+    folder: Path,
+    slots: int,
+    prompt: str,
+    aspect_ratio: str,
+    video_length: int,
+    resolution: str,
+    sse_dump_dir: Path,
+) -> list[GrokAccountClient]:
     """Devuelve `slots` instancias independientes (una session cada una)."""
     cookies_file = folder / "cookies_auto.json"
     meta_file = folder / "session_meta.json"
@@ -410,12 +462,14 @@ def make_clients(folder: Path, slots: int, prompt: str, aspect_ratio: str,
     cookies = {c["name"]: c["value"] for c in json.loads(cookies_file.read_text()) if "name" in c}
     meta = json.loads(meta_file.read_text()) if meta_file.exists() else {}
     clients = [
-        GrokAccountClient(folder.name, i, cookies, meta, prompt, aspect_ratio,
-                           video_length, resolution, sse_dump_dir)
+        GrokAccountClient(
+            folder.name, i, cookies, meta, prompt, aspect_ratio, video_length, resolution, sse_dump_dir
+        )
         for i in range(1, slots + 1)
     ]
-    logger.info("[%s] %d slot(s) - statsig=%s", folder.name, slots,
-                "[OK]" if meta.get("statsig_id") else "[ERROR]")
+    logger.info(
+        "[%s] %d slot(s) - statsig=%s", folder.name, slots, "[OK]" if meta.get("statsig_id") else "[ERROR]"
+    )
     return clients
 
 
@@ -423,9 +477,11 @@ def make_clients(folder: Path, slots: int, prompt: str, aspect_ratio: str,
 # Gestion de cuentas/sesiones (usado por la UI "Sesiones")
 # ─────────────────────────────────────────────────────────────────
 
+
 def account_dir(accounts_dir: Path, name: str) -> Path:
     """Sanitiza el nombre de cuenta para que no pueda escapar accounts_dir."""
     import re
+
     safe = re.sub(r"[^\w\-]", "_", (name or "").strip())[:60]
     return accounts_dir / safe
 
@@ -479,7 +535,16 @@ def _valid_statsig_id(sid) -> bool:
     sid = sid.strip()
     if len(sid) < 8 or len(sid) > 256:
         return False
-    bad_markers = ("error", "undefined", "typeerror", "exception", "cannot read", "null", "nan", "syntaxerror")
+    bad_markers = (
+        "error",
+        "undefined",
+        "typeerror",
+        "exception",
+        "cannot read",
+        "null",
+        "nan",
+        "syntaxerror",
+    )
     return not any(bad in sid.lower() for bad in bad_markers)
 
 
@@ -514,7 +579,9 @@ def login_account_managed(folder: Path, folder_name: str) -> tuple[bool, str]:
             exe = find_chromium_exe()
 
             ctx = pw.chromium.launch_persistent_context(
-                str(temp_profile), headless=False, executable_path=exe,
+                str(temp_profile),
+                headless=False,
+                executable_path=exe,
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--no-first-run"],
                 viewport={"width": 1280, "height": 900},
             )
@@ -553,8 +620,14 @@ def login_account_managed(folder: Path, folder_name: str) -> tuple[bool, str]:
                 ck_dict = {c["name"]: c["value"] for c in cookies}
                 if ck_dict.get("sso"):
                     cookie_list = [
-                        {"name": c["name"], "value": c["value"], "domain": ".grok.com", "path": "/",
-                         "httpOnly": c.get("httpOnly", False), "secure": c.get("secure", True)}
+                        {
+                            "name": c["name"],
+                            "value": c["value"],
+                            "domain": ".grok.com",
+                            "path": "/",
+                            "httpOnly": c.get("httpOnly", False),
+                            "secure": c.get("secure", True),
+                        }
                         for c in cookies
                     ]
                     (folder / "cookies_auto.json").write_text(json.dumps(cookie_list, indent=2))
@@ -580,7 +653,10 @@ def login_account_managed(folder: Path, folder_name: str) -> tuple[bool, str]:
                     ctx.close()
                 except Exception:
                     pass
-                return False, f"[WARNING] [{folder_name}] Browser cerrado sin guardar sesion (cookie 'sso' no detectada)."
+                return (
+                    False,
+                    f"[WARNING] [{folder_name}] Browser cerrado sin guardar sesion (cookie 'sso' no detectada).",
+                )
     except ImportError:
         return False, f"[ERROR] [{folder_name}] Playwright no instalado."
     except Exception as exc:

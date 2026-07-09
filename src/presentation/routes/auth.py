@@ -29,7 +29,9 @@ def _session_response(payload: dict, username: str):
     resp.set_cookie(
         auth_service.SESSION_COOKIE,
         auth_service.make_token(username),
-        httponly=True, samesite="Lax", secure=config.session_cookie_secure,
+        httponly=True,
+        samesite="Lax",
+        secure=config.session_cookie_secure,
         max_age=config.session_minutes * 60,
     )
     return resp
@@ -42,8 +44,12 @@ def login(json_data):
     locked, secs = auth_service.is_locked_out(ip)
     if locked:
         mins = secs // 60
-        return jsonify({"ok": False, "lockout": True,
-                         "error": f"Demasiados intentos. Espera {mins}m {secs % 60}s."}), 429
+        return (
+            jsonify(
+                {"ok": False, "lockout": True, "error": f"Demasiados intentos. Espera {mins}m {secs % 60}s."}
+            ),
+            429,
+        )
 
     username = json_data["username"].strip()
     password = json_data["password"]
@@ -54,8 +60,12 @@ def login(json_data):
         locked2, secs2 = auth_service.is_locked_out(ip)
         if locked2:
             mins2 = secs2 // 60
-            return jsonify({"ok": False, "lockout": True,
-                             "error": f"Cuenta bloqueada por {mins2}m {secs2 % 60}s."}), 429
+            return (
+                jsonify(
+                    {"ok": False, "lockout": True, "error": f"Cuenta bloqueada por {mins2}m {secs2 % 60}s."}
+                ),
+                429,
+            )
         return jsonify({"ok": False, "error": err or "Credenciales incorrectas"}), 401
 
     auth_service.clear_fails(ip)

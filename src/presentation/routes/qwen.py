@@ -55,7 +55,13 @@ def iniciar():
 
     try:
         result = qwen_animation_service.start_batch(
-            project_name, images, prompt, slots, size, timeout_sec, aspect_ratio,
+            project_name,
+            images,
+            prompt,
+            slots,
+            size,
+            timeout_sec,
+            aspect_ratio,
         )
         return jsonify(result)
     except ValueError as exc:
@@ -67,7 +73,10 @@ def iniciar():
 def regenerar(json_data):
     try:
         result = qwen_animation_service.start_regen(
-            json_data["project_name"], json_data["video_name"], json_data["prompt"], json_data["size"],
+            json_data["project_name"],
+            json_data["video_name"],
+            json_data["prompt"],
+            json_data["size"],
         )
         return jsonify(result)
     except ValueError as exc:
@@ -101,8 +110,11 @@ def video(query_data):
     if not path or not path.exists():
         return jsonify({"error": "not found"}), 404
     return send_file(
-        str(path), as_attachment=query_data["dl"] == "1",
-        download_name=query_data["file"], mimetype="video/mp4", conditional=True,
+        str(path),
+        as_attachment=query_data["dl"] == "1",
+        download_name=query_data["file"],
+        mimetype="video/mp4",
+        conditional=True,
     )
 
 

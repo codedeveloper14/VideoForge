@@ -14,7 +14,7 @@ quick_render_bp = APIBlueprint("quick_render", __name__, url_prefix="/api")
 def generar():
     """El pipeline original: sube guion + audio + imagenes directo (sin proyecto) y
     genera el video. Multipart form: guion, resolucion, fade, modelo, whisper_backend,
-    transicion, movimiento, trans_dur, shake + audio + imagen_0, imagen_1, ... """
+    transicion, movimiento, trans_dur, shake + audio + imagen_0, imagen_1, ..."""
     try:
         img_keys = sorted(
             (k for k in request.files if k.startswith("imagen_")),
@@ -56,18 +56,30 @@ def multitask_jobs():
     task_tracker.clean_old_tasks()
     result = []
     for job in job_registry.all_jobs():
-        result.append({
-            "id": job.get("id", ""), "estado": job.get("estado", "?"),
-            "progreso": job.get("progreso", 0), "mensaje": job.get("mensaje", ""),
-            "inicio": job.get("inicio", 0), "video_url": job.get("video_url"),
-            "tipo": job.get("tipo", "render"), "proyecto": job.get("proyecto", ""),
-        })
+        result.append(
+            {
+                "id": job.get("id", ""),
+                "estado": job.get("estado", "?"),
+                "progreso": job.get("progreso", 0),
+                "mensaje": job.get("mensaje", ""),
+                "inicio": job.get("inicio", 0),
+                "video_url": job.get("video_url"),
+                "tipo": job.get("tipo", "render"),
+                "proyecto": job.get("proyecto", ""),
+            }
+        )
     for task in task_tracker.all_tasks():
-        result.append({
-            "id": task.get("id", ""), "estado": task.get("estado", "?"),
-            "progreso": task.get("progreso", 0), "mensaje": task.get("mensaje", ""),
-            "inicio": task.get("inicio", 0), "video_url": None,
-            "tipo": task.get("tipo", "tarea"), "proyecto": task.get("proyecto", ""),
-        })
+        result.append(
+            {
+                "id": task.get("id", ""),
+                "estado": task.get("estado", "?"),
+                "progreso": task.get("progreso", 0),
+                "mensaje": task.get("mensaje", ""),
+                "inicio": task.get("inicio", 0),
+                "video_url": None,
+                "tipo": task.get("tipo", "tarea"),
+                "proyecto": task.get("proyecto", ""),
+            }
+        )
     result.sort(key=lambda x: x["inicio"], reverse=True)
     return jsonify(result)

@@ -1,15 +1,20 @@
 import threading
 import time
 from collections import Counter
-from typing import Callable
+from collections.abc import Callable
 
 from src.infrastructure.ai_providers.whisk_client import WhiskClient
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-_NoOpLog: Callable[[str], None] = lambda msg: None
-_NoOpJobs: Callable[["WhiskClient"], int] = lambda c: 0
+
+def _NoOpLog(msg: str) -> None:
+    pass
+
+
+def _NoOpJobs(c: "WhiskClient") -> int:
+    return 0
 
 
 class WhiskPool:
@@ -21,9 +26,13 @@ class WhiskPool:
     - El log de "saturacion" solo aparece una vez cada 10s para no spamear.
     """
 
-    def __init__(self, clients: list[WhiskClient], subj_path,
-                 jobs_for: Callable[[WhiskClient], int] = _NoOpJobs,
-                 log: Callable[[str], None] = _NoOpLog):
+    def __init__(
+        self,
+        clients: list[WhiskClient],
+        subj_path,
+        jobs_for: Callable[[WhiskClient], int] = _NoOpJobs,
+        log: Callable[[str], None] = _NoOpLog,
+    ):
         self._clients = list(clients)
         self._subj = subj_path
         self._lock = threading.Lock()
@@ -44,8 +53,7 @@ class WhiskPool:
 
     def _free_now(self) -> list[WhiskClient]:
         now = time.time()
-        return [c for c in self._clients
-                if c not in self._leased and self._cooldown.get(c.label, 0.0) <= now]
+        return [c for c in self._clients if c not in self._leased and self._cooldown.get(c.label, 0.0) <= now]
 
     def get_client(self, cancel_ev: threading.Event) -> WhiskClient | None:
         """Devuelve el siguiente cliente disponible; bloquea silenciosamente si

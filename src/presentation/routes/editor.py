@@ -3,7 +3,12 @@ import re
 from apiflask import APIBlueprint
 from flask import Response, jsonify, request, send_file
 
-from src.domain.services import editor_scene_analysis_service, editor_visual_service, enriched_render_service, render_service
+from src.domain.services import (
+    editor_scene_analysis_service,
+    editor_visual_service,
+    enriched_render_service,
+    render_service,
+)
 from src.infrastructure.ai_providers import image_search_client
 from src.infrastructure.storage import project_repository
 from src.presentation.schemas.editor import (
@@ -39,8 +44,10 @@ def analizar():
 @editor_bp.input(EditorBuscarImagenInSchema)
 def buscar_imagen(json_data):
     urls = image_search_client.search_images(
-        json_data["query"], n=json_data["n"],
-        serper_key=json_data["serper_key"], pexels_key=json_data["pexels_key"],
+        json_data["query"],
+        n=json_data["n"],
+        serper_key=json_data["serper_key"],
+        pexels_key=json_data["pexels_key"],
     )
     return jsonify({"urls": urls})
 

@@ -19,8 +19,12 @@ from src.presentation.schemas.projects import (
 projects_bp = APIBlueprint("projects", __name__, url_prefix="/api/proyectos")
 
 _IMAGE_MIME = {
-    ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-    ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
 }
 
 

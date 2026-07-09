@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 
 try:
     from curl_cffi import requests as _cf_requests
+
     HAS_CURL_CFFI = True
 except Exception:
     _cf_requests = None
@@ -29,8 +30,11 @@ QWEN_STS_TOKEN_URL = f"{QWEN_API_BASE}/v2/files/getstsToken"
 QWEN_MODEL_T2V = "qwen3.5-plus"
 QWEN_MODEL_I2V = "qwen3.5-plus"
 QWEN_SIZE_MAP = {
-    "1280x720": "16:9", "720x1280": "9:16", "960x960": "1:1",
-    "1920x1080": "16:9", "1080x1920": "9:16",
+    "1280x720": "16:9",
+    "720x1280": "9:16",
+    "960x960": "1:1",
+    "1920x1080": "16:9",
+    "1080x1920": "9:16",
 }
 
 
@@ -60,8 +64,10 @@ def qwen_headers(token: str, cookie_header: str = "", session_meta: dict | None 
     h = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
-        "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        ),
         "Accept": "application/json",
         "Origin": QWEN_BASE,
         "Referer": f"{QWEN_BASE}/",
@@ -83,6 +89,7 @@ def qwen_headers(token: str, cookie_header: str = "", session_meta: dict | None 
 # ─────────────────────────────────────────────────────────────────
 # Cuentas / sesiones
 # ─────────────────────────────────────────────────────────────────
+
 
 def account_dir(accounts_dir: Path, name: str) -> Path:
     safe = re.sub(r"[^\w\-]", "_", (name or "").strip())[:60]
@@ -120,7 +127,8 @@ def cookie_header_from_cookies(cookies: list[dict]) -> str:
     try:
         return "; ".join(
             f"{str(c.get('name', '')).strip()}={str(c.get('value', '')).strip()}"
-            for c in (cookies or []) if str(c.get("name", "")).strip()
+            for c in (cookies or [])
+            if str(c.get("name", "")).strip()
         )
     except Exception:
         return ""
@@ -196,6 +204,7 @@ def tokens_for_run(accounts_dir: Path) -> list[tuple[str, str, str, dict]]:
 # Generacion (upload -> chat -> completion -> poll -> download)
 # ─────────────────────────────────────────────────────────────────
 
+
 def _extract_token_from_storage_entries(entries) -> str:
     for k, v in entries:
         ks = str(k or "").lower()
@@ -211,7 +220,7 @@ def _extract_token_from_storage_entries(entries) -> str:
                     if isinstance(cur, dict):
                         for kk, vv in cur.items():
                             lkk = str(kk).lower()
-                            if isinstance(vv, (dict, list)):
+                            if isinstance(vv, dict | list):
                                 stack.append(vv)
                             else:
                                 sv = str(vv or "").strip()
@@ -225,18 +234,25 @@ def _extract_token_from_storage_entries(entries) -> str:
             token = c
             if token.lower().startswith("bearer "):
                 token = token.split(" ", 1)[1].strip()
-            if len(token) > 30 and (("." in token) or ("token" in ks) or ("access" in ks) or ("bearer" in ks)):
+            if len(token) > 30 and (
+                ("." in token) or ("token" in ks) or ("access" in ks) or ("bearer" in ks)
+            ):
                 return token
     return ""
 
 
 def create_chat(token: str, chat_type: str = "i2v", cookie_header: str = "", session_meta=None) -> str:
     payload = {
-        "title": "New Chat", "models": [QWEN_MODEL_T2V], "chat_mode": "normal",
-        "chat_type": chat_type, "timestamp": int(time.time() * 1000), "project_id": "",
+        "title": "New Chat",
+        "models": [QWEN_MODEL_T2V],
+        "chat_mode": "normal",
+        "chat_type": chat_type,
+        "timestamp": int(time.time() * 1000),
+        "project_id": "",
     }
-    resp = qwen_post(QWEN_CHAT_NEW_URL, headers=qwen_headers(token, cookie_header, session_meta),
-                      json=payload, timeout=30)
+    resp = qwen_post(
+        QWEN_CHAT_NEW_URL, headers=qwen_headers(token, cookie_header, session_meta), json=payload, timeout=30
+    )
     if resp.status_code != 200:
         raise RuntimeError(f"create_chat HTTP {resp.status_code}: {resp.text[:180]}")
     data = resp.json()
@@ -252,8 +268,10 @@ def upload_image_oss(token: str, image_path: str, cookie_header: str = "", sessi
     mime, _ = mimetypes.guess_type(image_path)
     mime = mime or "image/png"
     sts_resp = qwen_post(
-        QWEN_STS_TOKEN_URL, headers=qwen_headers(token, cookie_header, session_meta),
-        json={"filename": fname, "filesize": fsize, "filetype": "image"}, timeout=25,
+        QWEN_STS_TOKEN_URL,
+        headers=qwen_headers(token, cookie_header, session_meta),
+        json={"filename": fname, "filesize": fsize, "filetype": "image"},
+        timeout=25,
     )
     if sts_resp.status_code != 200:
         raise RuntimeError(f"STS HTTP {sts_resp.status_code}: {sts_resp.text[:180]}")
@@ -280,8 +298,9 @@ def upload_image_oss(token: str, image_path: str, cookie_header: str = "", sessi
 
     with open(image_path, "rb") as f:
         img_bytes = f.read()
-    auth = oss2.StsAuth(data.get("access_key_id", ""), data.get("access_key_secret", ""),
-                         data.get("security_token", ""))
+    auth = oss2.StsAuth(
+        data.get("access_key_id", ""), data.get("access_key_secret", ""), data.get("security_token", "")
+    )
     endpoint = f"https://{data.get('endpoint', 'oss-accelerate.aliyuncs.com')}"
     bucket = oss2.Bucket(auth, endpoint, data.get("bucketname", "qwen-webui-prod"))
     put = bucket.put_object(file_path_oss, img_bytes, headers={"Content-Type": mime})
@@ -293,38 +312,78 @@ def upload_image_oss(token: str, image_path: str, cookie_header: str = "", sessi
     return {
         "type": "image",
         "file": {
-            "created_at": ts_now, "data": {}, "filename": fname, "hash": None,
-            "id": file_id, "user_id": uid,
+            "created_at": ts_now,
+            "data": {},
+            "filename": fname,
+            "hash": None,
+            "id": file_id,
+            "user_id": uid,
             "meta": {"name": fname, "size": fsize, "content_type": mime},
             "update_at": ts_now,
         },
-        "id": file_id, "url": file_url, "name": fname, "collection_name": "",
-        "progress": 0, "status": "uploaded", "size": fsize, "error": "",
-        "itemId": str(uuid.uuid4()), "file_type": mime, "showType": "image",
-        "file_class": "vision", "uploadTaskId": str(uuid.uuid4()),
+        "id": file_id,
+        "url": file_url,
+        "name": fname,
+        "collection_name": "",
+        "progress": 0,
+        "status": "uploaded",
+        "size": fsize,
+        "error": "",
+        "itemId": str(uuid.uuid4()),
+        "file_type": mime,
+        "showType": "image",
+        "file_class": "vision",
+        "uploadTaskId": str(uuid.uuid4()),
     }
 
 
-def submit_completion(token: str, chat_id: str, prompt: str, chat_type: str = "i2v",
-                       size: str = "16:9", files=None, cookie_header: str = "", session_meta=None) -> str:
+def submit_completion(
+    token: str,
+    chat_id: str,
+    prompt: str,
+    chat_type: str = "i2v",
+    size: str = "16:9",
+    files=None,
+    cookie_header: str = "",
+    session_meta=None,
+) -> str:
     url = f"{QWEN_CHAT_COMPLETIONS_URL}?chat_id={chat_id}"
     ts = int(time.time())
     msg = {
-        "fid": str(uuid.uuid4()), "parentId": None, "childrenIds": [str(uuid.uuid4())], "role": "user",
-        "content": prompt, "user_action": "chat", "files": files or [], "timestamp": ts,
-        "models": [QWEN_MODEL_T2V], "chat_type": chat_type,
+        "fid": str(uuid.uuid4()),
+        "parentId": None,
+        "childrenIds": [str(uuid.uuid4())],
+        "role": "user",
+        "content": prompt,
+        "user_action": "chat",
+        "files": files or [],
+        "timestamp": ts,
+        "models": [QWEN_MODEL_T2V],
+        "chat_type": chat_type,
         "feature_config": {
-            "thinking_enabled": False, "output_schema": "phase", "research_mode": "normal",
-            "auto_thinking": False, "thinking_mode": "Fast", "auto_search": True,
+            "thinking_enabled": False,
+            "output_schema": "phase",
+            "research_mode": "normal",
+            "auto_thinking": False,
+            "thinking_mode": "Fast",
+            "auto_search": True,
         },
         "extra": {"meta": {"subChatType": chat_type, "size": size}},
-        "sub_chat_type": chat_type, "parent_id": None,
+        "sub_chat_type": chat_type,
+        "parent_id": None,
     }
     model = QWEN_MODEL_T2V if chat_type == "t2v" else QWEN_MODEL_I2V
     payload = {
-        "stream": False, "version": "2.1", "incremental_output": True, "chat_id": chat_id,
-        "chat_mode": "normal", "model": model, "parent_id": None,
-        "messages": [msg], "timestamp": ts, "size": size,
+        "stream": False,
+        "version": "2.1",
+        "incremental_output": True,
+        "chat_id": chat_id,
+        "chat_mode": "normal",
+        "model": model,
+        "parent_id": None,
+        "messages": [msg],
+        "timestamp": ts,
+        "size": size,
     }
     h = qwen_headers(token, cookie_header, session_meta)
     h["X-Request-Id"] = str(uuid.uuid4())
@@ -346,8 +405,14 @@ def submit_completion(token: str, chat_id: str, prompt: str, chat_type: str = "i
     raise RuntimeError("completion sin task_id")
 
 
-def poll_task(token: str, task_id: str, timeout_sec: int = 600, poll_interval: int = 5,
-              cookie_header: str = "", session_meta=None) -> dict:
+def poll_task(
+    token: str,
+    task_id: str,
+    timeout_sec: int = 600,
+    poll_interval: int = 5,
+    cookie_header: str = "",
+    session_meta=None,
+) -> dict:
     url = QWEN_TASK_STATUS_URL.format(task_id=task_id)
     started = time.time()
     time.sleep(15)
@@ -379,12 +444,22 @@ def download_video(video_url: str, output_path: str) -> str:
     return output_path
 
 
-def generate_one(token: str, image_path: str, prompt: str, size: str, output_path: str,
-                  timeout_sec: int = 600, cookie_header: str = "", session_meta=None) -> str:
+def generate_one(
+    token: str,
+    image_path: str,
+    prompt: str,
+    size: str,
+    output_path: str,
+    timeout_sec: int = 600,
+    cookie_header: str = "",
+    session_meta=None,
+) -> str:
     file_obj = upload_image_oss(token, image_path, cookie_header, session_meta)
     chat_id = create_chat(token, "i2v", cookie_header, session_meta)
     aspect = QWEN_SIZE_MAP.get(size, "16:9")
-    task_id = submit_completion(token, chat_id, prompt, "i2v", aspect, [file_obj], cookie_header, session_meta)
+    task_id = submit_completion(
+        token, chat_id, prompt, "i2v", aspect, [file_obj], cookie_header, session_meta
+    )
     result = poll_task(token, task_id, timeout_sec, 5, cookie_header, session_meta)
     if not result.get("ok"):
         raise RuntimeError(result.get("error") or "Task error")
@@ -395,6 +470,7 @@ def generate_one(token: str, image_path: str, prompt: str, size: str, output_pat
 # ─────────────────────────────────────────────────────────────────
 # Login interactivo (Playwright, captura token Bearer + cookies)
 # ─────────────────────────────────────────────────────────────────
+
 
 def _norm_token(raw) -> str:
     t = str(raw or "").strip().strip('"').strip("'")
@@ -414,6 +490,7 @@ def _is_token_like(raw) -> bool:
 
 def login_account_managed(folder: Path, log_callback=None) -> None:
     """Login interactivo con perfil temporal; captura token Bearer + cookies + session meta."""
+
     def log(msg: str):
         if log_callback:
             log_callback(msg)
@@ -436,9 +513,12 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
         with sync_playwright() as pw:
             exe = find_chromium_exe()
             ctx = pw.chromium.launch_persistent_context(
-                str(tmp_profile), headless=False, executable_path=exe,
+                str(tmp_profile),
+                headless=False,
+                executable_path=exe,
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled", "--no-first-run"],
-                viewport={"width": 1280, "height": 900}, ignore_https_errors=True,
+                viewport={"width": 1280, "height": 900},
+                ignore_https_errors=True,
             )
             page = ctx.pages[0] if ctx.pages else ctx.new_page()
             token_box = {"token": ""}
@@ -466,7 +546,9 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
                     txt = ""
                 if not txt or len(txt) > 150000:
                     return
-                m = re.search(r'"(?:access_?token|accessToken|id_?token|token)"\s*:\s*"([^"]{30,})"', txt, re.I)
+                m = re.search(
+                    r'"(?:access_?token|accessToken|id_?token|token)"\s*:\s*"([^"]{30,})"', txt, re.I
+                )
                 if m and _is_token_like(m.group(1)):
                     token_box["token"] = _norm_token(m.group(1))
 
@@ -478,16 +560,23 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
                 if not cookies:
                     return 0
                 cookie_list = [
-                    {"name": c.get("name", ""), "value": c.get("value", ""),
-                     "domain": c.get("domain", ".chat.qwen.ai"), "path": c.get("path", "/"),
-                     "httpOnly": bool(c.get("httpOnly", False)), "secure": bool(c.get("secure", True))}
+                    {
+                        "name": c.get("name", ""),
+                        "value": c.get("value", ""),
+                        "domain": c.get("domain", ".chat.qwen.ai"),
+                        "path": c.get("path", "/"),
+                        "httpOnly": bool(c.get("httpOnly", False)),
+                        "secure": bool(c.get("secure", True)),
+                    }
                     for c in cookies
                 ]
                 (folder / "cookies_auto.json").write_text(json.dumps(cookie_list, indent=2), encoding="utf-8")
                 for c in cookie_list:
                     n = str(c.get("name", "")).lower()
                     v = str(c.get("value", ""))
-                    if any(k in n for k in ("token", "auth", "session", "jwt", "access")) and _is_token_like(v):
+                    if any(k in n for k in ("token", "auth", "session", "jwt", "access")) and _is_token_like(
+                        v
+                    ):
                         token_box["token"] = _norm_token(v)
                         break
                 return len(cookie_list)
@@ -525,13 +614,16 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
                         (folder / "token.txt").write_text(tk, encoding="utf-8")
                         if session_meta_capture:
                             (folder / "session_meta.json").write_text(
-                                json.dumps(session_meta_capture, indent=2), encoding="utf-8")
+                                json.dumps(session_meta_capture, indent=2), encoding="utf-8"
+                            )
                         log(f"[OK] [{folder.name}] Sesion guardada (token + {ccount} cookies).")
                         saved = True
                         break
                     elif tk != last_invalid_token:
                         last_invalid_token = tk
-                        log(f"[{folder.name}] Token detectado pero aun no valido ({detail}). Esperando login completo...")
+                        log(
+                            f"[{folder.name}] Token detectado pero aun no valido ({detail}). Esperando login completo..."
+                        )
                 time.sleep(2)
 
             if not saved:
@@ -542,7 +634,8 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
                         (folder / "token.txt").write_text(tk2, encoding="utf-8")
                         if session_meta_capture:
                             (folder / "session_meta.json").write_text(
-                                json.dumps(session_meta_capture, indent=2), encoding="utf-8")
+                                json.dumps(session_meta_capture, indent=2), encoding="utf-8"
+                            )
                         log(f"[OK] [{folder.name}] Sesion guardada al cierre (token + cookies).")
                         saved = True
                 except Exception:
@@ -553,7 +646,9 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
             except Exception:
                 pass
             if not saved:
-                log(f"[WARNING] [{folder.name}] Browser cerrado sin token valido. Cookies guardadas si estuvieron disponibles.")
+                log(
+                    f"[WARNING] [{folder.name}] Browser cerrado sin token valido. Cookies guardadas si estuvieron disponibles."
+                )
     except Exception as exc:
         log(f"[ERROR] [{folder.name}] Error: {exc}")
     finally:

@@ -48,14 +48,16 @@ def test_is_admin_sin_username():
 
 
 def test_is_admin_true_para_rol_admin(monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_full",
-                         lambda username: {"role": "admin", "username": username})
+    monkeypatch.setattr(
+        user_repository, "get_user_full", lambda username: {"role": "admin", "username": username}
+    )
     assert docs_service.is_admin("cualquiera") is True
 
 
 def test_is_admin_false_para_rol_normal(monkeypatch):
-    monkeypatch.setattr(user_repository, "get_user_full",
-                         lambda username: {"role": "user", "username": username})
+    monkeypatch.setattr(
+        user_repository, "get_user_full", lambda username: {"role": "user", "username": username}
+    )
     assert docs_service.is_admin("cualquiera") is False
 
 
@@ -67,5 +69,6 @@ def test_is_admin_false_si_usuario_no_existe(monkeypatch):
 def test_is_admin_false_si_repo_falla(monkeypatch):
     def _boom(username):
         raise RuntimeError("DB caida")
+
     monkeypatch.setattr(user_repository, "get_user_full", _boom)
     assert docs_service.is_admin("cualquiera") is False

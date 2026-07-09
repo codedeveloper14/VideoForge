@@ -23,6 +23,7 @@ def test_verify_password_compatibilidad_sha256_legacy():
     # Formato heredado (fallback cuando bcrypt no estaba disponible).
     salt = "videoforge_salt_2024_"
     import hashlib
+
     legacy_hash = "sha256:" + hashlib.sha256((salt + "clave123").encode()).hexdigest()
     assert auth_service.verify_password("clave123", legacy_hash)
     assert not auth_service.verify_password("otra-clave", legacy_hash)

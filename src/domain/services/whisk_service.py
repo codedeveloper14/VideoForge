@@ -25,9 +25,14 @@ POLLINATION_WEBHOOK = os.environ.get(
 )
 
 _state = {
-    "running": False, "step": "idle",
-    "progress": 0, "total": 0, "images_saved": 0,
-    "log": [], "output_dir": None, "last_error": None,
+    "running": False,
+    "step": "idle",
+    "progress": 0,
+    "total": 0,
+    "images_saved": 0,
+    "log": [],
+    "output_dir": None,
+    "last_error": None,
     "accounts": [
         {"id": i, "status": "idle", "slots": [], "jobs": 0, "logged_in": False, "user": ""}
         for i in range(NUM_ACCOUNTS)
@@ -57,6 +62,7 @@ def playwright_installed() -> bool:
     if _playwright_ok is None:
         try:
             import playwright  # noqa: F401
+
             _playwright_ok = True
         except ImportError:
             _playwright_ok = False
@@ -82,7 +88,12 @@ def sync_profile_rows() -> None:
         if not ck:
             return i, {"logged_in": False, "user": "", "has_file": False, "err": ""}
         pr = probe_session(ck)
-        return i, {"logged_in": pr["ok"], "user": pr.get("user", ""), "has_file": True, "err": pr.get("error", "")}
+        return i, {
+            "logged_in": pr["ok"],
+            "user": pr.get("user", ""),
+            "has_file": True,
+            "err": pr.get("error", ""),
+        }
 
     results = {}
     try:
@@ -119,8 +130,16 @@ def sync_profile_rows() -> None:
 # Worker (un hilo por imagen)
 # ─────────────────────────────────────────────────────────────────
 
-def _worker(idx: int, prompt: str, pool: WhiskPool, out_dir: str, total: int,
-            ev_q: queue.Queue, cancel_ev: threading.Event) -> dict:
+
+def _worker(
+    idx: int,
+    prompt: str,
+    pool: WhiskPool,
+    out_dir: str,
+    total: int,
+    ev_q: queue.Queue,
+    cancel_ev: threading.Event,
+) -> dict:
     """Genera la imagen idx con reintentos acotados. Ante rate-limits rota cuenta;
     ante IDs expirados renueva hasta un maximo; ante bloqueo de contenido u otros
     fallos persistentes omite la imagen y el lote sigue (render con parciales)."""
@@ -175,8 +194,11 @@ def _worker(idx: int, prompt: str, pool: WhiskPool, out_dir: str, total: int,
             ev_q.put(("done", idx))
             return {"idx": idx, "ok": True, "path": path}
 
-        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout,
-                requests.exceptions.Timeout):
+        except (
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.Timeout,
+        ):
             pool.release_client(client)
             timeout_streak += 1
             wait = min(2 * timeout_streak, 10)
@@ -220,16 +242,29 @@ def _worker(idx: int, prompt: str, pool: WhiskPool, out_dir: str, total: int,
 
             if "429" in msg_l or "rate limit" in msg_l or "demasiadas" in msg_l:
                 pool.mark_ratelimited(client, cooldown=65.0)
-            elif any(k in msg_l for k in ("cookie", "expirada", "401", "403", "inválida", "invalida",
-                                           "unauthorized", "unauthenticated")):
+            elif any(
+                k in msg_l
+                for k in (
+                    "cookie",
+                    "expirada",
+                    "401",
+                    "403",
+                    "inválida",
+                    "invalida",
+                    "unauthorized",
+                    "unauthenticated",
+                )
+            ):
                 client._log(f"Sesion invalida [{idx + 1}] - renovando...")
                 pool.mark_ratelimited(client, cooldown=20.0)
                 pool.reset_client_async(client)
             else:
                 pool.release_client(client)
                 wait = min(5 * attempt, 30)
-                client._log(f"[WARNING] Error [{idx + 1}] intento {attempt}: {str(exc)[:120]} "
-                            f"- reintentando en {wait}s")
+                client._log(
+                    f"[WARNING] Error [{idx + 1}] intento {attempt}: {str(exc)[:120]} "
+                    f"- reintentando en {wait}s"
+                )
                 for _ in range(wait):
                     if cancel_ev.is_set() or _cancel_requested():
                         break
@@ -254,8 +289,10 @@ def _worker(idx: int, prompt: str, pool: WhiskPool, out_dir: str, total: int,
                 client._log(f"Timeout inesperado [{idx + 1}] - reintentando en {wait}s...")
             else:
                 wait = min(5 * attempt, 30)
-                client._log(f"[WARNING] Error inesperado [{idx + 1}] intento {attempt}: "
-                            f"{str(exc)[:120]} - reintentando en {wait}s")
+                client._log(
+                    f"[WARNING] Error inesperado [{idx + 1}] intento {attempt}: "
+                    f"{str(exc)[:120]} - reintentando en {wait}s"
+                )
             for _ in range(wait):
                 if cancel_ev.is_set() or _cancel_requested():
                     break
@@ -270,11 +307,11 @@ def _make_placeholder_image() -> str | None:
         placeholder = tempfile.mktemp(suffix=".jpg")
         try:
             from PIL import Image
+
             img = Image.new("RGB", (512, 288), (245, 245, 245))
             img.save(placeholder, "JPEG", quality=85)
         except ImportError:
-            jpeg = (b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
-                    b"\xff\xd9")
+            jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" b"\xff\xd9"
             Path(placeholder).write_bytes(jpeg)
         _log("Sin imagen de referencia - usando placeholder neutro")
         return placeholder
@@ -299,8 +336,9 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
         _state["step"] = "idle"
         return
 
-    slot_clients = [WhiskClient(b.cookie, label=f"C{b.label[1]}S{s}")
-                    for b in base for s in range(slots_per_acc)]
+    slot_clients = [
+        WhiskClient(b.cookie, label=f"C{b.label[1]}S{s}") for b in base for s in range(slots_per_acc)
+    ]
 
     total = len(prompts)
     n_slots = len(slot_clients)
@@ -330,9 +368,11 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
 
     if not with_project:
         tail = "\n".join(_state.get("log", [])[-40:])
-        msg = ("Whisk: sesion expirada (HTTP 401). Reinicia sesion en Google Labs / Whisk y vuelve a exportar cookies."
-               if ("401" in tail or "Unauthorized" in tail)
-               else "Whisk: no se pudo crear ningun proyecto (cookies invalidas o sin acceso).")
+        msg = (
+            "Whisk: sesion expirada (HTTP 401). Reinicia sesion en Google Labs / Whisk y vuelve a exportar cookies."
+            if ("401" in tail or "Unauthorized" in tail)
+            else "Whisk: no se pudo crear ningun proyecto (cookies invalidas o sin acceso)."
+        )
         _log("[ERROR] Ningun slot pudo crear proyecto. Verifica las cookies.")
         with _lock:
             _state["last_error"] = msg
@@ -380,7 +420,9 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
             except Exception as exc:
                 if attempt < 2:
                     wait = 4 * (attempt + 1)
-                    c._log(f"[WARNING] upload_subject intento {attempt + 1}/3: {exc} - reintentando en {wait}s...")
+                    c._log(
+                        f"[WARNING] upload_subject intento {attempt + 1}/3: {exc} - reintentando en {wait}s..."
+                    )
                     time.sleep(wait)
                 else:
                     c._log(f"[ERROR] upload_subject fallido tras 3 intentos: {exc} - slot descartado")
@@ -408,8 +450,9 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
 
     cancel_ev = threading.Event()
     ev_q: queue.Queue = queue.Queue()
-    pool = WhiskPool(ready, subj_path, jobs_for=lambda c: _state["accounts"][WhiskPool._acc_id(c)].get("jobs", 0),
-                      log=_log)
+    pool = WhiskPool(
+        ready, subj_path, jobs_for=lambda c: _state["accounts"][WhiskPool._acc_id(c)].get("jobs", 0), log=_log
+    )
 
     executor = ThreadPoolExecutor(max_workers=len(ready))
     active: dict = {}
@@ -461,8 +504,10 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
                         if new_p < target_parallel:
                             target_parallel = new_p
                             conn_cooldown_until = now + 8.0
-                            _log(f"Conectividad inestable detectada ({len(conn_events)} errores/45s) "
-                                 f"--> bajando paralelismo a {target_parallel} slot(s).")
+                            _log(
+                                f"Conectividad inestable detectada ({len(conn_events)} errores/45s) "
+                                f"--> bajando paralelismo a {target_parallel} slot(s)."
+                            )
                     continue
                 if ev_type in ("done", "fail"):
                     with _lock:
@@ -515,8 +560,10 @@ def _run_batch_core(prompts: list[str], slots_per_acc: int, subj_path: str | Non
         got = int(_state.get("images_saved") or 0)
         missing = max(0, total - got)
         if missing:
-            _log(f"Lote terminado. {got}/{total} imagenes guardadas ({missing} omitidas). "
-                 "Puedes renderizar con las existentes.")
+            _log(
+                f"Lote terminado. {got}/{total} imagenes guardadas ({missing} omitidas). "
+                "Puedes renderizar con las existentes."
+            )
         else:
             _log(f"Completado. {got}/{total} imagenes.")
         _state["last_error"] = None
@@ -547,6 +594,7 @@ def _run_batch(prompts: list[str], slots_per_acc: int, subj_path: str | None, ou
 # ─────────────────────────────────────────────────────────────────
 # API publica
 # ─────────────────────────────────────────────────────────────────
+
 
 def get_status() -> dict:
     with _lock:
@@ -597,6 +645,7 @@ def clear_images() -> None:
 
 def open_output_folder() -> str:
     from src.utils.platform_utils import open_folder
+
     target = str(_state.get("output_dir") or get_whisk_downloads_dir())
     if not os.path.isdir(target):
         raise FileNotFoundError("Carpeta no disponible")
@@ -611,14 +660,18 @@ def check_login() -> list[dict]:
         pass
     with _lock:
         return [
-            {"id": i, "logged_in": bool(_state["accounts"][i].get("logged_in")),
-             "user": _state["accounts"][i].get("user", "")}
+            {
+                "id": i,
+                "logged_in": bool(_state["accounts"][i].get("logged_in")),
+                "user": _state["accounts"][i].get("user", ""),
+            }
             for i in range(NUM_ACCOUNTS)
         ]
 
 
 def login_with_cookie(profile_id: int, cookie: str) -> dict:
     from src.infrastructure.ai_providers.whisk_client import clean_cookie
+
     ck = clean_cookie(cookie)
     result = WhiskClient(ck, label=f"C{profile_id}").test_auth()
     if not result["ok"]:
@@ -645,7 +698,9 @@ def _playwright_login(profile_id: int) -> None:
         with sync_playwright() as pw:
             exe = find_chromium_exe()
             ctx = pw.chromium.launch_persistent_context(
-                profile_dir, headless=False, executable_path=exe,
+                profile_dir,
+                headless=False,
+                executable_path=exe,
                 args=["--no-first-run", "--disable-blink-features=AutomationControlled"],
                 ignore_https_errors=True,
             )
@@ -662,9 +717,14 @@ def _playwright_login(profile_id: int) -> None:
                 except Exception:
                     break
 
-                google_ck = [c for c in cookies if any(
-                    d in c.get("domain", "") for d in
-                    ("labs.google", "google.com", "accounts.google.com", "googleapis.com"))]
+                google_ck = [
+                    c
+                    for c in cookies
+                    if any(
+                        d in c.get("domain", "")
+                        for d in ("labs.google", "google.com", "accounts.google.com", "googleapis.com")
+                    )
+                ]
                 auth_names = {"SID", "__Secure-1PSID", "__Secure-3PSID", "SAPISID", "APISID"}
                 has_auth = any(c["name"] in auth_names for c in google_ck)
 
@@ -736,6 +796,7 @@ def run_prompts(prompts: list[str], slots: int, repeat: int, output_dir: str) ->
     out_dir = output_dir.strip() or str(get_whisk_downloads_dir())
 
     import uuid
+
     raw_prompts = [p for p in prompts for _ in range(repeat)]
     all_prompts = [p + f" [v{i + 1}-{uuid.uuid4().hex[:6]}]" for i, p in enumerate(raw_prompts)]
     total = len(all_prompts)
@@ -752,18 +813,40 @@ def run_prompts(prompts: list[str], slots: int, repeat: int, output_dir: str) ->
 
     _stop_event.clear()
     with _lock:
-        prev = {i: {"logged_in": _state["accounts"][i].get("logged_in", False),
-                     "user": _state["accounts"][i].get("user", "")}
-                for i in range(NUM_ACCOUNTS)}
-        _state.update({
-            "running": True, "step": "running", "progress": 0, "total": total,
-            "images_saved": 0, "log": [], "output_dir": out_dir, "last_error": None,
-            "accounts": [{"id": i, "status": "idle", "slots": [], "jobs": 0,
-                          "logged_in": prev[i]["logged_in"], "user": prev[i]["user"]}
-                         for i in range(NUM_ACCOUNTS)],
-        })
+        prev = {
+            i: {
+                "logged_in": _state["accounts"][i].get("logged_in", False),
+                "user": _state["accounts"][i].get("user", ""),
+            }
+            for i in range(NUM_ACCOUNTS)
+        }
+        _state.update(
+            {
+                "running": True,
+                "step": "running",
+                "progress": 0,
+                "total": total,
+                "images_saved": 0,
+                "log": [],
+                "output_dir": out_dir,
+                "last_error": None,
+                "accounts": [
+                    {
+                        "id": i,
+                        "status": "idle",
+                        "slots": [],
+                        "jobs": 0,
+                        "logged_in": prev[i]["logged_in"],
+                        "user": prev[i]["user"],
+                    }
+                    for i in range(NUM_ACCOUNTS)
+                ],
+            }
+        )
 
-    threading.Thread(target=_run_batch, args=(all_prompts, slots, _subject_path[0], out_dir), daemon=True).start()
+    threading.Thread(
+        target=_run_batch, args=(all_prompts, slots, _subject_path[0], out_dir), daemon=True
+    ).start()
     return {"total": total, "message": f"{total} imagen(es) en cola - {slots} slot(s)"}
 
 

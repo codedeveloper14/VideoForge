@@ -79,7 +79,8 @@ def test_assign_timestamps_auto_usa_word_level_cuando_matchea_bien():
     fallback_calls = []
 
     resultado = sts.assign_timestamps_auto(
-        escenas, [], all_words, duracion_total=2.0, on_fallback=lambda *a: fallback_calls.append(a))
+        escenas, [], all_words, duracion_total=2.0, on_fallback=lambda *a: fallback_calls.append(a)
+    )
 
     assert resultado[0]["score"] > 0
     assert not fallback_calls  # no debio caer al fallback, matcheo bien
@@ -91,8 +92,10 @@ def test_assign_timestamps_auto_cae_a_segment_level_si_word_level_falla_al_final
     # matchea cae muy tarde en el audio (>85% de la duracion) -- dispara la heuristica
     # de fallback a segment-level (>40% sin match Y ultimo match tardio).
     escenas = [
-        "palabra faltante uno", "palabra faltante dos",
-        "palabra faltante tres", "palabra faltante cuatro",
+        "palabra faltante uno",
+        "palabra faltante dos",
+        "palabra faltante tres",
+        "palabra faltante cuatro",
         "frase objetivo especial",
     ]
     duracion_total = 20.0
@@ -101,8 +104,8 @@ def test_assign_timestamps_auto_cae_a_segment_level_si_word_level_falla_al_final
     fallback_calls = []
 
     resultado = sts.assign_timestamps_auto(
-        escenas, segmentos, all_words, duracion_total,
-        on_fallback=lambda *a: fallback_calls.append(a))
+        escenas, segmentos, all_words, duracion_total, on_fallback=lambda *a: fallback_calls.append(a)
+    )
 
     assert fallback_calls, "deberia haber invocado on_fallback"
     assert resultado == sts.asignar_timestamps(escenas, segmentos, duracion_total)

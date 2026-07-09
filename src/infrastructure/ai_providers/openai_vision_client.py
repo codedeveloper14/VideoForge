@@ -84,8 +84,8 @@ def parse_vision_output(txt: str) -> str:
 
 def analyze_image_b64(b64: str, mime: str) -> dict:
     """Analiza imagen (OpenAI Vision). Devuelve:
-      ok True  -> {"ok": True, "descripcion_completa": str, "ancla_prompt": str, "json": dict|None}
-      ok False -> {"ok": False, "error": str, "status": int, ...}
+    ok True  -> {"ok": True, "descripcion_completa": str, "ancla_prompt": str, "json": dict|None}
+    ok False -> {"ok": False, "error": str, "status": int, ...}
     """
     b64 = re.sub(r"[\s\r\n]+", "", (b64 or "").strip())
     mime = (mime or "image/png").strip() or "image/png"
@@ -129,13 +129,15 @@ def analyze_image_b64(b64: str, mime: str) -> dict:
 
     payload = {
         "model": (os.environ.get("OPENAI_IMAGE_MODEL") or "gpt-4o-mini").strip(),
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": _IMAGE_ANALYZE_PROMPT},
-                {"type": "image_url", "image_url": {"url": data_url, "detail": img_detail}},
-            ],
-        }],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": _IMAGE_ANALYZE_PROMPT},
+                    {"type": "image_url", "image_url": {"url": data_url, "detail": img_detail}},
+                ],
+            }
+        ],
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
@@ -154,7 +156,13 @@ def analyze_image_b64(b64: str, mime: str) -> dict:
             err = r.json()
         except Exception:
             err = {"raw": r.text[:400]}
-        return {"ok": False, "error": "OpenAI HTTP error", "status": 502, "detail": err, "http_status": r.status_code}
+        return {
+            "ok": False,
+            "error": "OpenAI HTTP error",
+            "status": 502,
+            "detail": err,
+            "http_status": r.status_code,
+        }
 
     try:
         d = r.json()

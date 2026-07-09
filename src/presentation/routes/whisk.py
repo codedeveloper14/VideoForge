@@ -6,7 +6,6 @@ from src.presentation.schemas.whisk import (
     PollinationGenerateInSchema,
     WhiskLoginInSchema,
     WhiskRunPromptsInSchema,
-    WhiskSetSubjectInSchema,
 )
 
 whisk_bp = APIBlueprint("whisk", __name__, url_prefix="/api/whisk")
@@ -26,8 +25,14 @@ def status():
     try:
         return jsonify(whisk_service.get_status())
     except Exception as exc:
-        return jsonify({"error": str(exc), "running": False, "step": "idle",
-                         "playwright_ok": whisk_service.playwright_installed()})
+        return jsonify(
+            {
+                "error": str(exc),
+                "running": False,
+                "step": "idle",
+                "playwright_ok": whisk_service.playwright_installed(),
+            }
+        )
 
 
 @whisk_bp.post("/abrir_carpeta")
@@ -122,7 +127,9 @@ def set_subject():
 def run_prompts(json_data):
     prompts = _parse_prompts(json_data["prompts"])
     try:
-        result = whisk_service.run_prompts(prompts, json_data["slots"], json_data["repeat"], json_data["output_dir"])
+        result = whisk_service.run_prompts(
+            prompts, json_data["slots"], json_data["repeat"], json_data["output_dir"]
+        )
         return jsonify(ok=True, **result)
     except (ValueError, RuntimeError) as exc:
         return jsonify(error=str(exc)), 400
@@ -134,7 +141,11 @@ def pollination_generate(json_data):
     prompts = _parse_prompts(json_data["prompts"])
     try:
         result = whisk_service.pollination_generate(
-            prompts, json_data["ratio"], json_data["width"], json_data["height"], json_data["output_dir"],
+            prompts,
+            json_data["ratio"],
+            json_data["width"],
+            json_data["height"],
+            json_data["output_dir"],
         )
         return jsonify(ok=True, **result)
     except ValueError as exc:

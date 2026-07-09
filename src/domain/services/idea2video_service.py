@@ -93,38 +93,54 @@ _TONE_DATA = {
 }
 
 _ANGLE_TEMPLATE = [
-    ("CONTEXTO",
-     "Para entender {topic}, hay que ver el panorama completo.\n"
-     "No basta con la superficie: cada capa que se descubre\n"
-     "revela dimensiones que cambian por completo la perspectiva."),
-    ("PROFUNDIDAD",
-     "¿Que hay realmente detras de {topic}?\n"
-     "Los detalles que la mayoria pasa por alto\n"
-     "son precisamente los que marcan la diferencia definitiva."),
-    ("IMPACTO REAL",
-     "{topic} tiene consecuencias concretas, no abstractas.\n"
-     "No en un futuro lejano: ahora mismo, hoy.\n"
-     "Quienes lo entienden ya llevan una ventaja decisiva."),
-    ("PERSPECTIVA",
-     "Visto desde otro angulo, {topic} revela patrones\n"
-     "que no son evidentes a primera vista.\n"
-     "La informacion mas valiosa raramente esta en la superficie."),
-    ("LO QUE NADIE DICE",
-     "Hay aspectos de {topic} que pocas veces se mencionan.\n"
-     "No porque no sean importantes,\n"
-     "sino porque requieren un nivel mas profundo de analisis."),
-    ("MOMENTO ACTUAL",
-     "{topic} es mas relevante hoy que en cualquier otro momento.\n"
-     "Las circunstancias actuales crean una convergencia unica.\n"
-     "Este tipo de alineacion no se repite con frecuencia."),
-    ("EL FACTOR DECISIVO",
-     "De todos los elementos que rodean a {topic},\n"
-     "hay uno que lo determina todo.\n"
-     "Identificarlo es la diferencia entre el acierto y el error."),
-    ("EVIDENCIA",
-     "Los hechos sobre {topic} son elocuentes.\n"
-     "No se trata de opiniones ni interpretaciones subjetivas.\n"
-     "Las tendencias apuntan de forma inequivoca en una direccion."),
+    (
+        "CONTEXTO",
+        "Para entender {topic}, hay que ver el panorama completo.\n"
+        "No basta con la superficie: cada capa que se descubre\n"
+        "revela dimensiones que cambian por completo la perspectiva.",
+    ),
+    (
+        "PROFUNDIDAD",
+        "¿Que hay realmente detras de {topic}?\n"
+        "Los detalles que la mayoria pasa por alto\n"
+        "son precisamente los que marcan la diferencia definitiva.",
+    ),
+    (
+        "IMPACTO REAL",
+        "{topic} tiene consecuencias concretas, no abstractas.\n"
+        "No en un futuro lejano: ahora mismo, hoy.\n"
+        "Quienes lo entienden ya llevan una ventaja decisiva.",
+    ),
+    (
+        "PERSPECTIVA",
+        "Visto desde otro angulo, {topic} revela patrones\n"
+        "que no son evidentes a primera vista.\n"
+        "La informacion mas valiosa raramente esta en la superficie.",
+    ),
+    (
+        "LO QUE NADIE DICE",
+        "Hay aspectos de {topic} que pocas veces se mencionan.\n"
+        "No porque no sean importantes,\n"
+        "sino porque requieren un nivel mas profundo de analisis.",
+    ),
+    (
+        "MOMENTO ACTUAL",
+        "{topic} es mas relevante hoy que en cualquier otro momento.\n"
+        "Las circunstancias actuales crean una convergencia unica.\n"
+        "Este tipo de alineacion no se repite con frecuencia.",
+    ),
+    (
+        "EL FACTOR DECISIVO",
+        "De todos los elementos que rodean a {topic},\n"
+        "hay uno que lo determina todo.\n"
+        "Identificarlo es la diferencia entre el acierto y el error.",
+    ),
+    (
+        "EVIDENCIA",
+        "Los hechos sobre {topic} son elocuentes.\n"
+        "No se trata de opiniones ni interpretaciones subjetivas.\n"
+        "Las tendencias apuntan de forma inequivoca en una direccion.",
+    ),
 ]
 
 
@@ -208,11 +224,13 @@ def _call_claude(idea: str, dur_sec: int, style: str, tone: str, audience: str, 
             f"Incluye: gancho impactante, desarrollo, climax, CTA al cierre. "
             f"Solo el guion, sin explicaciones."
         )
-        payload = json.dumps({
-            "model": "claude-haiku-4-5-20251001",
-            "max_tokens": 4096,
-            "messages": [{"role": "user", "content": prompt}],
-        }).encode()
+        payload = json.dumps(
+            {
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 4096,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+        ).encode()
         ctx = ssl.create_default_context()
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
@@ -305,7 +323,9 @@ def start_autopilot(script: str, title: str, voice_id: str, ref_image: str | Non
     _jobs[job_id] = {
         "status": "running",
         "phase": "",
-        "phases": {k: "pending" for k in ("recursos", "fragmentar", "prompts", "voz", "imagenes", "ensamblar")},
+        "phases": {
+            k: "pending" for k in ("recursos", "fragmentar", "prompts", "voz", "imagenes", "ensamblar")
+        },
         "images": [],
         "log": [],
         "title": title or "video_autopilot",
@@ -385,7 +405,8 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
         prompts_dir = proj_dir / "prompts"
         prompts_dir.mkdir(exist_ok=True)
         (prompts_dir / "prompts.txt").write_text(
-            "\n".join(f"{i + 1}. {p}" for i, p in enumerate(prompts)), encoding="utf-8")
+            "\n".join(f"{i + 1}. {p}" for i, p in enumerate(prompts)), encoding="utf-8"
+        )
         time.sleep(0.6)
         upd("prompts", "done", f"{len(prompts)} prompts guardados")
 
@@ -403,7 +424,8 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                 if gen.get("status_code") == 200 and gen.get("fragments"):
                     upd("voz", "active", f"Fusionando {len(gen['fragments'])} fragmentos de audio...")
                     body, status = voice_service.merge_audio(
-                        proj_name, {"fragments": gen["fragments"], "voice_id": voice_id})
+                        proj_name, {"fragments": gen["fragments"], "voice_id": voice_id}
+                    )
                     if status < 400:
                         parsed = json.loads(body)
                         raw = parsed[0] if isinstance(parsed, list) else parsed
@@ -430,9 +452,14 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
             already_flow = False
             try:
                 flow_animation_service.start_run(
-                    prompts=prompts, out_dir=str(img_dir), slots=5,
-                    aspect="IMAGE_ASPECT_RATIO_LANDSCAPE", model=ap_model,
-                    max_retries=2, ref_image=ref_image, auto_open=True,
+                    prompts=prompts,
+                    out_dir=str(img_dir),
+                    slots=5,
+                    aspect="IMAGE_ASPECT_RATIO_LANDSCAPE",
+                    model=ap_model,
+                    max_retries=2,
+                    ref_image=ref_image,
+                    auto_open=True,
                 )
             except RuntimeError:
                 already_flow = True
@@ -458,7 +485,11 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
             if n_img > 0:
                 upd("imagenes", "done", f"{n_img} imagenes generadas con Flow")
             else:
-                upd("imagenes", "partial", "Sin imagenes — verifica cuentas Flow y que los browsers esten conectados")
+                upd(
+                    "imagenes",
+                    "partial",
+                    "Sin imagenes — verifica cuentas Flow y que los browsers esten conectados",
+                )
         else:
             upd("imagenes", "skip", "Sin prompts de imagen")
 
@@ -466,17 +497,16 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
         upd("ensamblar", "active", "Ensamblando video final...")
         try:
             imgs = sorted(
-                glob.glob(str(proj_dir / "imagenes" / "*.png")) +
-                glob.glob(str(proj_dir / "imagenes" / "*.jpg")) +
-                glob.glob(str(proj_dir / "imagenes" / "*.webp")),
+                glob.glob(str(proj_dir / "imagenes" / "*.png"))
+                + glob.glob(str(proj_dir / "imagenes" / "*.jpg"))
+                + glob.glob(str(proj_dir / "imagenes" / "*.webp")),
                 key=lambda p: os.path.basename(p),
             )
             if not imgs:
                 raise Exception("Sin imagenes para ensamblar")
 
             aud_files = sorted(
-                glob.glob(str(proj_dir / "audio" / "*.wav")) +
-                glob.glob(str(proj_dir / "audio" / "*.mp3"))
+                glob.glob(str(proj_dir / "audio" / "*.wav")) + glob.glob(str(proj_dir / "audio" / "*.mp3"))
             )
             audio = aud_files[0] if aud_files else None
             vf_dir = proj_dir / "video_final"
@@ -487,25 +517,32 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                 upd("ensamblar", "active", "Analizando audio con WhisperX...")
                 scenes_txt = job.get("_scenes_list") or [p for p in script.split("\n\n") if p.strip()]
                 aud_dur = ffmpeg_utils.ffprobe_duration(audio) if audio else 0.0
-                segmentos, all_words = [], None
-                try:
-                    job["current_detail"] = "WhisperX: alineando palabras..."
-                    segmentos, all_words, backend = whisper_client.transcribe_with_fallback(audio)
-                    job["current_detail"] = f"WhisperX ({backend}): {len(all_words)} palabras alineadas"
-                except Exception as wex:
-                    job["log"].append(f"WhisperX fallo ({wex}), usando duracion igual por escena")
+                segmentos: list[dict] = []
+                all_words: list[dict] | None = None
+                if audio:
+                    try:
+                        job["current_detail"] = "WhisperX: alineando palabras..."
+                        segmentos, all_words, backend = whisper_client.transcribe_with_fallback(audio)
+                        job["current_detail"] = f"WhisperX ({backend}): {len(all_words)} palabras alineadas"
+                    except Exception as wex:
+                        job["log"].append(f"WhisperX fallo ({wex}), usando duracion igual por escena")
+                else:
+                    job["log"].append("Sin audio -- timing proporcional en vez de WhisperX")
 
                 def _on_fallback(unmatched, total, last_ok, dur):
                     job["log"].append(f"Word-level anomalo ({unmatched}/{total}) → segment-level fallback")
 
                 if scenes_txt and aud_dur > 0:
                     ts_list = scene_timestamp_service.assign_timestamps_auto(
-                        scenes_txt, segmentos, all_words, aud_dur, on_fallback=_on_fallback)
+                        scenes_txt, segmentos, all_words, aud_dur, on_fallback=_on_fallback
+                    )
                 else:
                     n_s = max(1, len(scenes_txt) or len(imgs))
                     d_s = aud_dur / n_s if aud_dur > 0 else 3.0
-                    ts_list = [{"inicio": i * d_s, "fin": (i + 1) * d_s, "duracion": d_s, "scene_idx": i}
-                               for i in range(n_s)]
+                    ts_list = [
+                        {"inicio": i * d_s, "fin": (i + 1) * d_s, "duracion": d_s, "scene_idx": i}
+                        for i in range(n_s)
+                    ]
 
                 upd("ensamblar", "active", f"Renderizando {len(ts_list)} escenas con FFmpeg...")
                 n_imgs = len(imgs)
@@ -517,26 +554,74 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                         dur = max(0.1, ts.get("duracion", 1.0))
                         pp = imgs[sidx].replace("\\", "/").replace("'", "'\\''")
                         clf.write(f"file '{pp}'\nduration {dur:.3f}\n")
-                    last_sidx = min((ts_list[-1].get("scene_idx", n_imgs - 1) if ts_list else n_imgs - 1), n_imgs - 1)
+                    last_sidx = min(
+                        (ts_list[-1].get("scene_idx", n_imgs - 1) if ts_list else n_imgs - 1), n_imgs - 1
+                    )
                     pp_last = imgs[last_sidx].replace("\\", "/").replace("'", "'\\''")
                     clf.write(f"file '{pp_last}'\n")
 
-                r1 = subprocess.run([
-                    "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_path,
-                    "-vf", ("scale=1920:1080:force_original_aspect_ratio=decrease,"
-                            "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p"),
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-                    "-r", "24", "-an", "-movflags", "+faststart", tmp_vid,
-                ], capture_output=True, text=True, **no_window_kwargs())
+                r1 = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        concat_path,
+                        "-vf",
+                        (
+                            "scale=1920:1080:force_original_aspect_ratio=decrease,"
+                            "pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p"
+                        ),
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "fast",
+                        "-crf",
+                        "18",
+                        "-r",
+                        "24",
+                        "-an",
+                        "-movflags",
+                        "+faststart",
+                        tmp_vid,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    **no_window_kwargs(),
+                )
                 if r1.returncode != 0:
                     raise Exception(f"FFmpeg profesional fallo: {r1.stderr[-300:]}")
-                r2 = subprocess.run([
-                    "ffmpeg", "-y", "-i", tmp_vid, "-i", audio,
-                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                    "-shortest", "-movflags", "+faststart", final_mp4,
-                ], capture_output=True, text=True, **no_window_kwargs())
-                if r2.returncode != 0:
-                    raise Exception(f"FFmpeg mux profesional fallo: {r2.stderr[-300:]}")
+                if audio:
+                    r2 = subprocess.run(
+                        [
+                            "ffmpeg",
+                            "-y",
+                            "-i",
+                            tmp_vid,
+                            "-i",
+                            audio,
+                            "-c:v",
+                            "copy",
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            "192k",
+                            "-shortest",
+                            "-movflags",
+                            "+faststart",
+                            final_mp4,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        **no_window_kwargs(),
+                    )
+                    if r2.returncode != 0:
+                        raise Exception(f"FFmpeg mux profesional fallo: {r2.stderr[-300:]}")
+                else:
+                    os.rename(tmp_vid, final_mp4)
                 wx_label = f"WhisperX · {len(all_words)} palabras" if all_words else "timing proporcional"
                 upd("ensamblar", "done", f"Video profesional listo · {len(ts_list)} escenas · {wx_label}")
 
@@ -556,23 +641,66 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                     pp = imgs[-1].replace("\\", "/").replace("'", "'\\''")
                     clf.write(f"file '{pp}'\n")
 
-                r1 = subprocess.run([
-                    "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_path,
-                    "-vf", ("scale=1280:720:force_original_aspect_ratio=decrease,"
-                            "pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=24,setpts=PTS-STARTPTS"),
-                    "-c:v", "libx264", "-preset", "ultrafast", "-crf", "26",
-                    "-pix_fmt", "yuv420p", "-an", "-movflags", "+faststart", tmp_vid,
-                ], capture_output=True, text=True, **no_window_kwargs())
+                r1 = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        concat_path,
+                        "-vf",
+                        (
+                            "scale=1280:720:force_original_aspect_ratio=decrease,"
+                            "pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=24,setpts=PTS-STARTPTS"
+                        ),
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "ultrafast",
+                        "-crf",
+                        "26",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-an",
+                        "-movflags",
+                        "+faststart",
+                        tmp_vid,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    **no_window_kwargs(),
+                )
                 if r1.returncode != 0 or not os.path.exists(tmp_vid):
                     raise Exception(f"FFmpeg slideshow: {(r1.stderr or '')[-300:]}")
 
                 if audio and os.path.exists(audio):
                     upd("ensamblar", "active", "Mezclando video con audio...")
-                    r2 = subprocess.run([
-                        "ffmpeg", "-y", "-i", tmp_vid, "-i", audio,
-                        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                        "-shortest", "-movflags", "+faststart", final_mp4,
-                    ], capture_output=True, text=True, **no_window_kwargs())
+                    r2 = subprocess.run(
+                        [
+                            "ffmpeg",
+                            "-y",
+                            "-i",
+                            tmp_vid,
+                            "-i",
+                            audio,
+                            "-c:v",
+                            "copy",
+                            "-c:a",
+                            "aac",
+                            "-b:a",
+                            "192k",
+                            "-shortest",
+                            "-movflags",
+                            "+faststart",
+                            final_mp4,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        **no_window_kwargs(),
+                    )
                     if r2.returncode == 0 and os.path.exists(final_mp4):
                         try:
                             os.remove(tmp_vid)

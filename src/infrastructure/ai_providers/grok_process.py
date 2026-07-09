@@ -41,6 +41,7 @@ def spawn_worker(args: list[str], cwd: Path) -> subprocess.Popen:
 
 def _child_env() -> dict:
     import os
+
     env = os.environ.copy()
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONIOENCODING", "utf-8")

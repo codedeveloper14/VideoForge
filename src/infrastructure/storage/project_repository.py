@@ -190,9 +190,11 @@ def read_editor_plan(project: str) -> dict | None:
     """Busca el plan de edicion guardado por write_editor_plan, con los mismos
     fallbacks de ubicacion que el editor visual (proyecto/editor, raiz, guion/)."""
     proj = project_dir(project)
-    for candidate in (proj / "editor" / "plan_edicion.json",
-                      proj / "plan_edicion.json",
-                      proj / "guion" / "plan_edicion.json"):
+    for candidate in (
+        proj / "editor" / "plan_edicion.json",
+        proj / "plan_edicion.json",
+        proj / "guion" / "plan_edicion.json",
+    ):
         if candidate.exists():
             try:
                 return json.loads(candidate.read_text(encoding="utf-8"))
@@ -203,9 +205,11 @@ def read_editor_plan(project: str) -> dict | None:
 
 def find_timestamps_file(project: str) -> Path | None:
     proj = project_dir(project)
-    for candidate in (proj / "editor" / "timestamps_escenas.json",
-                      proj / "timestamps_escenas.json",
-                      proj / "guion" / "timestamps_escenas.json"):
+    for candidate in (
+        proj / "editor" / "timestamps_escenas.json",
+        proj / "timestamps_escenas.json",
+        proj / "guion" / "timestamps_escenas.json",
+    ):
         if candidate.exists():
             return candidate
     return None

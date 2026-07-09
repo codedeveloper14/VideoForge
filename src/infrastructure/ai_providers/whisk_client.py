@@ -2,7 +2,7 @@ import base64
 import os
 import random
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import requests
 
@@ -21,8 +21,10 @@ _W_MAX_BYTES = 4 * 1024 * 1024
 LABS_TLS_POOL = max(1, min(48, int(os.environ.get("WHISK_LABS_PARALLEL", "12"))))
 
 _LABS_HEADERS_BASE = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
     "Accept": "*/*",
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
     "Origin": "https://labs.google",
@@ -43,10 +45,21 @@ def mk_https_session(pool_maxsize: int) -> requests.Session:
         return requests.Session()
 
     s = requests.Session()
-    retry = Retry(total=0, connect=0, read=0, redirect=0, status=0,
-                   allowed_methods=frozenset(["GET", "POST"]), raise_on_status=False)
-    adapter = HTTPAdapter(pool_connections=max(1, pool_maxsize), pool_maxsize=max(1, pool_maxsize),
-                           max_retries=retry, pool_block=True)
+    retry = Retry(
+        total=0,
+        connect=0,
+        read=0,
+        redirect=0,
+        status=0,
+        allowed_methods=frozenset(["GET", "POST"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(
+        pool_connections=max(1, pool_maxsize),
+        pool_maxsize=max(1, pool_maxsize),
+        max_retries=retry,
+        pool_block=True,
+    )
     s.mount("https://", adapter)
     return s
 
@@ -72,10 +85,14 @@ def labs_request(method: str, url: str, **kwargs):
     for attempt in range(6):
         try:
             return _LABS_SESSION.request(method.upper(), url, timeout=timeout, **kwargs)
-        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError,
-                requests.exceptions.ChunkedEncodingError, requests.exceptions.Timeout) as exc:
+        except (
+            requests.exceptions.SSLError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.Timeout,
+        ) as exc:
             last_err = exc
-            time.sleep(min(6.0, 0.5 * (2 ** attempt)) + random.random() * 0.25)
+            time.sleep(min(6.0, 0.5 * (2**attempt)) + random.random() * 0.25)
     raise last_err
 
 
@@ -86,19 +103,25 @@ def ais_request(url: str, **kwargs):
     for attempt in range(4):
         try:
             return _AIS_SESSION.post(url, timeout=timeout, **kwargs)
-        except (requests.exceptions.SSLError, requests.exceptions.ConnectionError,
-                requests.exceptions.ChunkedEncodingError, requests.exceptions.Timeout) as exc:
+        except (
+            requests.exceptions.SSLError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.Timeout,
+        ) as exc:
             last_err = exc
-            time.sleep(min(4.0, 0.45 * (2 ** attempt)) + random.random() * 0.20)
+            time.sleep(min(4.0, 0.45 * (2**attempt)) + random.random() * 0.20)
     raise last_err
 
 
 def clean_cookie(raw: str) -> str:
     attrs = {"path", "expires", "domain", "max-age", "httponly", "secure", "samesite", "partitioned"}
     parts = [p.strip() for p in (raw or "").split(";") if p.strip()]
-    return "; ".join(p for p in parts if not (
-        ("=" in p and p.split("=", 1)[0].strip().lower() in attrs) or p.strip().lower() in attrs
-    ))
+    return "; ".join(
+        p
+        for p in parts
+        if not (("=" in p and p.split("=", 1)[0].strip().lower() in attrs) or p.strip().lower() in attrs)
+    )
 
 
 def probe_session(cookie: str) -> dict:
@@ -127,7 +150,9 @@ def resize_if_needed(raw: bytes) -> bytes:
         return raw
     try:
         import io
+
         from PIL import Image
+
         img = Image.open(io.BytesIO(raw))
         if img.mode == "RGBA":
             img = img.convert("RGB")
@@ -135,7 +160,7 @@ def resize_if_needed(raw: bytes) -> bytes:
             buf = io.BytesIO()
             w, h = img.size
             if q < 70:
-                img = img.resize((int(w * .7), int(h * .7)), Image.LANCZOS)
+                img = img.resize((int(w * 0.7), int(h * 0.7)), Image.LANCZOS)
             img.save(buf, format="JPEG", quality=q)
             if len(buf.getvalue()) <= _W_MAX_BYTES:
                 return buf.getvalue()
@@ -194,8 +219,8 @@ class WhiskClient:
 
     def _get_token(self) -> str:
         if self._token and self._expiry:
-            exp = self._expiry if self._expiry.tzinfo else self._expiry.replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) < exp:
+            exp = self._expiry if self._expiry.tzinfo else self._expiry.replace(tzinfo=UTC)
+            if datetime.now(UTC) < exp:
                 return self._token
         return self._refresh_token()
 
@@ -210,19 +235,29 @@ class WhiskClient:
         return {"cookie": self.cookie, "Content-Type": "application/json"}
 
     def _bearer_headers(self) -> dict:
-        return {"Authorization": f"Bearer {self._get_token()}", "Content-Type": "application/json",
-                "Referer": "https://labs.google/"}
+        return {
+            "Authorization": f"Bearer {self._get_token()}",
+            "Content-Type": "application/json",
+            "Referer": "https://labs.google/",
+        }
 
     def create_project(self) -> str:
         name = "Batch-" + datetime.now().strftime("%Y%m%d-%H%M%S")
-        r = labs_request("POST", _W_WORKFLOW, headers=self._cookie_headers(),
-                          json={"json": {"workflowMetadata": {"workflowName": name}}}, timeout=(15, 60))
+        r = labs_request(
+            "POST",
+            _W_WORKFLOW,
+            headers=self._cookie_headers(),
+            json={"json": {"workflowMetadata": {"workflowName": name}}},
+            timeout=(15, 60),
+        )
         if r.status_code != 200:
             raise RuntimeError(f"create_project HTTP {r.status_code}: {r.text[:120]}")
         d = r.json()
         wid = None
-        for path in (["result", "data", "json", "result", "workflowId"],
-                     ["result", "data", "json", "workflowId"]):
+        for path in (
+            ["result", "data", "json", "result", "workflowId"],
+            ["result", "data", "json", "workflowId"],
+        ):
             try:
                 v = d
                 for k in path:
@@ -237,10 +272,15 @@ class WhiskClient:
         return wid
 
     def _caption(self, b64: str, wid: str) -> str:
-        body = {"json": {"captionInput": {"candidatesCount": 1,
-                                           "mediaInput": {"mediaCategory": "MEDIA_CATEGORY_SUBJECT",
-                                                          "rawBytes": b64}},
-                          "clientContext": {"workflowId": wid}}}
+        body = {
+            "json": {
+                "captionInput": {
+                    "candidatesCount": 1,
+                    "mediaInput": {"mediaCategory": "MEDIA_CATEGORY_SUBJECT", "rawBytes": b64},
+                },
+                "clientContext": {"workflowId": wid},
+            }
+        }
         r = labs_request("POST", _W_CAPTION, headers=self._cookie_headers(), json=body, timeout=(12, 60))
         if r.status_code != 200:
             raise RuntimeError(f"caption HTTP {r.status_code}")
@@ -251,14 +291,23 @@ class WhiskClient:
             return "A character"
 
     def _upload_img(self, b64: str, caption: str, wid: str) -> str:
-        body = {"json": {"clientContext": {"workflowId": wid},
-                          "uploadMediaInput": {"mediaCategory": "MEDIA_CATEGORY_SUBJECT",
-                                               "rawBytes": b64, "caption": caption}}}
+        body = {
+            "json": {
+                "clientContext": {"workflowId": wid},
+                "uploadMediaInput": {
+                    "mediaCategory": "MEDIA_CATEGORY_SUBJECT",
+                    "rawBytes": b64,
+                    "caption": caption,
+                },
+            }
+        }
         last_err = None
         r = None
         for attempt in range(4):
             try:
-                r = labs_request("POST", _W_UPLOAD, headers=self._cookie_headers(), json=body, timeout=(12, 60))
+                r = labs_request(
+                    "POST", _W_UPLOAD, headers=self._cookie_headers(), json=body, timeout=(12, 60)
+                )
                 if r.status_code == 200:
                     break
                 if r.status_code in (500, 502, 503) and attempt < 3:
@@ -279,8 +328,10 @@ class WhiskClient:
             raise RuntimeError(f"upload fallo tras 4 intentos: {last_err}")
         d = r.json()
         mid = None
-        for path in (["result", "data", "json", "result", "uploadMediaGenerationId"],
-                     ["result", "data", "json", "uploadMediaGenerationId"]):
+        for path in (
+            ["result", "data", "json", "result", "uploadMediaGenerationId"],
+            ["result", "data", "json", "uploadMediaGenerationId"],
+        ):
             try:
                 v = d
                 for k in path:
@@ -304,10 +355,16 @@ class WhiskClient:
         """Genera imagen y devuelve los bytes PNG/JPEG directamente."""
         if not self.subject_refs:
             raise RuntimeError("recipeMediaInputs vacio - sube una imagen de referencia antes de generar.")
-        recipe = [{"caption": r["caption"],
-                   "mediaInput": {"mediaCategory": "MEDIA_CATEGORY_SUBJECT",
-                                  "mediaGenerationId": r["mediaGenerationId"]}}
-                  for r in self.subject_refs]
+        recipe = [
+            {
+                "caption": r["caption"],
+                "mediaInput": {
+                    "mediaCategory": "MEDIA_CATEGORY_SUBJECT",
+                    "mediaGenerationId": r["mediaGenerationId"],
+                },
+            }
+            for r in self.subject_refs
+        ]
         self._log(f"Generando con {len(recipe)} ref(s) - wf={self.workflow_id[:8]}...")
         body = {
             "clientContext": {"workflowId": self.workflow_id, "tool": "BACKBONE"},
@@ -326,15 +383,27 @@ class WhiskClient:
         if r.status_code == 400:
             txt = r.text.lower()
             self._log(f"Whisk 400: {r.text[:300]}")
-            if any(k in txt for k in ("public_error_unsafe", "unsafe_generation", "public_error_sensitive",
-                                       "blocked_reason", "image_safety")):
+            if any(
+                k in txt
+                for k in (
+                    "public_error_unsafe",
+                    "unsafe_generation",
+                    "public_error_sensitive",
+                    "blocked_reason",
+                    "image_safety",
+                )
+            ):
                 raise RuntimeError("WHISK_BLOCKED_CONTENT")
-            if any(k in txt for k in ("unauthenticated", "auth", "token", "session", "credential",
-                                       "login", "permission")):
+            if any(
+                k in txt
+                for k in ("unauthenticated", "auth", "token", "session", "credential", "login", "permission")
+            ):
                 self._token = None
                 raise RuntimeError("Cookie invalida o expirada")
-            if any(k in txt for k in ("safety", "policy", "blocked", "harmful", "inappropriate",
-                                       "sensitive", "violat")):
+            if any(
+                k in txt
+                for k in ("safety", "policy", "blocked", "harmful", "inappropriate", "sensitive", "violat")
+            ):
                 raise RuntimeError(f"Bloqueado por politica de contenido: {r.text[:120]}")
             raise WhiskExpired(f"IDs expirados: {r.text[:150]}")
         if r.status_code != 200:
@@ -360,6 +429,8 @@ class WhiskClient:
                 self._log("[WARNING] reset_session sin sujeto - recipeMediaInputs quedara vacio")
         except Exception as exc:
             if not self.subject_refs and old_refs:
-                self._log(f"[WARNING] reset_session fallo ({exc}) - restaurando refs anteriores temporalmente")
+                self._log(
+                    f"[WARNING] reset_session fallo ({exc}) - restaurando refs anteriores temporalmente"
+                )
                 self.subject_refs = old_refs
             raise

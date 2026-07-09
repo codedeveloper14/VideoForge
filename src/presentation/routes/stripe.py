@@ -89,10 +89,15 @@ def stripe_success():
     title = f"¡Plan {plan_name} activado!" if is_success else "Pago recibido"
     message = (
         f"Tu cuenta ya tiene acceso a todas las funciones del plan {plan_name}."
-        if is_success else (error_msg or "Contacta soporte si el plan no se activa.")
+        if is_success
+        else (error_msg or "Contacta soporte si el plan no se activa.")
     )
     return (
-        f"<!DOCTYPE html><html lang='es'><meta charset='utf-8'>"
-        f"<title>Pago completado — Studio IVR</title>"
-        f"<body><h1>{title}</h1><p>{message}</p></body></html>"
-    ), 200, {"Content-Type": "text/html; charset=utf-8"}
+        (
+            f"<!DOCTYPE html><html lang='es'><meta charset='utf-8'>"
+            f"<title>Pago completado — Studio IVR</title>"
+            f"<body><h1>{title}</h1><p>{message}</p></body></html>"
+        ),
+        200,
+        {"Content-Type": "text/html; charset=utf-8"},
+    )

@@ -27,13 +27,15 @@ def create_project(raw_name: str) -> dict:
 def list_projects() -> list[dict]:
     out = []
     for d in project_repository.list_project_dirs():
-        out.append({
-            "nombre": d.name,
-            "ruta": str(d),
-            "videos": project_repository.count_files(d / "video", "*.mp4"),
-            "audios": project_repository.count_files(d / "audio", "*"),
-            "creado": d.stat().st_ctime,
-        })
+        out.append(
+            {
+                "nombre": d.name,
+                "ruta": str(d),
+                "videos": project_repository.count_files(d / "video", "*.mp4"),
+                "audios": project_repository.count_files(d / "audio", "*"),
+                "creado": d.stat().st_ctime,
+            }
+        )
     out.sort(key=lambda x: x["creado"], reverse=True)
     return out
 

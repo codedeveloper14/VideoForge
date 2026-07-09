@@ -1,4 +1,5 @@
 import queue
+import subprocess
 import threading
 import time
 import zipfile
@@ -65,6 +66,7 @@ threading.Thread(
 # Bridge de extension: API publica para las rutas
 # ─────────────────────────────────────────────────────────────────
 
+
 def log_message(msg: str) -> None:
     _log(msg)
 
@@ -81,6 +83,7 @@ def get_ext_state_safe() -> dict:
 # Sesiones
 # ─────────────────────────────────────────────────────────────────
 
+
 def list_sessions() -> list[dict]:
     accounts_dir = get_meta_accounts_dir()
     meta_accounts.ensure_accounts(accounts_dir)
@@ -91,12 +94,14 @@ def list_sessions() -> list[dict]:
         active = meta_accounts.is_authenticated(folder)
         ck = meta_accounts.load_cookies_dict(folder)
         user_id = ck.get("c_user", "")
-        rows.append({
-            "name": folder.name,
-            "active": active,
-            "user": (f"uid:{user_id[:12]}" if user_id else ("sin sesion" if not active else "activa")),
-            "has_cookies": bool(ck),
-        })
+        rows.append(
+            {
+                "name": folder.name,
+                "active": active,
+                "user": (f"uid:{user_id[:12]}" if user_id else ("sin sesion" if not active else "activa")),
+                "has_cookies": bool(ck),
+            }
+        )
     return rows
 
 
@@ -120,6 +125,7 @@ def delete_session(account_name: str) -> None:
 # ─────────────────────────────────────────────────────────────────
 # Batch worker: modo extension (DOM automation) -- default historico
 # ─────────────────────────────────────────────────────────────────
+
 
 def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int) -> None:
     """Chromium + extension: encola trabajos que la extension despacha via DOM."""
@@ -164,9 +170,12 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
         time.sleep(0.1)
 
     playwright_accounts = [
-        n for n in accounts_valid
+        n
+        for n in accounts_valid
         if meta_chrome_process.chrome_type_for_profile(
-            str(accounts_dir / n / "chromium_profile"), _launched_procs) == "playwright"
+            str(accounts_dir / n / "chromium_profile"), _launched_procs
+        )
+        == "playwright"
     ]
     if playwright_accounts:
         _log(f"Login en progreso para: {playwright_accounts} - esperando hasta 90s...")
@@ -175,9 +184,12 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
             if cancel_ev and cancel_ev.is_set():
                 break
             still_pw = [
-                n for n in playwright_accounts
+                n
+                for n in playwright_accounts
                 if meta_chrome_process.chrome_type_for_profile(
-                    str(accounts_dir / n / "chromium_profile"), _launched_procs) == "playwright"
+                    str(accounts_dir / n / "chromium_profile"), _launched_procs
+                )
+                == "playwright"
             ]
             if not still_pw:
                 _log(f"[OK] Login finalizado en {int(time.time() - pw_wait)}s")
@@ -189,18 +201,26 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
             time.sleep(2)
 
     if len(ext_accounts) >= expected_accts:
-        _log(f"[OK] Extension ya conectada con {len(ext_accounts)} cuenta(s) - se usa eso, no se lanza Chromium")
+        _log(
+            f"[OK] Extension ya conectada con {len(ext_accounts)} cuenta(s) - se usa eso, no se lanza Chromium"
+        )
         need_launch = []
     else:
         already_running = [
-            n for n in accounts_valid
+            n
+            for n in accounts_valid
             if meta_chrome_process.chrome_type_for_profile(
-                str(accounts_dir / n / "chromium_profile"), _launched_procs) == "batch"
+                str(accounts_dir / n / "chromium_profile"), _launched_procs
+            )
+            == "batch"
         ]
         need_launch = [
-            n for n in accounts_valid
+            n
+            for n in accounts_valid
             if meta_chrome_process.chrome_type_for_profile(
-                str(accounts_dir / n / "chromium_profile"), _launched_procs) == "none"
+                str(accounts_dir / n / "chromium_profile"), _launched_procs
+            )
+            == "none"
         ]
         if already_running:
             _log(f"Chrome batch detectado en: {already_running} - esperando hasta 5s...")
@@ -228,14 +248,22 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
             profile_dir = str(accounts_dir / acct_name / "chromium_profile")
             meta_chrome_process.clean_profile_for_fresh_start(profile_dir, log=_log)
             proc = meta_chrome_process.launch_chrome_with_extension(
-                exe, profile_dir, [ext_dir], ["https://www.meta.ai/create"],
+                exe,
+                profile_dir,
+                [ext_dir],
+                ["https://www.meta.ai/create"],
                 extra_args=[
                     "--disable-features=PrivateNetworkAccessSendPreflights,"
                     "PrivateNetworkAccessRespectPreflightResults,BlockInsecurePrivateNetworkRequests",
-                    "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
-                    "--disable-backgrounding-occluded-windows", "--disable-background-media-suspend",
-                    "--disable-sync", "--disable-translate", "--disable-default-apps",
-                    "--disable-component-extensions-with-background-pages", "--no-pings",
+                    "--disable-background-timer-throttling",
+                    "--disable-renderer-backgrounding",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-background-media-suspend",
+                    "--disable-sync",
+                    "--disable-translate",
+                    "--disable-default-apps",
+                    "--disable-component-extensions-with-background-pages",
+                    "--no-pings",
                     "--metrics-recording-only",
                 ],
             )
@@ -295,8 +323,9 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
     dl_queue: queue.Queue = queue.Queue()
     dl_workers_n = 20
     dl_session = requests.Session()
-    dl_session.headers.update({"User-Agent": _META_UA, "Referer": "https://www.meta.ai/",
-                                "Accept": "video/mp4,video/*,*/*"})
+    dl_session.headers.update(
+        {"User-Agent": _META_UA, "Referer": "https://www.meta.ai/", "Accept": "video/mp4,video/*,*/*"}
+    )
     dl_adapter = HTTPAdapter(pool_connections=dl_workers_n, pool_maxsize=dl_workers_n * 2, max_retries=3)
     dl_session.mount("https://", dl_adapter)
     dl_session.mount("http://", dl_adapter)
@@ -341,14 +370,14 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
         w.start()
 
     pending_reqs = []
-    for (i, img_meta, stem, out_path) in pending:
+    for i, img_meta, stem, out_path in pending:
         rid, ev = bridge.enqueue_job(img_meta.get("path", ""), prompt)
         pending_reqs.append((ev, i, img_meta, stem, out_path, rid))
 
     _log(f"{len(pending_reqs)} job(s) pre-cargados en cola - {concurrency} tab(s) tomando 1 job cada vez")
 
     def collect_result(item, retry=0):
-        (ev, i, img_meta, stem, out_path, rid) = item
+        ev, i, img_meta, stem, out_path, rid = item
         deadline = time.time() + timeout_sec
         grace_end = None
         wait_ticks = 0
@@ -397,7 +426,9 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
             elapsed = int(time.time() - monitor_start)
             if cur_done < total:
                 change = f"+{cur_done - last_done}" if last_done >= 0 and cur_done > last_done else ""
-                _log(f"[{elapsed}s] {cur_done}/{total} descargados{change} - {n_dl_pending} descarga pendiente")
+                _log(
+                    f"[{elapsed}s] {cur_done}/{total} descargados{change} - {n_dl_pending} descarga pendiente"
+                )
             last_done = cur_done
 
     threading.Thread(target=progress_monitor, daemon=True).start()
@@ -434,6 +465,7 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
 # Batch worker: modo HTTP directo ("learn once, HTTP forever")
 # ─────────────────────────────────────────────────────────────────
 
+
 def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int) -> None:
     images = _state.get("images", [])
     cancel_ev = _state.get("cancel_event")
@@ -456,8 +488,10 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
 
     n_accounts = len(accounts)
     concurrency = max(1, slots) * n_accounts
-    _log(f"Meta AI HTTP Direct: {len(pending)}/{total} imagen(es) - "
-         f"{concurrency} worker(s) ({slots} slot(s) x {n_accounts} cuenta(s))")
+    _log(
+        f"Meta AI HTTP Direct: {len(pending)}/{total} imagen(es) - "
+        f"{concurrency} worker(s) ({slots} slot(s) x {n_accounts} cuenta(s))"
+    )
 
     acct_states = []
     for acct_name, cookie_list in accounts:
@@ -482,7 +516,8 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
                 _log(f"[{acct_name}] [WARNING] LSD fetch error: {exc}")
 
     needs_capture = [
-        idx for idx, (_, _, _, api_state_d) in enumerate(acct_states)
+        idx
+        for idx, (_, _, _, api_state_d) in enumerate(acct_states)
         if not meta_accounts.http_state_complete(api_state_d)
     ]
 
@@ -490,6 +525,7 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
         _log(f"{len(needs_capture)} cuenta(s) sin tokens API - capturando con Playwright headless...")
         try:
             from playwright.sync_api import sync_playwright
+
             pw_available = True
         except ImportError:
             pw_available = False
@@ -504,15 +540,24 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
                         if not remaining_pending or (cancel_ev and cancel_ev.is_set()):
                             break
                         acct_name, cookie_list, acct_folder, api_state_d = acct_states[idx]
-                        (i, img_meta, stem, out_path) = remaining_pending.pop(0)
+                        i, img_meta, stem, out_path = remaining_pending.pop(0)
                         img_path = img_meta.get("path", "")
 
-                        _log(f"[{acct_name}] [{i + 1}/{total}] {img_meta['name']} "
-                             "(captura de tokens + generacion Playwright)...")
+                        _log(
+                            f"[{acct_name}] [{i + 1}/{total}] {img_meta['name']} "
+                            "(captura de tokens + generacion Playwright)..."
+                        )
                         res = meta_browser.generate_playwright_intercept(
-                            browser=pw_browser, acct_folder=acct_folder, cookie_list=cookie_list,
-                            api_state=api_state_d, prompt=prompt, image_path=img_path, out_path=out_path,
-                            timeout_sec=timeout_sec, slot_id=idx, log=_log,
+                            browser=pw_browser,
+                            acct_folder=acct_folder,
+                            cookie_list=cookie_list,
+                            api_state=api_state_d,
+                            prompt=prompt,
+                            image_path=img_path,
+                            out_path=out_path,
+                            timeout_sec=timeout_sec,
+                            slot_id=idx,
+                            log=_log,
                         )
                         new_st = meta_accounts.load_api_state(acct_folder)
                         if api_state_d.get("_lsd") and "_lsd" not in new_st:
@@ -525,7 +570,9 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
                         else:
                             _log(f"[ERROR] [{i + 1}/{total}] {stem} - {res.get('error', 'sin URL')}")
                             if meta_accounts.http_state_complete(acct_states[idx][3]):
-                                _log(f"[{i + 1}/{total}] {stem} - tokens capturados, reintentando por HTTP...")
+                                _log(
+                                    f"[{i + 1}/{total}] {stem} - tokens capturados, reintentando por HTTP..."
+                                )
                                 remaining_pending.insert(0, (i, img_meta, stem, out_path))
                 finally:
                     pw_browser.close()
@@ -538,8 +585,10 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
 
     http_accts = [entry for entry in acct_states if meta_accounts.http_state_complete(entry[3])]
     if not http_accts:
-        _log("[ERROR] Ninguna cuenta tiene api_state completo para modo HTTP. "
-             "Instala Playwright y vuelve a dar Iniciar.")
+        _log(
+            "[ERROR] Ninguna cuenta tiene api_state completo para modo HTTP. "
+            "Instala Playwright y vuelve a dar Iniciar."
+        )
         _state.update(finished=True, running=False)
         return
 
@@ -571,23 +620,33 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
             if cancel_ev and cancel_ev.is_set():
                 break
             try:
-                (i, img_meta, stem, out_path) = job_queue.get_nowait()
+                i, img_meta, stem, out_path = job_queue.get_nowait()
             except queue.Empty:
                 break
             try:
                 img_path = img_meta.get("path", "")
                 _log(f"[W{worker_idx}|{acct_name}] [{i + 1}/{total}] {img_meta['name']}...")
                 res = meta_gql_client.generate_http(
-                    cookie_list=cookie_list, api_state=api_state_d, prompt=prompt, image_path=img_path,
-                    out_path=out_path, timeout_sec=timeout_sec, slot_id=worker_idx,
-                    send_msg_tpl_fallback=_global_state.get("send_msg_tpl"), log=_log,
+                    cookie_list=cookie_list,
+                    api_state=api_state_d,
+                    prompt=prompt,
+                    image_path=img_path,
+                    out_path=out_path,
+                    timeout_sec=timeout_sec,
+                    slot_id=worker_idx,
+                    send_msg_tpl_fallback=_global_state.get("send_msg_tpl"),
+                    log=_log,
                 )
                 if res.get("saved") or res.get("url"):
                     done_count[0] += 1
-                    _log(f"[OK] [W{worker_idx}|{acct_name}] [{i + 1}/{total}] {stem}.mp4 ({done_count[0]}/{total})")
+                    _log(
+                        f"[OK] [W{worker_idx}|{acct_name}] [{i + 1}/{total}] {stem}.mp4 ({done_count[0]}/{total})"
+                    )
                 else:
-                    _log(f"[ERROR] [W{worker_idx}|{acct_name}] [{i + 1}/{total}] {stem} - "
-                         f"{res.get('error', 'sin URL')}")
+                    _log(
+                        f"[ERROR] [W{worker_idx}|{acct_name}] [{i + 1}/{total}] {stem} - "
+                        f"{res.get('error', 'sin URL')}"
+                    )
             except Exception as exc:
                 _log(f"[WARNING] [W{worker_idx}|{acct_name}] Excepcion en job [{i + 1}]: {exc}")
             finally:
@@ -612,8 +671,10 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
 # API publica
 # ─────────────────────────────────────────────────────────────────
 
-def start_batch(project_name: str, images: list[tuple[str, object]], prompt: str, slots: int,
-                 mode: str, timeout_sec: int) -> dict:
+
+def start_batch(
+    project_name: str, images: list[tuple[str, object]], prompt: str, slots: int, mode: str, timeout_sec: int
+) -> dict:
     """`images` es una lista de (filename, file_storage) donde file_storage tiene .save(path)."""
     name = sanitize_name(project_name) if project_name else ""
     if not name:
@@ -642,17 +703,31 @@ def start_batch(project_name: str, images: list[tuple[str, object]], prompt: str
 
     (proj_dir / "guion").mkdir(parents=True, exist_ok=True)
     (proj_dir / "guion" / "config_meta.txt").write_text(
-        f"prompt: {prompt}\nslots: {slots}\nmode: {mode}\n", encoding="utf-8")
+        f"prompt: {prompt}\nslots: {slots}\nmode: {mode}\n", encoding="utf-8"
+    )
 
     cancel_ev = threading.Event()
-    _state.update({
-        "running": True, "log_lines": [], "finished": False, "project_dir": str(proj_dir),
-        "images": images_meta, "total": len(images_meta), "cancel_event": cancel_ev, "downloaded": 0,
-    })
+    _state.update(
+        {
+            "running": True,
+            "log_lines": [],
+            "finished": False,
+            "project_dir": str(proj_dir),
+            "images": images_meta,
+            "total": len(images_meta),
+            "cancel_event": cancel_ev,
+            "downloaded": 0,
+        }
+    )
     threading.Thread(target=worker_fn, args=(proj_dir, prompt, slots, timeout_sec), daemon=True).start()
 
-    return {"ok": True, "pid": f"meta-{int(time.time())}", "mode": mode_label,
-            "project_dir": str(proj_dir), "project_name": name}
+    return {
+        "ok": True,
+        "pid": f"meta-{int(time.time())}",
+        "mode": mode_label,
+        "project_dir": str(proj_dir),
+        "project_name": name,
+    }
 
 
 def stop() -> None:
@@ -661,7 +736,9 @@ def stop() -> None:
         ev.set()
     _state.update(running=False, finished=True)
     cleared = bridge.clear_pending_queue()
-    _log(f"Detener recibido - cola vaciada ({cleared} items). Descargando resultados que ya llegaron (hasta 5 min).")
+    _log(
+        f"Detener recibido - cola vaciada ({cleared} items). Descargando resultados que ya llegaron (hasta 5 min)."
+    )
 
 
 def get_log_state(offset: int) -> dict:
@@ -672,8 +749,11 @@ def get_log_state(offset: int) -> dict:
     except Exception:
         videos_done = 0
     return {
-        "lines": lines, "next_offset": offset + len(lines), "finished": bool(_state["finished"]),
-        "videos_done": videos_done, "videos_total": int(_state.get("total") or 0),
+        "lines": lines,
+        "next_offset": offset + len(lines),
+        "finished": bool(_state["finished"]),
+        "videos_done": videos_done,
+        "videos_total": int(_state.get("total") or 0),
     }
 
 
@@ -683,8 +763,11 @@ def list_videos(project_name: str) -> dict:
     name = sanitize_name(project_name)
     videos = sorted(f.name for f in project_repository.list_videos(name))
     return {
-        "videos": videos, "total": len(videos), "done": len(videos),
-        "project_dir": str(project_repository.project_dir(name)), "project_name": name,
+        "videos": videos,
+        "total": len(videos),
+        "done": len(videos),
+        "project_dir": str(project_repository.project_dir(name)),
+        "project_name": name,
     }
 
 
@@ -773,8 +856,10 @@ def launch_chrome(account_name: str, slots: int) -> dict:
             proc.wait()
             elapsed = time.time() - start
             if elapsed < 8:
-                _log(f"[WARNING] [{folder_name}] Chrome se cerro en {elapsed:.1f}s - "
-                     "posiblemente el modo de desarrollador no esta activado.")
+                _log(
+                    f"[WARNING] [{folder_name}] Chrome se cerro en {elapsed:.1f}s - "
+                    "posiblemente el modo de desarrollador no esta activado."
+                )
                 _log("Usa el boton 'Modo Dev' para abrir chrome://extensions y activar el toggle.")
             else:
                 _log(f"[{folder_name}] Chrome cerrado")
@@ -785,7 +870,11 @@ def launch_chrome(account_name: str, slots: int) -> dict:
                 meta_chrome_process.unregister_chrome_pid(proc.pid)
 
     threading.Thread(target=_monitor, daemon=True).start()
-    return {"ok": True, "slots": n_slots, "message": f"Chrome lanzando para {folder_name} ({n_slots} pestanas)"}
+    return {
+        "ok": True,
+        "slots": n_slots,
+        "message": f"Chrome lanzando para {folder_name} ({n_slots} pestanas)",
+    }
 
 
 def _build_cookie_injector(ck_file: Path) -> str | None:
@@ -796,18 +885,30 @@ def _build_cookie_injector(ck_file: Path) -> str | None:
     try:
         raw = json.loads(ck_file.read_text(encoding="utf-8"))
         meta_ck = [
-            c for c in raw if isinstance(c, dict) and
-            ("meta.ai" in c.get("domain", "") or c.get("name", "") in
-             ("ecto_1_sess", "datr", "c_user", "sb", "xs", "fr", "ps_l", "ps_n"))
+            c
+            for c in raw
+            if isinstance(c, dict)
+            and (
+                "meta.ai" in c.get("domain", "")
+                or c.get("name", "") in ("ecto_1_sess", "datr", "c_user", "sb", "xs", "fr", "ps_l", "ps_n")
+            )
         ]
         if not meta_ck:
             return None
         ci_dir = Path(tempfile.mkdtemp(prefix="vf_ci_"))
-        (ci_dir / "manifest.json").write_text(json.dumps({
-            "manifest_version": 3, "name": "VF Cookie Injector", "version": "1.0",
-            "permissions": ["cookies", "tabs"], "host_permissions": ["https://*.meta.ai/*"],
-            "background": {"service_worker": "bg.js"},
-        }), encoding="utf-8")
+        (ci_dir / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "manifest_version": 3,
+                    "name": "VF Cookie Injector",
+                    "version": "1.0",
+                    "permissions": ["cookies", "tabs"],
+                    "host_permissions": ["https://*.meta.ai/*"],
+                    "background": {"service_worker": "bg.js"},
+                }
+            ),
+            encoding="utf-8",
+        )
         (ci_dir / "bg.js").write_text(
             "const ck=" + json.dumps(meta_ck, separators=(",", ":")) + ";\n"
             "var n=0;\n"
@@ -844,8 +945,14 @@ def open_devmode(account_name: str) -> dict:
     Path(profile_dir).mkdir(parents=True, exist_ok=True)
 
     import subprocess
-    args = [exe, f"--user-data-dir={profile_dir}", "--no-first-run",
-            "--no-default-browser-check", "chrome://extensions"]
+
+    args = [
+        exe,
+        f"--user-data-dir={profile_dir}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "chrome://extensions",
+    ]
     _log(f"[{folder_name}] Abriendo Chrome en chrome://extensions (sin extension)")
 
     def _run():

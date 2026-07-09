@@ -7,10 +7,17 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 _state = {
-    "running": False, "step": "idle", "progress": 0, "total": 0,
-    "images_saved": 0, "log": [], "output_dir": "",
-    "accounts": [{"id": i, "logged_in": False, "user": "", "has_cookie": False}
-                 for i in range(gentube_service.NUM_ACCOUNTS)],
+    "running": False,
+    "step": "idle",
+    "progress": 0,
+    "total": 0,
+    "images_saved": 0,
+    "log": [],
+    "output_dir": "",
+    "accounts": [
+        {"id": i, "logged_in": False, "user": "", "has_cookie": False}
+        for i in range(gentube_service.NUM_ACCOUNTS)
+    ],
 }
 _lock = threading.Lock()
 _stop_event = threading.Event()
@@ -40,9 +47,12 @@ def sync_profiles_async() -> None:
 def get_status() -> dict:
     with _lock:
         st = {
-            "running": _state["running"], "step": _state["step"],
-            "progress": _state["progress"], "total": _state["total"],
-            "images_saved": _state["images_saved"], "log": list(_state["log"]),
+            "running": _state["running"],
+            "step": _state["step"],
+            "progress": _state["progress"],
+            "total": _state["total"],
+            "images_saved": _state["images_saved"],
+            "log": list(_state["log"]),
             "output_dir": _state["output_dir"],
             "accounts": [dict(a) for a in _state["accounts"]],
         }
@@ -55,8 +65,7 @@ def get_status() -> dict:
 def check_login() -> list[dict]:
     _apply_sync_results(gentube_service.sync_profiles())
     with _lock:
-        return [{"id": a["id"], "logged_in": a["logged_in"], "user": a["user"]}
-                for a in _state["accounts"]]
+        return [{"id": a["id"], "logged_in": a["logged_in"], "user": a["user"]} for a in _state["accounts"]]
 
 
 def start_login(account_id: int, cookie: str = "") -> dict:
@@ -75,8 +84,7 @@ def start_login(account_id: int, cookie: str = "") -> dict:
     return {"ok": True}
 
 
-def start_run(prompts: list[str], slots: int, repeat: int, output_dir: str,
-              ratio: str, quality: str) -> dict:
+def start_run(prompts: list[str], slots: int, repeat: int, output_dir: str, ratio: str, quality: str) -> dict:
     global _stop_event
     prompts = [p for p in prompts if str(p).strip()]
     slots = max(1, min(8, slots))
@@ -127,7 +135,8 @@ def list_images() -> dict:
     exts = {".png", ".jpg", ".jpeg", ".webp"}
     imgs = sorted(
         (f for f in os.listdir(d) if os.path.splitext(f)[1].lower() in exts),
-        key=lambda f: os.path.getmtime(os.path.join(d, f)), reverse=True,
+        key=lambda f: os.path.getmtime(os.path.join(d, f)),
+        reverse=True,
     )
     return {"images": imgs, "count": len(imgs)}
 

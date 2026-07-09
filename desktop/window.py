@@ -17,7 +17,7 @@ import threading
 import time
 import urllib.request
 import webbrowser
-from typing import Callable
+from collections.abc import Callable
 
 from src.core.config import config
 from src.utils.logger import get_logger
@@ -40,6 +40,7 @@ def _wait_for_backend(health_url: str, max_wait: float = 20.0, interval: float =
 def _screen_size() -> tuple[int, int]:
     try:
         import tkinter as tk
+
         root = tk.Tk()
         root.withdraw()
         w, h = root.winfo_screenwidth(), root.winfo_screenheight()
@@ -74,7 +75,9 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
             import webview
         except ImportError:
             use_native = False
-            logger.warning("pywebview no instalado -- abre en el navegador. Ventana nativa: pip install pywebview")
+            logger.warning(
+                "pywebview no instalado -- abre en el navegador. Ventana nativa: pip install pywebview"
+            )
 
     if not use_native:
         webbrowser.open(url)
@@ -85,8 +88,14 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
 
     screen_w, screen_h = _screen_size()
     window_kwargs = dict(
-        title=title, url=url, width=screen_w, height=screen_h,
-        resizable=True, min_size=(960, 640), text_select=True, maximized=True,
+        title=title,
+        url=url,
+        width=screen_w,
+        height=screen_h,
+        resizable=True,
+        min_size=(960, 640),
+        text_select=True,
+        maximized=True,
     )
     if sys.platform == "darwin":
         window_kwargs["fullscreen"] = False

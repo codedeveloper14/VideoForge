@@ -36,10 +36,14 @@ def check_limit(username: str, check_type: str, amount: int = 1) -> tuple[bool, 
         if limit is None:
             return True, "", {"used": used, "limit": None, "remaining": None}
         if used >= limit:
-            return False, (
-                f"Has alcanzado el límite de {limit} videos/mes de tu plan {plan['name']}. "
-                f"Haz upgrade para continuar."
-            ), {"used": used, "limit": limit, "remaining": 0, "type": "video", "plan": plan_key}
+            return (
+                False,
+                (
+                    f"Has alcanzado el límite de {limit} videos/mes de tu plan {plan['name']}. "
+                    f"Haz upgrade para continuar."
+                ),
+                {"used": used, "limit": limit, "remaining": 0, "type": "video", "plan": plan_key},
+            )
         return True, "", {"used": used, "limit": limit, "remaining": limit - used}
 
     if check_type == "short":
@@ -47,10 +51,14 @@ def check_limit(username: str, check_type: str, amount: int = 1) -> tuple[bool, 
         if limit is None:
             return True, "", {"used": used, "limit": None, "remaining": None}
         if used >= limit:
-            return False, (
-                f"Has alcanzado el límite de {limit} shorts/mes de tu plan {plan['name']}. "
-                f"Haz upgrade para continuar."
-            ), {"used": used, "limit": limit, "remaining": 0, "type": "short", "plan": plan_key}
+            return (
+                False,
+                (
+                    f"Has alcanzado el límite de {limit} shorts/mes de tu plan {plan['name']}. "
+                    f"Haz upgrade para continuar."
+                ),
+                {"used": used, "limit": limit, "remaining": 0, "type": "short", "plan": plan_key},
+            )
         return True, "", {"used": used, "limit": limit, "remaining": limit - used}
 
     if check_type == "tts":
@@ -59,10 +67,14 @@ def check_limit(username: str, check_type: str, amount: int = 1) -> tuple[bool, 
             return True, "", {"used": used, "limit": None, "remaining": None}
         remaining = max(0, limit - used)
         if used + amount > limit:
-            return False, (
-                f"Límite de audio alcanzado: {plan['audio_hours_per_month']}h/mes (plan {plan['name']}). "
-                f"Disponible: {chars_to_min(remaining)}. Haz upgrade para más."
-            ), {"used": used, "limit": limit, "remaining": remaining, "type": "tts", "plan": plan_key}
+            return (
+                False,
+                (
+                    f"Límite de audio alcanzado: {plan['audio_hours_per_month']}h/mes (plan {plan['name']}). "
+                    f"Disponible: {chars_to_min(remaining)}. Haz upgrade para más."
+                ),
+                {"used": used, "limit": limit, "remaining": remaining, "type": "tts", "plan": plan_key},
+            )
         return True, "", {"used": used, "limit": limit, "remaining": remaining - amount}
 
     return True, "", {}

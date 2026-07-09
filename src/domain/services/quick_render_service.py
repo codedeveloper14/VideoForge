@@ -47,10 +47,20 @@ def get_job_video_path(job_id: str) -> str | None:
     return path if path and os.path.exists(path) else None
 
 
-def start_render(*, audio_upload, guion: str, image_uploads: list, resolucion: str = "1920x1080",
-                  fade: float = 0.0, modelo: str = "base", whisper_backend: str = "whisperx",
-                  transicion: str = "none", movimiento: str = "none", trans_dur: float = 0.8,
-                  shake: str = "false") -> dict:
+def start_render(
+    *,
+    audio_upload,
+    guion: str,
+    image_uploads: list,
+    resolucion: str = "1920x1080",
+    fade: float = 0.0,
+    modelo: str = "base",
+    whisper_backend: str = "whisperx",
+    transicion: str = "none",
+    movimiento: str = "none",
+    trans_dur: float = 0.8,
+    shake: str = "false",
+) -> dict:
     """Valida y guarda audio/guion/imagenes en una carpeta de job nueva, y lanza el
     worker en un hilo de fondo. Lanza ValueError en validaciones (--> 400 en la ruta)."""
     job_id = str(uuid.uuid4())[:8]
@@ -75,22 +85,57 @@ def start_render(*, audio_upload, guion: str, image_uploads: list, resolucion: s
         ext = _IMAGE_CT_EXT.get(img_file.content_type or "image/png", ".jpg")
         img_file.save(str(imgs_dir / f"img_{i:03d}{ext}"))
 
-    job_registry.create_job(job_id, {"id": job_id, "estado": "procesando", "progreso": 0,
-                                      "mensaje": "Iniciando...", "logs": [], "video_url": None,
-                                      "inicio": time.time()})
+    job_registry.create_job(
+        job_id,
+        {
+            "id": job_id,
+            "estado": "procesando",
+            "progreso": 0,
+            "mensaje": "Iniciando...",
+            "logs": [],
+            "video_url": None,
+            "inicio": time.time(),
+        },
+    )
 
     threading.Thread(
         target=_procesar_video,
-        args=(job_id, str(job_dir), str(audio_path), str(guion_path), str(imgs_dir),
-              resolucion, fade, modelo, transicion, movimiento, trans_dur, shake, whisper_backend),
+        args=(
+            job_id,
+            str(job_dir),
+            str(audio_path),
+            str(guion_path),
+            str(imgs_dir),
+            resolucion,
+            fade,
+            modelo,
+            transicion,
+            movimiento,
+            trans_dur,
+            shake,
+            whisper_backend,
+        ),
         daemon=True,
     ).start()
 
     return {"job_id": job_id}
 
 
-def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucion, fade,
-                     modelo, transicion, movimiento, trans_dur, shake, whisper_backend="local"):
+def _procesar_video(
+    job_id,
+    job_dir,
+    audio_path,
+    guion_path,
+    imgs_dir,
+    resolucion,
+    fade,
+    modelo,
+    transicion,
+    movimiento,
+    trans_dur,
+    shake,
+    whisper_backend="local",
+):
     def log(msg, pct=None):
         job = job_registry.get_job(job_id)
         job["logs"].append(msg)
@@ -145,24 +190,43 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
         log("Asignando timestamps...", 32)
 
         def _on_fallback(unmatched, total, last_ok, dur):
-            log(f"[WARNING] Word-level anomalo ({unmatched}/{total} sin match) --> segment-level fallback", 33)
+            log(
+                f"[WARNING] Word-level anomalo ({unmatched}/{total} sin match) --> segment-level fallback", 33
+            )
 
         timestamps = scene_timestamp_service.assign_timestamps_auto(
-            escenas, segmentos, all_words, duracion_total, on_fallback=_on_fallback)
+            escenas, segmentos, all_words, duracion_total, on_fallback=_on_fallback
+        )
         log(f"{len(timestamps)} timestamps listos", 35)
         log("Timestamps por escena:")
         for i, ts in enumerate(timestamps):
-            log(f"  E{i + 1:02d}: {ts['inicio']:.2f}s --> {ts['fin']:.2f}s  dur={ts['duracion']:.3f}s  "
-                f"score={ts.get('score', 0):.2f}  seg={ts.get('seg_idx', '?')}")
+            log(
+                f"  E{i + 1:02d}: {ts['inicio']:.2f}s --> {ts['fin']:.2f}s  dur={ts['duracion']:.3f}s  "
+                f"score={ts.get('score', 0):.2f}  seg={ts.get('seg_idx', '?')}"
+            )
 
         log("Codificando archivos para Modal...", 40)
         # Batch mode: audio silencioso en la nube, se mezcla el audio real al final --
         # evita reinicios de audio entre batches al concatenar.
         silent_audio = os.path.join(tmp_dir, "silent.mp3")
-        sil = subprocess.run([
-            "ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono",
-            "-t", str(max(1.0, duracion_total)), "-b:a", "32k", silent_audio,
-        ], capture_output=True, text=True, **no_window_kwargs())
+        sil = subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "anullsrc=r=44100:cl=mono",
+                "-t",
+                str(max(1.0, duracion_total)),
+                "-b:a",
+                "32k",
+                silent_audio,
+            ],
+            capture_output=True,
+            text=True,
+            **no_window_kwargs(),
+        )
         if sil.returncode == 0 and os.path.exists(silent_audio):
             with open(silent_audio, "rb") as f:
                 batch_audio_b64 = base64.b64encode(f.read()).decode("utf-8")
@@ -203,12 +267,19 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
         part_files = []
         batch_dur_esperada = []
         for b_idx in range(n_batches):
-            batch = escenas_modal[b_idx * _BATCH_SIZE:(b_idx + 1) * _BATCH_SIZE]
+            batch = escenas_modal[b_idx * _BATCH_SIZE : (b_idx + 1) * _BATCH_SIZE]
             batch_dur_esperada.append(sum(sc["duracion"] for sc in batch))
             batch_payload = {
-                "audio_b64": batch_audio_b64, "escenas": batch, "resolucion": resolucion_modal,
-                "transicion": transicion, "trans_dur": trans_dur, "fade": fade, "shake": shake,
-                "batch_mode": True, "batch_index": b_idx, "batch_total": n_batches,
+                "audio_b64": batch_audio_b64,
+                "escenas": batch,
+                "resolucion": resolucion_modal,
+                "transicion": transicion,
+                "trans_dur": trans_dur,
+                "fade": fade,
+                "shake": shake,
+                "batch_mode": True,
+                "batch_index": b_idx,
+                "batch_total": n_batches,
             }
             prog = 60 + int(30 * (b_idx + 1) / n_batches)
             log(f"  Batch {b_idx + 1}/{n_batches} ({len(batch)} escenas)...", prog)
@@ -218,8 +289,12 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
 
             try:
                 d = modal_render_client.post_batch(
-                    session, batch_payload, _MODAL_CONNECT_TIMEOUT, _MODAL_READ_TIMEOUT,
-                    _MODAL_MAX_RETRIES, on_retry=_on_retry,
+                    session,
+                    batch_payload,
+                    _MODAL_CONNECT_TIMEOUT,
+                    _MODAL_READ_TIMEOUT,
+                    _MODAL_MAX_RETRIES,
+                    on_retry=_on_retry,
                     on_reset_session=lambda: None,
                 )
             except ModalRequestError as merr:
@@ -227,8 +302,10 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
 
             video_b64 = d.get("video_b64") or d.get("video_base64")
             if not isinstance(video_b64, str) or not video_b64.strip():
-                raise Exception(f"Respuesta invalida en batch {b_idx + 1}: falta video_b64 valido. "
-                                 f"Claves: {list(d.keys())[:20]}")
+                raise Exception(
+                    f"Respuesta invalida en batch {b_idx + 1}: falta video_b64 valido. "
+                    f"Claves: {list(d.keys())[:20]}"
+                )
 
             part = os.path.join(tmp_dir, f"part_{b_idx:04d}.mp4")
             with open(part, "wb") as f:
@@ -238,7 +315,9 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
             except Exception:
                 real = 0.0
             esperado = batch_dur_esperada[b_idx]
-            log(f"  Batch {b_idx + 1}: esperado={esperado:.3f}s real={real:.3f}s delta={real - esperado:+.3f}s")
+            log(
+                f"  Batch {b_idx + 1}: esperado={esperado:.3f}s real={real:.3f}s delta={real - esperado:+.3f}s"
+            )
             part_files.append(part)
 
         log("Descargando video final...", 90)
@@ -246,12 +325,31 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
         video_final = os.path.join(job_dir, "video_final.mp4")
 
         if len(part_files) == 1:
-            ffmpeg_utils.run_cmd([
-                "ffmpeg", "-y", "-i", part_files[0], "-vf", "setpts=PTS-STARTPTS",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
-                "-pix_fmt", "yuv420p", "-r", "24", "-an",
-                "-movflags", "+faststart", video_concat,
-            ], "No se pudo normalizar el video")
+            ffmpeg_utils.run_cmd(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    part_files[0],
+                    "-vf",
+                    "setpts=PTS-STARTPTS",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-crf",
+                    "18",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-r",
+                    "24",
+                    "-an",
+                    "-movflags",
+                    "+faststart",
+                    video_concat,
+                ],
+                "No se pudo normalizar el video",
+            )
         else:
             n_parts = len(part_files)
             inputs = []
@@ -260,12 +358,31 @@ def _procesar_video(job_id, job_dir, audio_path, guion_path, imgs_dir, resolucio
             filter_parts = "".join(f"[{i}:v]setpts=PTS-STARTPTS[v{i}];" for i in range(n_parts))
             concat_inputs = "".join(f"[v{i}]" for i in range(n_parts))
             filter_str = f"{filter_parts}{concat_inputs}concat=n={n_parts}:v=1:a=0[vout]"
-            ffmpeg_utils.run_cmd(["ffmpeg", "-y"] + inputs + [
-                "-filter_complex", filter_str, "-map", "[vout]",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
-                "-pix_fmt", "yuv420p", "-r", "24", "-an",
-                "-movflags", "+faststart", video_concat,
-            ], "No se pudo unir los batches")
+            ffmpeg_utils.run_cmd(
+                ["ffmpeg", "-y"]
+                + inputs
+                + [
+                    "-filter_complex",
+                    filter_str,
+                    "-map",
+                    "[vout]",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "ultrafast",
+                    "-crf",
+                    "18",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-r",
+                    "24",
+                    "-an",
+                    "-movflags",
+                    "+faststart",
+                    video_concat,
+                ],
+                "No se pudo unir los batches",
+            )
 
         # Mezcla de audio alineada a duracion_total (sin -shortest: no recorta el final)
         ffmpeg_utils.final_mux_aligned(video_concat, audio_path, video_final, duracion_total, log=log)

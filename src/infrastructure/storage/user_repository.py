@@ -1,4 +1,4 @@
-from src.domain.models.plan import PLANS, PLAN_ALIASES
+from src.domain.models.plan import PLAN_ALIASES, PLANS
 from src.infrastructure.storage.mysql_client import get_connection
 from src.utils.logger import get_logger
 
@@ -29,35 +29,43 @@ def get_user_full(username: str) -> dict | None:
         r = dict(zip(cols, row))
 
         plan_raw = (
-            r.get("plan") or r.get("plan_type") or
-            r.get("subscription") or r.get("membership") or
-            r.get("tier") or r.get("user_plan") or
-            r.get("user_tier") or r.get("account_type") or
-            r.get("level") or r.get("package") or
-            r.get("user_type") or r.get("service")
+            r.get("plan")
+            or r.get("plan_type")
+            or r.get("subscription")
+            or r.get("membership")
+            or r.get("tier")
+            or r.get("user_plan")
+            or r.get("user_tier")
+            or r.get("account_type")
+            or r.get("level")
+            or r.get("package")
+            or r.get("user_type")
+            or r.get("service")
         )
         if not plan_raw or str(plan_raw).lower().strip() not in _KNOWN_PLAN_VALUES:
             for col_name, col_val in r.items():
-                if (isinstance(col_val, str)
-                        and col_val.lower().strip() in _KNOWN_PLAN_VALUES
-                        and col_name not in ("role", "status", "username", "user_mail", "email")):
+                if (
+                    isinstance(col_val, str)
+                    and col_val.lower().strip() in _KNOWN_PLAN_VALUES
+                    and col_name not in ("role", "status", "username", "user_mail", "email")
+                ):
                     plan_raw = col_val
                     break
 
-        email_val = (
-            r.get("user_mail") or r.get("email") or
-            r.get("user_email") or r.get("correo") or ""
-        )
+        email_val = r.get("user_mail") or r.get("email") or r.get("user_email") or r.get("correo") or ""
         if not email_val:
             for col_val in r.values():
                 if isinstance(col_val, str) and "@" in col_val:
                     email_val = col_val
                     break
 
-        expires = (r.get("plan_expires_at") or r.get("expires_at")
-                   or r.get("plan_expiry") or r.get("subscription_end"))
-        created = (r.get("created_at") or r.get("registered_at")
-                   or r.get("reg_date") or r.get("date_created"))
+        expires = (
+            r.get("plan_expires_at")
+            or r.get("expires_at")
+            or r.get("plan_expiry")
+            or r.get("subscription_end")
+        )
+        created = r.get("created_at") or r.get("registered_at") or r.get("reg_date") or r.get("date_created")
         subscription_date = r.get("subscription_date")
 
         return {

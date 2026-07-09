@@ -1,21 +1,74 @@
 import re
 
 _TRIVIALES = {
-    "el", "la", "los", "las", "un", "una", "de", "en", "a", "y", "o", "que",
-    "se", "es", "su", "me", "te", "con", "por", "para", "si", "no", "ya",
+    "el",
+    "la",
+    "los",
+    "las",
+    "un",
+    "una",
+    "de",
+    "en",
+    "a",
+    "y",
+    "o",
+    "que",
+    "se",
+    "es",
+    "su",
+    "me",
+    "te",
+    "con",
+    "por",
+    "para",
+    "si",
+    "no",
+    "ya",
 }
 _COMUNES_NGRAM = {
-    "the", "a", "an", "in", "on", "at", "to", "of", "and", "or",
-    "is", "it", "its", "be", "was", "are", "for", "as", "with",
-    "but", "not", "this", "that", "they", "you", "your", "we",
-    "i", "my", "me", "he", "she", "his", "her", "their", "our",
+    "the",
+    "a",
+    "an",
+    "in",
+    "on",
+    "at",
+    "to",
+    "of",
+    "and",
+    "or",
+    "is",
+    "it",
+    "its",
+    "be",
+    "was",
+    "are",
+    "for",
+    "as",
+    "with",
+    "but",
+    "not",
+    "this",
+    "that",
+    "they",
+    "you",
+    "your",
+    "we",
+    "i",
+    "my",
+    "me",
+    "he",
+    "she",
+    "his",
+    "her",
+    "their",
+    "our",
 }
 
 
 def limpiar(texto: str) -> str:
     texto = texto.lower().strip()
-    texto = re.sub(r'[¿¡.,;:!?\-–—""\'()\[\]]', '', texto)
-    texto = re.sub(r'\s+', ' ', texto)
+    texto = re.sub(r'[¿¡.,;:!?\-–—""\'()\[\]]', "", texto)
+    texto = re.sub(r"\s+", " ", texto)
     return texto
 
 
@@ -30,8 +83,13 @@ def contar_palabras_comunes(a: str, b: str) -> float:
 def proporcional(escenas: list[str], duracion_total: float) -> list[dict]:
     dur = duracion_total / len(escenas)
     return [
-        {"inicio": round(i * dur, 3), "fin": round((i + 1) * dur, 3),
-         "duracion": round(dur, 3), "seg_idx": i, "score": 0}
+        {
+            "inicio": round(i * dur, 3),
+            "fin": round((i + 1) * dur, 3),
+            "duracion": round(dur, 3),
+            "seg_idx": i,
+            "score": 0,
+        }
         for i in range(len(escenas))
     ]
 
@@ -132,8 +190,15 @@ def asignar_timestamps(escenas: list[str], segmentos: list[dict], duracion_total
                 fin = round(inicio + 0.5, 3)
             dur = max(0.5, round(fin - inicio, 3))
             fin = round(inicio + dur, 3)
-            resultado.append({"inicio": round(inicio, 3), "fin": fin,
-                               "duracion": dur, "seg_idx": idx, "score": round(score, 3)})
+            resultado.append(
+                {
+                    "inicio": round(inicio, 3),
+                    "fin": fin,
+                    "duracion": dur,
+                    "seg_idx": idx,
+                    "score": round(score, 3),
+                }
+            )
             prev_fin = fin
             i = j
         else:
@@ -160,8 +225,9 @@ def asignar_timestamps(escenas: list[str], segmentos: list[dict], duracion_total
                     t_fin = round(t_ini + 0.5, 3)
                 dur = max(0.5, round(t_fin - t_ini, 3))
                 t_fin = round(t_ini + dur, 3)
-                resultado.append({"inicio": t_ini, "fin": t_fin,
-                                   "duracion": dur, "seg_idx": idx, "score": round(sc, 3)})
+                resultado.append(
+                    {"inicio": t_ini, "fin": t_fin, "duracion": dur, "seg_idx": idx, "score": round(sc, 3)}
+                )
                 t = t_fin
                 prev_fin = t_fin
             i = j
@@ -194,7 +260,7 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
                 continue
             ngrams_guion = []
             for j in range(min(len(palabras) - ngram_size + 1, 6)):
-                ng = tuple(palabras[j:j + ngram_size])
+                ng = tuple(palabras[j : j + ngram_size])
                 if ngram_size == 1 and ng[0] in _COMUNES_NGRAM:
                     continue
                 ngrams_guion.append((j, ng))
@@ -203,7 +269,7 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
             best_guion_j = len(palabras)
             for guion_j, ng in ngrams_guion:
                 for k in range(desde, hasta - ngram_size + 1):
-                    if tuple(words_limpias[k:k + ngram_size]) == ng:
+                    if tuple(words_limpias[k : k + ngram_size]) == ng:
                         if guion_j < best_guion_j:
                             best_pos = max(desde, k - guion_j)
                             best_guion_j = guion_j
@@ -220,8 +286,16 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
         palabras = _palabras_escena(escena)
         if not palabras:
             t_prev = resultado[-1]["fin"] if resultado else 0
-            resultado.append({"inicio": t_prev, "fin": round(t_prev + 1.0, 3),
-                               "duracion": 1.0, "seg_idx": ultimo_idx, "score": 0, "scene_idx": i})
+            resultado.append(
+                {
+                    "inicio": t_prev,
+                    "fin": round(t_prev + 1.0, 3),
+                    "duracion": 1.0,
+                    "seg_idx": ultimo_idx,
+                    "score": 0,
+                    "scene_idx": i,
+                }
+            )
             continue
 
         first_idx = _buscar_ngram(palabras, ultimo_idx, max_ventana=800)
@@ -229,20 +303,37 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
         if first_idx is None:
             t_prev = resultado[-1]["inicio"] if resultado else 0
             t_interp = round(t_prev + (duracion_total - t_prev) / max(1, n_escenas - i), 3)
-            resultado.append({"inicio": t_interp, "fin": t_interp,
-                               "duracion": 0, "seg_idx": ultimo_idx, "score": 0, "scene_idx": i})
+            resultado.append(
+                {
+                    "inicio": t_interp,
+                    "fin": t_interp,
+                    "duracion": 0,
+                    "seg_idx": ultimo_idx,
+                    "score": 0,
+                    "scene_idx": i,
+                }
+            )
             continue
 
         t_inicio = round(float(all_words[first_idx].get("start", 0)), 3)
         if first_idx > 0:
-            prev_end = float(all_words[first_idx - 1].get("end",
-                             all_words[first_idx - 1].get("start", t_inicio)))
+            prev_end = float(
+                all_words[first_idx - 1].get("end", all_words[first_idx - 1].get("start", t_inicio))
+            )
             pausa_prev = t_inicio - prev_end
             if pausa_prev >= 0.08:
                 t_inicio = round(prev_end + 0.03, 3)
 
-        resultado.append({"inicio": t_inicio, "fin": t_inicio,
-                           "duracion": 0, "seg_idx": first_idx, "score": 1.0, "scene_idx": i})
+        resultado.append(
+            {
+                "inicio": t_inicio,
+                "fin": t_inicio,
+                "duracion": 0,
+                "seg_idx": first_idx,
+                "score": 1.0,
+                "scene_idx": i,
+            }
+        )
         ultimo_idx = first_idx + 1
 
     resultado.sort(key=lambda x: x["inicio"])
@@ -273,7 +364,9 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
         t0 = resultado[tail_start - 1]["fin"] if tail_start > 0 else 0.0
         t_disponible = max(0.0, duracion_total - t0)
 
-        pesos = [max(1, len(_palabras_escena(escenas[resultado[i].get("scene_idx", i)]))) for i in tail_indices]
+        pesos = [
+            max(1, len(_palabras_escena(escenas[resultado[i].get("scene_idx", i)]))) for i in tail_indices
+        ]
         total_p = sum(pesos) or 1
 
         dur_min = 0.5
@@ -291,8 +384,13 @@ def asignar_timestamps_words(escenas: list[str], all_words: list[dict], duracion
     return resultado
 
 
-def assign_timestamps_auto(escenas: list[str], segmentos: list[dict], all_words: list[dict] | None,
-                            duracion_total: float, on_fallback=None) -> list[dict]:
+def assign_timestamps_auto(
+    escenas: list[str],
+    segmentos: list[dict],
+    all_words: list[dict] | None,
+    duracion_total: float,
+    on_fallback=None,
+) -> list[dict]:
     """Asigna timestamps con word-level (n-gram) si hay palabras, y cae a segment-level
     si el resultado de word-level parece fallido: heuristica >40% de escenas sin match
     Y el ultimo match cae en el ultimo 15% del audio (voz TTS que lee numeros/siglas

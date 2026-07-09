@@ -32,9 +32,20 @@ def ffprobe_duration(path: str) -> float:
         if not path or not os.path.exists(path):
             return 0.0
         r = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries",
-             "format=duration:stream=duration,codec_type", "-of", "json", path],
-            capture_output=True, text=True, timeout=60, **no_window_kwargs(),
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration:stream=duration,codec_type",
+                "-of",
+                "json",
+                path,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            **no_window_kwargs(),
         )
         if r.returncode != 0:
             return 0.0
@@ -64,9 +75,18 @@ def libx264_encode_args_only() -> list[str]:
     """libx264 siempre (sin cache global) - fallback fiable si la GPU falla."""
     xthreads = (os.environ.get("VF_FFMPEG_X264_THREADS") or "0").strip() or "0"
     return [
-        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
-        "-pix_fmt", "yuv420p", "-r", "24",
-        "-x264-params", f"threads={xthreads}",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-crf",
+        "28",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        "24",
+        "-x264-params",
+        f"threads={xthreads}",
     ]
 
 
@@ -87,26 +107,57 @@ def h264_encode_args() -> list[str]:
         return list(_h264_encode_cache)
     if pref == "h264_nvenc":
         _h264_encode_cache = [
-            "-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "28",
-            "-pix_fmt", "yuv420p", "-r", "24",
+            "-c:v",
+            "h264_nvenc",
+            "-preset",
+            "p4",
+            "-rc",
+            "vbr",
+            "-cq",
+            "28",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "24",
         ]
     elif pref == "h264_qsv":
         _h264_encode_cache = [
-            "-c:v", "h264_qsv", "-preset", "veryfast", "-global_quality", "28",
-            "-pix_fmt", "yuv420p", "-r", "24",
+            "-c:v",
+            "h264_qsv",
+            "-preset",
+            "veryfast",
+            "-global_quality",
+            "28",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "24",
         ]
     elif pref == "h264_amf":
         _h264_encode_cache = [
-            "-c:v", "h264_amf", "-quality", "speed", "-rc", "cqp",
-            "-qp_i", "28", "-qp_p", "28", "-pix_fmt", "yuv420p", "-r", "24",
+            "-c:v",
+            "h264_amf",
+            "-quality",
+            "speed",
+            "-rc",
+            "cqp",
+            "-qp_i",
+            "28",
+            "-qp_p",
+            "28",
+            "-pix_fmt",
+            "yuv420p",
+            "-r",
+            "24",
         ]
     else:
         _h264_encode_cache = libx264_encode_args_only()
     return list(_h264_encode_cache)
 
 
-def final_mux_aligned(concat_out: str, audio_path_mix: str, video_final: str,
-                       duracion_total: float, log=None) -> None:
+def final_mux_aligned(
+    concat_out: str, audio_path_mix: str, video_final: str, duracion_total: float, log=None
+) -> None:
     """
     Une video + audio a duracion_total (audio maestro). Sin -shortest: no recorta al stream
     mas corto. Rellena video (tpad) o audio (apad) y recorta (trim/atrim) si hace falta.
@@ -138,16 +189,33 @@ def final_mux_aligned(concat_out: str, audio_path_mix: str, video_final: str,
     if abs(v_dur - dt) <= eps:
         _lg(f"Mux final: video~audio ({v_dur:.2f}s~{dt:.2f}s), copiando video sin re-encode")
         cmd = [
-            "ffmpeg", "-y", "-i", concat_out, "-i", audio_path_mix,
-            "-filter_complex", f"[1:a]{af}[aout]",
-            "-map", "0:v:0", "-map", "[aout]",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-            "-movflags", "+faststart", "-t", f"{dt:.6f}", video_final,
+            "ffmpeg",
+            "-y",
+            "-i",
+            concat_out,
+            "-i",
+            audio_path_mix,
+            "-filter_complex",
+            f"[1:a]{af}[aout]",
+            "-map",
+            "0:v:0",
+            "-map",
+            "[aout]",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-movflags",
+            "+faststart",
+            "-t",
+            f"{dt:.6f}",
+            video_final,
         ]
         res = subprocess.run(cmd, capture_output=True, text=True, **no_window_kwargs())
-        copy_ok = (
-            res.returncode == 0
-            or (os.path.exists(video_final) and os.path.getsize(video_final) > 10240)
+        copy_ok = res.returncode == 0 or (
+            os.path.exists(video_final) and os.path.getsize(video_final) > 10240
         )
         if not copy_ok:
             raise Exception(f"FFmpeg mux final (copy) fallo:\n{(res.stderr or res.stdout or '')[-1200:]}")
@@ -166,17 +234,24 @@ def final_mux_aligned(concat_out: str, audio_path_mix: str, video_final: str,
     fc = f"[0:v]{vf}[vout];[1:a]{af}[aout]"
     _lg("Mux final: re-encode de video para alinear duracion (libx264 ultrafast por defecto)")
     base_cmd = ["ffmpeg", "-y", "-i", concat_out, "-i", audio_path_mix, "-filter_complex", fc] + [
-        "-map", "[vout]", "-map", "[aout]",
+        "-map",
+        "[vout]",
+        "-map",
+        "[aout]",
     ]
     tail = ["-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-t", f"{dt:.6f}", video_final]
 
     def _run_mux(enc_list):
-        return subprocess.run(base_cmd + enc_list + tail, capture_output=True, text=True, **no_window_kwargs())
+        return subprocess.run(
+            base_cmd + enc_list + tail, capture_output=True, text=True, **no_window_kwargs()
+        )
 
     res = _run_mux(h264_encode_args())
     if res.returncode != 0:
         err = (res.stderr or res.stdout or "")[-1400:]
-        _lg("Mux final: fallo el encoder elegido (p. ej. NVENC sin GPU/driver); reintentando con libx264 (CPU)...")
+        _lg(
+            "Mux final: fallo el encoder elegido (p. ej. NVENC sin GPU/driver); reintentando con libx264 (CPU)..."
+        )
         res = _run_mux(libx264_encode_args_only())
         if res.returncode != 0:
             raise Exception(

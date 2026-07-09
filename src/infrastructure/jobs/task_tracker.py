@@ -25,7 +25,11 @@ _STALE_AFTER_SECONDS = 300
 def clean_old_tasks() -> None:
     now = time.time()
     with _lock:
-        stale = [k for k, v in _tasks.items() if v["estado"] != "procesando" and now - v["inicio"] > _STALE_AFTER_SECONDS]
+        stale = [
+            k
+            for k, v in _tasks.items()
+            if v["estado"] != "procesando" and now - v["inicio"] > _STALE_AFTER_SECONDS
+        ]
         for k in stale:
             del _tasks[k]
 
@@ -44,9 +48,16 @@ def register_task_tracker(app) -> None:
                 body = request.get_json(silent=True, force=True) or {}
                 proyecto = (body.get("project_name") or body.get("proyecto") or "").strip()
                 with _lock:
-                    _tasks[tid] = {"id": tid, "tipo": tipo, "mensaje": msg, "estado": "procesando",
-                                    "inicio": time.time(), "proyecto": proyecto, "progreso": 0,
-                                    "video_url": None}
+                    _tasks[tid] = {
+                        "id": tid,
+                        "tipo": tipo,
+                        "mensaje": msg,
+                        "estado": "procesando",
+                        "inicio": time.time(),
+                        "proyecto": proyecto,
+                        "progreso": 0,
+                        "video_url": None,
+                    }
                 g._vf_task_id = tid
                 break
 

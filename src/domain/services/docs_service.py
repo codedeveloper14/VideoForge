@@ -4,8 +4,19 @@ from src.infrastructure.storage import docs_repository, user_repository
 
 _YT_RE = re.compile(r"(?:v=|youtu\.be/|embed/)([A-Za-z0-9_-]{11})")
 
-_PUBLIC_COLUMNS = ("id", "type", "category", "title", "description", "url", "content",
-                   "thumbnail_url", "duration_label", "tags", "sort_order")
+_PUBLIC_COLUMNS = (
+    "id",
+    "type",
+    "category",
+    "title",
+    "description",
+    "url",
+    "content",
+    "thumbnail_url",
+    "duration_label",
+    "tags",
+    "sort_order",
+)
 _ADMIN_COLUMNS = _PUBLIC_COLUMNS + ("is_published", "created_at", "created_by")
 
 
@@ -47,8 +58,9 @@ def submit_help_report(username: str | None, data: dict) -> None:
     if not email and username:
         email = docs_repository.get_user_email(username)
 
-    docs_repository.insert_help_report(username or "anonymous", email, report_type,
-                                        category, title, description)
+    docs_repository.insert_help_report(
+        username or "anonymous", email, report_type, category, title, description
+    )
 
 
 def list_admin_docs() -> list[dict]:

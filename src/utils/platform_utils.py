@@ -45,8 +45,9 @@ def open_folder(path: str | Path) -> None:
             os.makedirs(folder, exist_ok=True)
         system = platform.system()
         if system == "Windows":
-            subprocess.Popen(["explorer", os.path.normpath(folder)],
-                              creationflags=subprocess.CREATE_NO_WINDOW)
+            subprocess.Popen(
+                ["explorer", os.path.normpath(folder)], creationflags=subprocess.CREATE_NO_WINDOW
+            )
         elif system == "Darwin":
             subprocess.Popen(["open", folder])
         else:

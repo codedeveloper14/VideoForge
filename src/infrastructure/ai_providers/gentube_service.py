@@ -36,6 +36,7 @@ def read_cookie(account_id: int) -> str:
 def playwright_available() -> bool:
     try:
         import importlib
+
         return importlib.util.find_spec("playwright") is not None
     except Exception:
         return False
@@ -46,8 +47,7 @@ def probe_session(cookie_str: str) -> dict:
     Decodifica el JWT para extraer el email, sin llamada de red."""
     if not cookie_str:
         return {"ok": False, "user": ""}
-    parts = {p.split("=")[0].strip(): p.split("=", 1)[1].strip()
-             for p in cookie_str.split(";") if "=" in p}
+    parts = {p.split("=")[0].strip(): p.split("=", 1)[1].strip() for p in cookie_str.split(";") if "=" in p}
     has_session = any(k in _SESSION_COOKIE_NAMES and v for k, v in parts.items())
     if not has_session:
         return {"ok": False, "user": ""}
@@ -71,6 +71,7 @@ def probe_session(cookie_str: str) -> dict:
 def sync_profiles() -> dict[int, dict]:
     """Lee las cookies guardadas y verifica cada sesion en paralelo. Borra las
     cookies invalidas del disco."""
+
     def _one(i):
         ck = read_cookie(i)
         if not ck:
@@ -116,7 +117,9 @@ def playwright_login(account_id: int, log) -> None:
         with sync_playwright() as pw:
             exe = find_chromium_exe()
             ctx = pw.chromium.launch_persistent_context(
-                profile_dir, headless=False, executable_path=exe,
+                profile_dir,
+                headless=False,
+                executable_path=exe,
                 args=["--no-first-run", "--disable-blink-features=AutomationControlled"],
                 ignore_https_errors=True,
             )
@@ -133,9 +136,11 @@ def playwright_login(account_id: int, log) -> None:
                 except Exception:
                     break  # browser cerrado por el usuario
 
-                gt_cookies = [c for c in cookies
-                              if "gentube" in c.get("domain", "").lower()
-                              or "clerk" in c.get("domain", "").lower()]
+                gt_cookies = [
+                    c
+                    for c in cookies
+                    if "gentube" in c.get("domain", "").lower() or "clerk" in c.get("domain", "").lower()
+                ]
                 session_cookies = [c for c in gt_cookies if c["name"] in _SESSION_COOKIE_NAMES]
 
                 if session_cookies:
@@ -223,16 +228,37 @@ def _block_route(route):
     url = route.request.url
     rt = route.request.resource_type
     if (rt in ("image", "font", "media") and "cloudfront.net" not in url) or any(
-        d in url for d in ("google-analytics", "googleads", "doubleclick",
-                            "pinterest", "axiom.co", "posthog", "ph.gentube")
+        d in url
+        for d in (
+            "google-analytics",
+            "googleads",
+            "doubleclick",
+            "pinterest",
+            "axiom.co",
+            "posthog",
+            "ph.gentube",
+        )
     ):
         route.abort()
     else:
         route.continue_()
 
 
-def _slot_worker(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_count,
-                  lock, state_lock, state, stop_event, log, exe):
+def _slot_worker(
+    slot_idx,
+    acc_id,
+    cookie_str,
+    task_q,
+    total,
+    saved_count,
+    done_count,
+    lock,
+    state_lock,
+    state,
+    stop_event,
+    log,
+    exe,
+):
     """Un slot mantiene su propio browser headless y procesa tareas de la cola
     compartida, reutilizando la pagina entre imagenes para evitar recargar
     gentube.app en cada prompt."""
@@ -240,9 +266,14 @@ def _slot_worker(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
-            headless=True, executable_path=exe,
-            args=["--no-first-run", "--disable-blink-features=AutomationControlled",
-                  "--disable-dev-shm-usage", "--no-sandbox"],
+            headless=True,
+            executable_path=exe,
+            args=[
+                "--no-first-run",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+            ],
         )
         ctx = browser.new_context(
             viewport={"width": 1280, "height": 800},
@@ -255,8 +286,9 @@ def _slot_worker(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_
             name, _, val = ck_part.partition("=")
             for domain in (".gentube.app", "gentube.app", "www.gentube.app"):
                 try:
-                    ctx.add_cookies([{"name": name.strip(), "value": val.strip(),
-                                       "domain": domain, "path": "/"}])
+                    ctx.add_cookies(
+                        [{"name": name.strip(), "value": val.strip(), "domain": domain, "path": "/"}]
+                    )
                     break
                 except Exception:
                     pass
@@ -272,6 +304,7 @@ def _slot_worker(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_
             ct = r.headers.get("content-type", "")
             if "cloudfront.net" in url and "image" in ct and r.status == 200 and "profile_" not in url:
                 captured_cf.append(url)
+
         page.on("response", _on_resp)
 
         def _mark_done():
@@ -338,8 +371,10 @@ def _slot_worker(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_
                             ds = page.evaluate("() => window.__gt_img || null")
                             if ds and ds[:200] not in pre_urls:
                                 try:
-                                    page.evaluate("() => { if(window.__gt_obs) window.__gt_obs.disconnect(); "
-                                                   "if(window.__gt_poll) clearInterval(window.__gt_poll); }")
+                                    page.evaluate(
+                                        "() => { if(window.__gt_obs) window.__gt_obs.disconnect(); "
+                                        "if(window.__gt_poll) clearInterval(window.__gt_poll); }"
+                                    )
                                 except Exception:
                                     pass
                                 result_img = ("b64", ds)
@@ -424,8 +459,9 @@ def run_batch(prompts, slots, repeat, output_dir, state, state_lock, stop_event,
     effective_slots = min(slots, total)
 
     with state_lock:
-        state.update(running=True, step="running", progress=0, total=total,
-                      images_saved=0, output_dir=output_dir)
+        state.update(
+            running=True, step="running", progress=0, total=total, images_saved=0, output_dir=output_dir
+        )
     log(f"GenTube: {total} imagenes - {effective_slots} slots - {len(cookies_list)} cuentas")
 
     exe = find_chromium_exe()
@@ -442,8 +478,21 @@ def run_batch(prompts, slots, repeat, output_dir, state, state_lock, stop_event,
         acc_id, cookie_str = cookies_list[slot_idx % len(cookies_list)]
         t = threading.Thread(
             target=_slot_worker,
-            args=(slot_idx, acc_id, cookie_str, task_q, total, saved_count, done_count,
-                  lock, state_lock, state, stop_event, log, exe),
+            args=(
+                slot_idx,
+                acc_id,
+                cookie_str,
+                task_q,
+                total,
+                saved_count,
+                done_count,
+                lock,
+                state_lock,
+                state,
+                stop_event,
+                log,
+                exe,
+            ),
             daemon=True,
         )
         t.start()

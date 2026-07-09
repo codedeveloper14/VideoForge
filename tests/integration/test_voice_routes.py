@@ -27,8 +27,10 @@ def test_generar_exitoso(client, login_as, monkeypatch):
     monkeypatch.setattr(usage_service, "record_usage", lambda *a, **kw: True)
     monkeypatch.setattr(user_repository, "get_user_full", lambda u: {"id": 1, "username": u})
     monkeypatch.setattr(
-        n8n_client, "n8n_request",
-        lambda method, url, **kw: _FakeResponse(200, {"fragments": [{"audio": "abc"}]}))
+        n8n_client,
+        "n8n_request",
+        lambda method, url, **kw: _FakeResponse(200, {"fragments": [{"audio": "abc"}]}),
+    )
 
     resp = client.post("/api/voz/generar", json={"voice_id": "v1", "data": "hola mundo"})
     assert resp.status_code == 200
@@ -39,8 +41,10 @@ def test_generar_exitoso(client, login_as, monkeypatch):
 def test_generar_limite_alcanzado_da_429(client, login_as, monkeypatch):
     login_as()
     monkeypatch.setattr(
-        usage_service, "check_limit",
-        lambda *a, **kw: (False, "Limite mensual de voz alcanzado", {"used": 100, "limit": 100}))
+        usage_service,
+        "check_limit",
+        lambda *a, **kw: (False, "Limite mensual de voz alcanzado", {"used": 100, "limit": 100}),
+    )
 
     resp = client.post("/api/voz/generar", json={"voice_id": "v1", "data": "hola mundo"})
     assert resp.status_code == 429
@@ -55,8 +59,10 @@ def test_generar_requiere_auth(client):
 def test_voces_proxea_n8n(client, login_as, monkeypatch):
     login_as()
     monkeypatch.setattr(
-        n8n_client, "n8n_request",
-        lambda method, url, **kw: _FakeResponse(200, [{"ID Voz": "v1", "Nombre Voz": "Voz Uno"}]))
+        n8n_client,
+        "n8n_request",
+        lambda method, url, **kw: _FakeResponse(200, [{"ID Voz": "v1", "Nombre Voz": "Voz Uno"}]),
+    )
 
     resp = client.get("/api/voz/voces")
     assert resp.status_code == 200
@@ -67,8 +73,8 @@ def test_voces_proxea_n8n(client, login_as, monkeypatch):
 def test_fusionar_sin_proyecto_no_guarda_pero_responde(client, login_as, monkeypatch):
     login_as()
     monkeypatch.setattr(
-        n8n_client, "n8n_request",
-        lambda method, url, **kw: _FakeResponse(200, {"finalAudio": ""}))
+        n8n_client, "n8n_request", lambda method, url, **kw: _FakeResponse(200, {"finalAudio": ""})
+    )
 
     resp = client.post("/api/voz/fusionar", json={"fragments": [{"audio": "abc"}]})
     assert resp.status_code == 200

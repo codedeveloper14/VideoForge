@@ -21,10 +21,17 @@ from src.utils.platform_utils import open_folder
 logger = get_logger(__name__)
 
 state = {
-    "running": False, "step": "idle", "progress": 0, "total": 0,
-    "images_saved": 0, "log": [], "last_error": None, "output_dir": None,
-    "accounts": [{"index": i, "ok": False, "email": None, "jobs": 0}
-                 for i in range(flow_service.NUM_ACCOUNTS)],
+    "running": False,
+    "step": "idle",
+    "progress": 0,
+    "total": 0,
+    "images_saved": 0,
+    "log": [],
+    "last_error": None,
+    "output_dir": None,
+    "accounts": [
+        {"index": i, "ok": False, "email": None, "jobs": 0} for i in range(flow_service.NUM_ACCOUNTS)
+    ],
 }
 lock = threading.Lock()
 
@@ -104,7 +111,7 @@ def profile_dump(idx: int) -> dict:
     ls_path = os.path.join(profile_dir, "Local State")
     if os.path.isfile(ls_path):
         try:
-            with open(ls_path, "r", encoding="utf-8") as f:
+            with open(ls_path, encoding="utf-8") as f:
                 ls = json.load(f)
             result["local_state_keys"] = list(ls.keys())
         except Exception:
@@ -170,6 +177,7 @@ def _close_chromium_by_idx(idx: int) -> None:
     profile_path = str(flow_browser.profile_dir(idx))
     try:
         import psutil
+
         for p in psutil.process_iter(["pid", "cmdline"]):
             try:
                 cmd = " ".join(p.info.get("cmdline") or [])
@@ -299,7 +307,9 @@ def record_rl_hit(account_hash: str, acc_idx: int) -> bool:
         count = len(_rl_hits[account_hash])
 
     if count >= _RL_THRESHOLD and not is_banned(account_hash):
-        log(f"[Flow] [WARNING] Perfil {acc_idx + 1}: {count} rate limits en {_RL_WINDOW // 60}min --> rotacion")
+        log(
+            f"[Flow] [WARNING] Perfil {acc_idx + 1}: {count} rate limits en {_RL_WINDOW // 60}min --> rotacion"
+        )
         rotate_account(account_hash, acc_idx)
         return True
     return False
@@ -352,6 +362,7 @@ def chromium_status() -> list[dict]:
                     if age >= 30:
                         try:
                             import psutil
+
                             pd_check = str(flow_browser.profile_dir(idx)).lower().replace("\\", "/")
                             proc_alive = any(
                                 pd_check in " ".join(px.info.get("cmdline") or []).lower().replace("\\", "/")
@@ -390,11 +401,18 @@ def chromium_status() -> list[dict]:
             ban_until = _banned_until.get(acc_hash, 0) if acc_hash else 0
         banned_secs = max(0, int(ban_until - time.time()))
 
-        result.append({
-            "index": i, "open": i in open_idxs, "connected": connected,
-            "email": email or f"Perfil {i + 1}", "has_cookie": bool(ck),
-            "ext_dir": "", "slot_type": slot_type, "banned_secs": banned_secs,
-        })
+        result.append(
+            {
+                "index": i,
+                "open": i in open_idxs,
+                "connected": connected,
+                "email": email or f"Perfil {i + 1}",
+                "has_cookie": bool(ck),
+                "ext_dir": "",
+                "slot_type": slot_type,
+                "banned_secs": banned_secs,
+            }
+        )
     return result
 
 
@@ -411,6 +429,7 @@ def reset_chromium() -> dict:
     base_dir = get_flow_profiles_dir()
     try:
         import psutil
+
         for proc in psutil.process_iter(["pid", "cmdline"]):
             try:
                 cmd = " ".join(proc.info.get("cmdline") or [])
@@ -458,6 +477,7 @@ def reset_chromium_profile(idx: int) -> dict:
 
     try:
         import psutil
+
         tag = f"flow_profile_{idx}"
         for proc in psutil.process_iter(["pid", "cmdline"]):
             try:
@@ -524,15 +544,24 @@ def start_login(idx: int) -> dict:
     return {"ok": True, "message": f"Abriendo Chromium perfil {idx + 1}..."}
 
 
-def _upload_reference_image(b64_data: str, mime_type: str, bearer: str, project_id: str,
-                             account_hash: str | None = None, filename: str = "reference.png") -> str:
+def _upload_reference_image(
+    b64_data: str,
+    mime_type: str,
+    bearer: str,
+    project_id: str,
+    account_hash: str | None = None,
+    filename: str = "reference.png",
+) -> str:
     """Sube la imagen de referencia A TRAVES DEL BRIDGE -- la extension ejecuta el
     fetch con las cookies del navegador, evitando el 401 que daría un bearer de disco."""
     upload_url = "https://aisandbox-pa.googleapis.com/v1/flow/uploadImage"
     body = {
         "clientContext": {"projectId": project_id, "tool": "PINHOLE"},
-        "imageBytes": b64_data, "fileName": filename, "mimeType": mime_type,
-        "isHidden": False, "isUserUploaded": True,
+        "imageBytes": b64_data,
+        "fileName": filename,
+        "mimeType": mime_type,
+        "isHidden": False,
+        "isUserUploaded": True,
     }
     try:
         result = _bridge_generate(json.dumps(body), bearer, upload_url, account_hash=account_hash, timeout=30)
@@ -556,8 +585,9 @@ def _upload_reference_image(b64_data: str, mime_type: str, bearer: str, project_
     return ""
 
 
-def _bridge_generate(body_json: str, bearer: str, url: str, account_hash: str | None = None,
-                      timeout: int = 120) -> dict:
+def _bridge_generate(
+    body_json: str, bearer: str, url: str, account_hash: str | None = None, timeout: int = 120
+) -> dict:
     flow_bridge.start_bridge(log)
 
     rid = str(uuid.uuid4())
@@ -572,8 +602,11 @@ def _bridge_generate(body_json: str, bearer: str, url: str, account_hash: str | 
     # Si la cuenta asignada tiene HTTP polling activo pero NO WS, no redirigir a la
     # WS de otra cuenta (mandaria la tarea al browser equivocado) -- encolar para HTTP
     # polling de la cuenta asignada, salvo que consiga WS en la espera de gracia.
-    assigned_has_http = bool(account_hash) and account_hash not in ws_hashes \
+    assigned_has_http = (
+        bool(account_hash)
+        and account_hash not in ws_hashes
         and account_hash in flow_bridge.get_http_seen_accounts()
+    )
 
     pushed = False
     if assigned_has_http:
@@ -616,7 +649,9 @@ def _bridge_generate(body_json: str, bearer: str, url: str, account_hash: str | 
                 req["account_hash"] = account_hash
                 req["bearer"] = bearer
             flow_bridge.enqueue_request(req)
-            log(f"[Flow] Bridge: request encolado {rid[:12]}... cuenta={account_hash or 'any'} (HTTP polling)")
+            log(
+                f"[Flow] Bridge: request encolado {rid[:12]}... cuenta={account_hash or 'any'} (HTTP polling)"
+            )
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -638,14 +673,34 @@ def _bridge_generate(body_json: str, bearer: str, url: str, account_hash: str | 
 
 def _sanitize_prompt_text(p: str) -> str:
     import unicodedata
-    for a, b in (("—", "-"), ("–", "-"), ("‘", "'"), ("’", "'"),
-                 ("“", '"'), ("”", '"'), ("…", "..."), ("«", '"'), ("»", '"')):
+
+    for a, b in (
+        ("—", "-"),
+        ("–", "-"),
+        ("‘", "'"),
+        ("’", "'"),
+        ("“", '"'),
+        ("”", '"'),
+        ("…", "..."),
+        ("«", '"'),
+        ("»", '"'),
+    ):
         p = p.replace(a, b)
-    return " ".join("".join(c for c in p.strip() if unicodedata.category(c)[0] != "C" or c == " ").split())[:1500]
+    return " ".join("".join(c for c in p.strip() if unicodedata.category(c)[0] != "C" or c == " ").split())[
+        :1500
+    ]
 
 
-def start_run(prompts: list, out_dir: str, slots: int, aspect: str, model: str,
-              max_retries: int, ref_image: str | None = None, auto_open: bool = False) -> dict:
+def start_run(
+    prompts: list,
+    out_dir: str,
+    slots: int,
+    aspect: str,
+    model: str,
+    max_retries: int,
+    ref_image: str | None = None,
+    auto_open: bool = False,
+) -> dict:
     global _batch_id
     if isinstance(prompts, str):
         prompts = [line.strip() for line in prompts.splitlines() if line.strip()]
@@ -666,24 +721,49 @@ def start_run(prompts: list, out_dir: str, slots: int, aspect: str, model: str,
     with lock:
         _batch_id += 1
         my_batch_id = _batch_id
-        state.update({"running": True, "step": "running", "progress": 0, "total": len(prompts),
-                      "images_saved": 0, "last_error": None, "output_dir": out_dir, "log": [],
-                      "batch_id": my_batch_id})
+        state.update(
+            {
+                "running": True,
+                "step": "running",
+                "progress": 0,
+                "total": len(prompts),
+                "images_saved": 0,
+                "last_error": None,
+                "output_dir": out_dir,
+                "log": [],
+                "batch_id": my_batch_id,
+            }
+        )
 
     _last_batch.clear()
-    _last_batch.update({"prompts": prompts, "slots": slots, "aspect": aspect, "model": model,
-                        "retries": max_retries, "ref_image": ref_image})
+    _last_batch.update(
+        {
+            "prompts": prompts,
+            "slots": slots,
+            "aspect": aspect,
+            "model": model,
+            "retries": max_retries,
+            "ref_image": ref_image,
+        }
+    )
 
-    threading.Thread(target=_run_batch, args=(prompts, out_dir, slots, aspect, model, max_retries, ref_image),
-                      daemon=True).start()
+    threading.Thread(
+        target=_run_batch, args=(prompts, out_dir, slots, aspect, model, max_retries, ref_image), daemon=True
+    ).start()
     return {"ok": True, "total": len(prompts)}
 
 
 def retry_one(out_dir: str, idx: int, filename: str, fallback_prompts: list) -> dict:
     last = dict(_last_batch) if _last_batch else None
     if not last and fallback_prompts:
-        last = {"prompts": fallback_prompts, "slots": 2, "aspect": "IMAGE_ASPECT_RATIO_LANDSCAPE",
-                "model": "NANO_BANANA_2", "retries": 2, "ref_image": None}
+        last = {
+            "prompts": fallback_prompts,
+            "slots": 2,
+            "aspect": "IMAGE_ASPECT_RATIO_LANDSCAPE",
+            "model": "NANO_BANANA_2",
+            "retries": 2,
+            "ref_image": None,
+        }
 
     if not out_dir or idx is None:
         raise ValueError(f"Faltan parametros out_dir={bool(out_dir)} idx={idx}")
@@ -702,10 +782,16 @@ def retry_one(out_dir: str, idx: int, filename: str, fallback_prompts: list) -> 
                 pass
 
     def _retry():
-        _run_batch([prompts[idx]], out_dir, last.get("slots", 2),
-                   last.get("aspect", "IMAGE_ASPECT_RATIO_LANDSCAPE"),
-                   last.get("model", "NANO_BANANA_2"), last.get("retries", 2),
-                   last.get("ref_image"), start_index=idx)
+        _run_batch(
+            [prompts[idx]],
+            out_dir,
+            last.get("slots", 2),
+            last.get("aspect", "IMAGE_ASPECT_RATIO_LANDSCAPE"),
+            last.get("model", "NANO_BANANA_2"),
+            last.get("retries", 2),
+            last.get("ref_image"),
+            start_index=idx,
+        )
 
     threading.Thread(target=_retry, daemon=True).start()
     return {"ok": True}
@@ -722,7 +808,7 @@ def get_status(since: int) -> dict:
     with lock:
         st = {k: v for k, v in state.items() if k != "log"}
         all_logs = state["log"]
-        st["last_log"] = list(all_logs[since:since + 50])
+        st["last_log"] = list(all_logs[since : since + 50])
         st["log_total"] = len(all_logs)
     return st
 
@@ -736,15 +822,25 @@ def get_full_log() -> str:
     return "\n".join(lines)
 
 
-def _run_batch(prompts: list, out_dir: str, slots: int, aspect: str, model: str, max_retries: int,
-               ref_image: str | None = None, start_index: int = 0, auto_open: bool = False) -> None:
+def _run_batch(
+    prompts: list,
+    out_dir: str,
+    slots: int,
+    aspect: str,
+    model: str,
+    max_retries: int,
+    ref_image: str | None = None,
+    start_index: int = 0,
+    auto_open: bool = False,
+) -> None:
     """Bridge-mode: el bearer viene de la extension via el cache del bridge (no de
     cookies en disco); semaforo por cuenta (1 request activa a la vez, evita 401/403
     en cascada); slots = workers globales limitados por cuentas conectadas; retry por
     rondas hasta completar el 100%; 400 UNSAFE marca el prompt como no reintentable."""
     try:
-        _run_batch_inner(prompts, out_dir, slots, aspect, model, max_retries, ref_image,
-                          start_index, auto_open=auto_open)
+        _run_batch_inner(
+            prompts, out_dir, slots, aspect, model, max_retries, ref_image, start_index, auto_open=auto_open
+        )
     except Exception as exc:
         with lock:
             state["running"] = False
@@ -754,8 +850,17 @@ def _run_batch(prompts: list, out_dir: str, slots: int, aspect: str, model: str,
         log(f"[Flow] ERROR fatal en batch: {exc}")
 
 
-def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model: str, max_retries: int,
-                      ref_image: str | None = None, start_index: int = 0, auto_open: bool = False) -> None:
+def _run_batch_inner(
+    prompts: list,
+    out_dir: str,
+    slots: int,
+    aspect: str,
+    model: str,
+    max_retries: int,
+    ref_image: str | None = None,
+    start_index: int = 0,
+    auto_open: bool = False,
+) -> None:
     log(f"[Flow] ===== BATCH INNER START: {len(prompts)} prompts, out={out_dir[:60]} =====")
     _stop_event.clear()
     # Limpiar requests pendientes del batch anterior -- evita que un upload espere
@@ -780,8 +885,14 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         if not bearer:
             return
         acc_hash = flow_service.account_hash(email)
-        entry = {"index": i, "cookie": ck, "bearer": bearer, "bearer_lock": threading.Lock(),
-                 "email": email, "account_hash": acc_hash}
+        entry = {
+            "index": i,
+            "cookie": ck,
+            "bearer": bearer,
+            "bearer_lock": threading.Lock(),
+            "email": email,
+            "account_hash": acc_hash,
+        }
         with acc_load_lock:
             if any(a["account_hash"] == acc_hash for a in accounts_ok):
                 log(f"[Flow Acc{i + 1}] Duplicado ({email}), omitiendo")
@@ -795,8 +906,10 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                 state["accounts"][i].update({"ok": True, "email": f"{email} ok"})
         log(f"[Flow Acc{i + 1}] OK Hash: {acc_hash} ({email})")
 
-    load_threads = [threading.Thread(target=_load_account, args=(i,), daemon=True)
-                     for i in range(flow_service.NUM_ACCOUNTS)]
+    load_threads = [
+        threading.Thread(target=_load_account, args=(i,), daemon=True)
+        for i in range(flow_service.NUM_ACCOUNTS)
+    ]
     for t in load_threads:
         t.start()
     for t in load_threads:
@@ -816,9 +929,16 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
             if not flow_bridge.get_cached_bearer(ch):
                 log(f"[Flow] Cuenta HTTP {ch[:8]} omitida (sin bearer, hay cuentas WS activas)")
                 continue
-        accounts_ok.append({"index": len(accounts_ok), "cookie": "", "bearer": "",
-                             "bearer_lock": threading.Lock(), "email": f"{src}_{ch[:8]}",
-                             "account_hash": ch})
+        accounts_ok.append(
+            {
+                "index": len(accounts_ok),
+                "cookie": "",
+                "bearer": "",
+                "bearer_lock": threading.Lock(),
+                "email": f"{src}_{ch[:8]}",
+                "account_hash": ch,
+            }
+        )
         log(f"[Flow] Cuenta {src} agregada: {ch}")
 
     flow_bridge.start_bridge(log)
@@ -849,9 +969,16 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         all_during = set(ws_during.keys()) | ws_active_during
         for ch in list(all_during):
             if not any(a["account_hash"] == ch for a in accounts_ok):
-                accounts_ok.append({"index": len(accounts_ok), "cookie": "", "bearer": "",
-                                     "bearer_lock": threading.Lock(), "email": f"WS_{ch[:8]}",
-                                     "account_hash": ch})
+                accounts_ok.append(
+                    {
+                        "index": len(accounts_ok),
+                        "cookie": "",
+                        "bearer": "",
+                        "bearer_lock": threading.Lock(),
+                        "email": f"WS_{ch[:8]}",
+                        "account_hash": ch,
+                    }
+                )
                 log(f"[Flow] Cuenta WS detectada durante espera: {ch[:8]}")
                 first_ready_time = None
 
@@ -862,10 +989,18 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         ws_now_set = set(flow_bridge.get_ws_clients().keys())
         bearer_now_set = flow_bridge.get_bearer_cache_hashes()
         http_now_set = flow_bridge.get_http_seen_accounts()
-        n_http_bearer = sum(1 for a in accounts_ok if a["account_hash"] in http_now_set
-                            and (a["account_hash"] in bearer_now_set or bool(a.get("bearer", ""))))
-        n_ws_bearer = sum(1 for a in accounts_ok if a["account_hash"] in ws_now_set
-                          and (a["account_hash"] in bearer_now_set or bool(a.get("bearer", ""))))
+        n_http_bearer = sum(
+            1
+            for a in accounts_ok
+            if a["account_hash"] in http_now_set
+            and (a["account_hash"] in bearer_now_set or bool(a.get("bearer", "")))
+        )
+        n_ws_bearer = sum(
+            1
+            for a in accounts_ok
+            if a["account_hash"] in ws_now_set
+            and (a["account_hash"] in bearer_now_set or bool(a.get("bearer", "")))
+        )
 
         # Prioridad Chrome: si hay extensiones Chrome (HTTP) con bearer, no esperar Playwright.
         if n_http_bearer > 0:
@@ -878,7 +1013,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                 break
             if time.time() - last_feedback >= 5:
                 last_feedback = time.time()
-                log(f"[Flow] [OK] {n_http_bearer} Chrome OK - grace {int(grace_limit - grace_elapsed):.0f}s mas...")
+                log(
+                    f"[Flow] [OK] {n_http_bearer} Chrome OK - grace {int(grace_limit - grace_elapsed):.0f}s mas..."
+                )
             time.sleep(0.3)
             continue
 
@@ -894,7 +1031,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                 break
             if time.time() - last_feedback >= 5:
                 last_feedback = time.time()
-                log(f"[Flow] [OK] {n_ws_bearer} cuenta(s) WS OK - grace {int(grace_limit - grace_elapsed):.0f}s mas...")
+                log(
+                    f"[Flow] [OK] {n_ws_bearer} cuenta(s) WS OK - grace {int(grace_limit - grace_elapsed):.0f}s mas..."
+                )
             time.sleep(0.3)
             continue
 
@@ -904,7 +1043,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
             last_feedback = time.time()
             elapsed = int(time.time() - (wait_deadline - 90))
             ws_info = f"{n_ws_bearer} con WS" if n_ws_bearer else "sin WS..."
-            log(f"[Flow] Esperando extension Chrome... {elapsed}s ({n_check}/{len(accounts_ok)} conectada(s), {ws_info})")
+            log(
+                f"[Flow] Esperando extension Chrome... {elapsed}s ({n_check}/{len(accounts_ok)} conectada(s), {ws_info})"
+            )
         time.sleep(0.3)
 
     connected_now = set(flow_bridge.get_connected_accounts()) | set(flow_bridge.get_ws_clients().keys())
@@ -914,8 +1055,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
     existing_hashes = {a["account_hash"] for a in accounts_ok}
     for wh in ws_active:
         if wh not in existing_hashes:
-            accounts_ok.append({"account_hash": wh, "email": f"ws_{wh[:8]}", "cookie": "",
-                                 "bearer_lock": threading.Lock()})
+            accounts_ok.append(
+                {"account_hash": wh, "email": f"ws_{wh[:8]}", "cookie": "", "bearer_lock": threading.Lock()}
+            )
             log(f"[Flow] [OK] Cuenta WS agregada: {wh[:8]}")
 
     if not accounts_ok:
@@ -945,7 +1087,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
 
     n_total_accs = len(accounts_ok)
     max_workers = max(1, slots_user * n_total_accs)
-    log(f"[Flow] {len(prompts)} prompts . {max_workers} workers ({n_total_accs} cuenta(s) x {slots_user} slots)")
+    log(
+        f"[Flow] {len(prompts)} prompts . {max_workers} workers ({n_total_accs} cuenta(s) x {slots_user} slots)"
+    )
 
     ref_name = None
     real_ref_pid = None
@@ -963,26 +1107,33 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         ws_hashes_for_upload = set(flow_bridge.get_ws_clients().keys())
         upload_order = (
             [a for a in accounts_ok if a["account_hash"] in ws_hashes_for_upload]
-            + [a for a in accounts_ok if a["account_hash"] not in ws_hashes_for_upload
-               and a["account_hash"] in connected_now]
+            + [
+                a
+                for a in accounts_ok
+                if a["account_hash"] not in ws_hashes_for_upload and a["account_hash"] in connected_now
+            ]
             + [a for a in accounts_ok if a["account_hash"] not in connected_now]
         )
         ref_pid = str(uuid.uuid4())
         for ref_acc in upload_order:
             ref_bearer = flow_bridge.get_cached_bearer(ref_acc["account_hash"]) or ref_acc.get("bearer", "")
             log(f"[Flow] Upload con {ref_acc['email']}...")
-            ref_name = _upload_reference_image(ref_b64, ref_mime, ref_bearer, ref_pid,
-                                                account_hash=ref_acc["account_hash"])
+            ref_name = _upload_reference_image(
+                ref_b64, ref_mime, ref_bearer, ref_pid, account_hash=ref_acc["account_hash"]
+            )
             if ref_name:
                 log(f"[Flow] Imagen subida - name={ref_name} (NARWHAL + imageInputs)")
                 break
             log(f"[Flow] [WARNING] Upload fallo con {ref_acc['email']}, intentando siguiente cuenta...")
         if not ref_name:
-            log("[Flow] [WARNING] Upload de ref image fallo en todas las cuentas - generando sin referencia (NARWHAL)")
+            log(
+                "[Flow] [WARNING] Upload de ref image fallo en todas las cuentas - generando sin referencia (NARWHAL)"
+            )
     log("[Flow] Asegurate de tener Chrome en labs.google/fx/tools/flow con la extension.")
 
     if ref_name:
         import re as re_refpid
+
         m_refpid = re_refpid.search(r"projects/([^/]+)", ref_name)
         real_ref_pid = m_refpid.group(1) if m_refpid else ref_pid
         log(f"[Flow] Project ID de referencia: {real_ref_pid}")
@@ -998,7 +1149,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
     def _mark_cooldown(account_hash):
         with acc_cooldown_lock:
             acc_cooldown[account_hash] = time.time() + COOLDOWN_429
-            email = next((a["email"] for a in accounts_ok if a["account_hash"] == account_hash), account_hash[:8])
+            email = next(
+                (a["email"] for a in accounts_ok if a["account_hash"] == account_hash), account_hash[:8]
+            )
             log(f"[Flow] {email} en cooldown {COOLDOWN_429:.0f}s (429)")
 
     def _is_available(account_hash):
@@ -1013,7 +1166,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
     for a in accounts_ok:
         if a["account_hash"] not in ws_set_at_start:
             acc_semaphores[a["account_hash"]] = threading.Semaphore(1)
-            log(f"[Flow] [WARNING] {a['account_hash'][:8]} sin WS --> concurrencia 1 (evitar CAPTCHA por burst)")
+            log(
+                f"[Flow] [WARNING] {a['account_hash'][:8]} sin WS --> concurrencia 1 (evitar CAPTCHA por burst)"
+            )
 
     acc_fails = {a["account_hash"]: 0 for a in accounts_ok}
     acc_fails_lock = threading.Lock()
@@ -1026,7 +1181,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         with acc_fails_lock:
             acc_fails[account_hash] = acc_fails.get(account_hash, 0) + 1
             n = acc_fails[account_hash]
-            email = next((a["email"] for a in accounts_ok if a["account_hash"] == account_hash), account_hash[:8])
+            email = next(
+                (a["email"] for a in accounts_ok if a["account_hash"] == account_hash), account_hash[:8]
+            )
             if is_timeout:
                 # Bridge timeout = browser muerto: desregistrar de WS/HTTP para
                 # sacarla del pool y limpiar la cola para no bloquear otros workers.
@@ -1069,8 +1226,16 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                     if now < exp and cidx not in used_indices:
                         inherited_warmup = exp
                         break
-            accounts_ok.append({"account_hash": nh, "email": f"ws_{nh[:8]}", "cookie": "",
-                                 "bearer": nbearer or "", "bearer_lock": threading.Lock(), "index": new_idx})
+            accounts_ok.append(
+                {
+                    "account_hash": nh,
+                    "email": f"ws_{nh[:8]}",
+                    "cookie": "",
+                    "bearer": nbearer or "",
+                    "bearer_lock": threading.Lock(),
+                    "index": new_idx,
+                }
+            )
             nh_has_ws = nh in flow_bridge.get_ws_clients()
             acc_semaphores[nh] = threading.Semaphore(slots_user if nh_has_ws else 1)
             with acc_cooldown_lock:
@@ -1081,7 +1246,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
             if inherited_warmup > 0:
                 with _warmup_lock:
                     _warmup_until_idx[new_idx] = inherited_warmup
-                log(f"[Flow] Cuenta {nh[:8]} incorporada al batch - warmup heredado {int(inherited_warmup - now)}s")
+                log(
+                    f"[Flow] Cuenta {nh[:8]} incorporada al batch - warmup heredado {int(inherited_warmup - now)}s"
+                )
             else:
                 min_warmup = now + 25
                 with _warmup_lock:
@@ -1118,11 +1285,14 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                 warmup_log_ts.pop(a_idx, None)
                 return False
 
-            available = [a for a in pool
-                         if _is_available(a["account_hash"])
-                         and now > acc_skip_until.get(a["account_hash"], 0)
-                         and not is_banned(a["account_hash"])
-                         and not _in_warmup(a)]
+            available = [
+                a
+                for a in pool
+                if _is_available(a["account_hash"])
+                and now > acc_skip_until.get(a["account_hash"], 0)
+                and not is_banned(a["account_hash"])
+                and not _in_warmup(a)
+            ]
             if available:
                 with rr_lock:
                     idx = rr_counter[0] % len(available)
@@ -1242,11 +1412,13 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                 n_left = job_q.qsize()
                 if 0 < n_left < max_workers // 2:
                     import random
+
                     time.sleep(random.uniform(0.5, 2.5))
 
                 if not sem.acquire(timeout=2):
                     job_q.put((task_idx, prompt))
                     import random
+
                     time.sleep(random.uniform(0.5, 1.5))
                     break
 
@@ -1282,6 +1454,7 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                     session_id = ";" + str(int(time.time() * 1000))
                     api_url = FLOW_GEN_URL_TPL.format(pid=gen_pid)
                     import random
+
                     seed = random.randint(1, 999999)
 
                     prompt = prompt.strip().strip("\"'")
@@ -1294,24 +1467,34 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
 
                     inner_req = {
                         "clientContext": {"projectId": gen_pid, "tool": "PINHOLE", "sessionId": session_id},
-                        "imageModelName": "NARWHAL" if model in ("NANO_BANANA_2", "IMAGE_GENERATION_001_IMAGEN4") else model,
+                        "imageModelName": (
+                            "NARWHAL" if model in ("NANO_BANANA_2", "IMAGE_GENERATION_001_IMAGEN4") else model
+                        ),
                         "imageAspectRatio": aspect,
                         "structuredPrompt": {"parts": [{"text": prompt}]},
                         "seed": seed,
                     }
                     if use_ref_now:
-                        inner_req["imageInputs"] = [{"imageInputType": "IMAGE_INPUT_TYPE_REFERENCE", "name": ref_name}]
+                        inner_req["imageInputs"] = [
+                            {"imageInputType": "IMAGE_INPUT_TYPE_REFERENCE", "name": ref_name}
+                        ]
 
                     req_body = {
                         "clientContext": {"projectId": gen_pid, "tool": "PINHOLE", "sessionId": session_id},
                         "mediaGenerationContext": {"batchId": str(uuid.uuid4())},
-                        "useNewMedia": True, "requests": [inner_req],
+                        "useNewMedia": True,
+                        "requests": [inner_req],
                     }
 
                     log(f"{label} --> bridge_generate acc={acc['account_hash'][:8]} url={api_url[40:80]}")
                     try:
-                        result = _bridge_generate(json.dumps(req_body), bearer, api_url,
-                                                   account_hash=acc["account_hash"], timeout=300)
+                        result = _bridge_generate(
+                            json.dumps(req_body),
+                            bearer,
+                            api_url,
+                            account_hash=acc["account_hash"],
+                            timeout=300,
+                        )
                     except RuntimeError:
                         log(f"{label} Bridge timeout ({acc['account_hash'][:8]}) - re-encolando tarea")
                         _mark_fail(acc["account_hash"], is_timeout=True)
@@ -1424,9 +1607,13 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
                         with ref_fail_lock:
                             ref_fail_count[task_idx] = ref_fail_count.get(task_idx, 0) + 1
                             fail_cnt = ref_fail_count[task_idx]
-                        log(f"{label} 500 con imagen ref (intento {attempt + 1}, fallo_ref={fail_cnt}/{REF_FAIL_LIMIT}): {resp_body[:300]}")
+                        log(
+                            f"{label} 500 con imagen ref (intento {attempt + 1}, fallo_ref={fail_cnt}/{REF_FAIL_LIMIT}): {resp_body[:300]}"
+                        )
                         if fail_cnt >= REF_FAIL_LIMIT:
-                            log(f"{label} [WARNING] Ref image falla consistentemente - proximos intentos usaran NARWHAL sin referencia")
+                            log(
+                                f"{label} [WARNING] Ref image falla consistentemente - proximos intentos usaran NARWHAL sin referencia"
+                            )
                     else:
                         log(f"{label} intento {attempt + 1}: HTTP {status}")
                     time.sleep(2)
@@ -1454,7 +1641,9 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
     # ── Rondas hasta completar todo ──────────────────────────────────────
     round_num = 0
     max_rounds = 30
-    log(f"[Flow] PRE-ROUND: stop={_stop_event.is_set()} max_workers={max_workers} q={job_q.qsize()} accs={len(accounts_ok)}")
+    log(
+        f"[Flow] PRE-ROUND: stop={_stop_event.is_set()} max_workers={max_workers} q={job_q.qsize()} accs={len(accounts_ok)}"
+    )
     while not _stop_event.is_set() and round_num < max_rounds:
         round_num += 1
         if job_q.empty():
@@ -1492,8 +1681,10 @@ def _run_batch_inner(prompts: list, out_dir: str, slots: int, aspect: str, model
         state["step"] = "done" if not _stop_event.is_set() else "idle"
         state["running"] = False
     total_safe = len(prompts) - len(unsafe)
-    log(f"[Flow] Listo: {saved_count[0]}/{total_safe} imagenes"
-        + (f" ({len(unsafe)} bloqueadas por Google)" if unsafe else ""))
+    log(
+        f"[Flow] Listo: {saved_count[0]}/{total_safe} imagenes"
+        + (f" ({len(unsafe)} bloqueadas por Google)" if unsafe else "")
+    )
 
 
 def abrir_carpeta() -> dict:

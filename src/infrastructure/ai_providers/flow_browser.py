@@ -32,8 +32,9 @@ def profile_dir(account_idx: int) -> Path:
     return get_flow_profiles_dir() / f"flow_profile_{account_idx}"
 
 
-def reset_profile_fingerprint(profile_path: str, account_idx: int = 0, reset_rate_limit: bool = False,
-                               log=None) -> None:
+def reset_profile_fingerprint(
+    profile_path: str, account_idx: int = 0, reset_rate_limit: bool = False, log=None
+) -> None:
     """Resetea el fingerprint del perfil (cookies de tracking, localStorage/IndexedDB
     de reCAPTCHA, client_id). reset_rate_limit=True tambien limpia cookies de sesion
     de aisandbox-pa (para recuperarse de un 429 persistente)."""
@@ -47,10 +48,12 @@ def reset_profile_fingerprint(profile_path: str, account_idx: int = 0, reset_rat
     if os.path.isfile(cookies_db):
         try:
             import sqlite3
+
             conn = sqlite3.connect(cookies_db, timeout=5)
             cur = conn.cursor()
             if reset_rate_limit:
-                cur.execute("""
+                cur.execute(
+                    """
                     DELETE FROM cookies
                     WHERE host_key LIKE '%aisandbox%'
                        OR host_key LIKE '%labs.google%'
@@ -60,38 +63,50 @@ def reset_profile_fingerprint(profile_path: str, account_idx: int = 0, reset_rat
                            '__Secure-3PAPISID','__Secure-3PSID',
                            'HSID','SSID','APISID','SAPISID'
                        ))
-                """)
+                """
+                )
             else:
-                cur.execute("""
+                cur.execute(
+                    """
                     DELETE FROM cookies
                     WHERE host_key LIKE '%labs.google%'
                        OR host_key LIKE '%aisandbox%'
                        OR host_key LIKE '%apis.google%'
                        OR (host_key LIKE '%google%' AND name IN ('NID','SOCS','AEC','__utmz','_ga'))
-                """)
+                """
+                )
             deleted = cur.rowcount
             conn.commit()
             conn.close()
             if deleted > 0 and log:
-                log(f"[Flow] Perfil {account_idx}: {deleted} cookies limpiadas "
-                    f"({'rate limit' if reset_rate_limit else 'reCAPTCHA'})")
+                log(
+                    f"[Flow] Perfil {account_idx}: {deleted} cookies limpiadas "
+                    f"({'rate limit' if reset_rate_limit else 'reCAPTCHA'})"
+                )
         except Exception:
             pass
 
     ldb_dir = os.path.join(default_dir, "Local Storage", "leveldb")
     if os.path.isdir(ldb_dir):
         import glob
+
         for ldb in glob.glob(os.path.join(ldb_dir, "*")):
             try:
                 with open(ldb, "rb") as f:
                     content = f.read(512)
-                if b"labs.google" in content or b"aisandbox" in content or b"GCAP" in content or b"recaptcha" in content:
+                if (
+                    b"labs.google" in content
+                    or b"aisandbox" in content
+                    or b"GCAP" in content
+                    or b"recaptcha" in content
+                ):
                     os.remove(ldb)
             except Exception:
                 pass
 
-    import shutil
     import glob
+    import shutil
+
     for pat in ("*labs.google*", "*aisandbox*"):
         for idb in glob.glob(os.path.join(default_dir, "IndexedDB", pat)):
             try:
@@ -103,7 +118,7 @@ def reset_profile_fingerprint(profile_path: str, account_idx: int = 0, reset_rat
     ls = {}
     if os.path.isfile(ls_path):
         try:
-            with open(ls_path, "r", encoding="utf-8") as f:
+            with open(ls_path, encoding="utf-8") as f:
                 ls = json.load(f)
         except Exception:
             pass
@@ -142,8 +157,10 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
 
     exe = find_chromium_exe()
     if not exe:
-        log(f"[Flow Acc{account_idx + 1}] [ERROR] No se encontro Chrome/Chromium. "
-            f"Ejecuta: python -m playwright install chromium")
+        log(
+            f"[Flow Acc{account_idx + 1}] [ERROR] No se encontro Chrome/Chromium. "
+            f"Ejecuta: python -m playwright install chromium"
+        )
         on_closed()
         return
 
@@ -176,7 +193,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
         ls_path = os.path.join(profile_path, "Local State")
         if os.path.isfile(ls_path):
             try:
-                with open(ls_path, "r", encoding="utf-8") as fh:
+                with open(ls_path, encoding="utf-8") as fh:
                     ls = json.load(fh)
                 ls.setdefault("user_experience_metrics", {})["client_id"] = str(uuid.uuid4())
                 with open(ls_path, "w", encoding="utf-8") as fh:
@@ -186,6 +203,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
         ext_folder = os.path.join(default_dir, "Extensions")
         if os.path.isdir(ext_folder):
             import shutil
+
             try:
                 shutil.rmtree(ext_folder, ignore_errors=True)
             except Exception:
@@ -195,7 +213,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
         prefs = {}
         if os.path.isfile(prefs_path):
             try:
-                with open(prefs_path, "r", encoding="utf-8") as fh:
+                with open(prefs_path, encoding="utf-8") as fh:
                     prefs = json.load(fh)
             except Exception:
                 pass
@@ -224,7 +242,9 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
 
         with sync_playwright() as pw:
             ctx = pw.chromium.launch_persistent_context(
-                profile_path, headless=False, executable_path=exe,
+                profile_path,
+                headless=False,
+                executable_path=exe,
                 ignore_default_args=["--disable-extensions", "--enable-automation"],
                 args=[
                     f"--load-extension={ext_dir}",
@@ -276,6 +296,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
             def _find_pid_early():
                 try:
                     import psutil
+
                     for _ in range(12):
                         if closed_ev.is_set():
                             return
@@ -304,6 +325,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
                 if chrome_pid_found[0]:
                     try:
                         import psutil
+
                         psutil.Process(chrome_pid_found[0]).wait()
                     except Exception:
                         pass
@@ -312,6 +334,7 @@ def playwright_login(account_idx: int, log, on_closed) -> None:
                 else:
                     try:
                         import psutil
+
                         while not closed_ev.is_set():
                             time.sleep(3)
                             still_alive = False
