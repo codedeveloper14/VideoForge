@@ -15,6 +15,7 @@ from src.presentation.routes.flow import flow_bp
 from src.presentation.routes.gentube import gentube_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
+from src.presentation.routes.idea2video import idea2video_bp
 from src.presentation.routes.meta import meta_bp
 from src.presentation.routes.plans import plans_bp
 from src.presentation.routes.projects import projects_bp
@@ -63,6 +64,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(admin_docs_bp)
     app.register_blueprint(gentube_bp)
     app.register_blueprint(flow_bp)
+    app.register_blueprint(idea2video_bp)
 
     gentube_animation_service.sync_profiles_async()
     flow_bridge.start_ws_server(flow_animation_service.log)
