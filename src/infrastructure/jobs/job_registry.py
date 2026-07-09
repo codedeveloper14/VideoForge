@@ -16,3 +16,7 @@ def get_job(job_id: str) -> dict | None:
 
 def update_job(job_id: str, **fields) -> None:
     _jobs[job_id].update(fields)
+
+
+def all_jobs() -> list[dict]:
+    return list(_jobs.values())
