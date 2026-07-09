@@ -1,6 +1,7 @@
 from apiflask import APIFlask
 
 from src.core.config import config
+from src.domain.services import gentube_animation_service
 from src.infrastructure.payments.stripe_service import ensure_stripe_table
 from src.infrastructure.jobs.task_tracker import register_task_tracker
 from src.infrastructure.storage import docs_repository
@@ -9,6 +10,7 @@ from src.presentation.auth_middleware import register_auth_middleware
 from src.presentation.routes.auth import auth_bp
 from src.presentation.routes.docs import admin_docs_bp, docs_bp
 from src.presentation.routes.editor import editor_bp
+from src.presentation.routes.gentube import gentube_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
 from src.presentation.routes.meta import meta_bp
@@ -57,4 +59,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(pollination_bp)
     app.register_blueprint(docs_bp)
     app.register_blueprint(admin_docs_bp)
+    app.register_blueprint(gentube_bp)
+
+    gentube_animation_service.sync_profiles_async()
     return app

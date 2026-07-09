@@ -42,3 +42,11 @@ def get_meta_accounts_dir() -> Path:
 
 def get_whisk_profiles_dir() -> Path:
     return _ensure(config.app_data_dir / "whisk_profiles")
+
+
+def get_gentube_cookies_dir() -> Path:
+    return _ensure(config.app_data_dir / "gentube_cookies")
+
+
+def get_gentube_profiles_dir() -> Path:
+    return _ensure(config.app_data_dir / "gentube_profiles")
