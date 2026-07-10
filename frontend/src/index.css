@@ -1,111 +1,52 @@
+@import "tailwindcss";
+
+/* Paleta real de Studio IVR (extraida de ui_embedded.py / launcher.py) --
+   mantener estos nombres, el resto de la app los referencia como var(--vf-*). */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --vf-c1: #7c6aff;
+  --vf-c2: #a78bfa;
+  --vf-c3: #f472b6;
+  --vf-c4: #fbbf24;
+  --vf-c5: #22d3a0;
+  --vf-c6: #38bdf8;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --vf-bg: #07070e;
+  --vf-s: #0e0e1a;
+  --vf-p: #131320;
+  --vf-b: #1c1c2e;
+  --vf-b2: #252538;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --vf-text: #eeeef5;
+  --vf-m: #5a5a75;
+  --vf-m2: #38384e;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
+  --vf-mono: "JetBrains Mono", monospace;
+  --vf-sans: "Syne", sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  /* Alias usados por las paginas */
+  --vf-surface: var(--vf-s);
+  --vf-surface-2: var(--vf-p);
+  --vf-border: rgba(255, 255, 255, 0.08);
+  --vf-muted: var(--vf-m);
+  --vf-accent: var(--vf-c1);
+  --vf-accent-hover: #6f5cf5;
+  --vf-danger: #ff5566;
+  --vf-success: var(--vf-c5);
 }
 
 body {
   margin: 0;
+  background: var(--vf-bg);
+  color: var(--vf-text);
+  font-family:
+    "Syne",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+#root {
+  min-height: 100vh;
 }

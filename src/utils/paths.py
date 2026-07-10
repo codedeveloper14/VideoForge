@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from src.core.config import config
@@ -6,6 +7,15 @@ from src.core.config import config
 def _ensure(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def get_frontend_dist_dir() -> Path:
+    """Carpeta con el build de Vite (frontend/dist). En un .exe/.app compilado con
+    PyInstaller, los archivos se extraen bajo sys._MEIPASS en vez de vivir junto a
+    este .py -- ahi es donde debe apuntar el spec de build (--add-data)."""
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "frontend_dist"
+    return Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 def get_logs_dir() -> Path:

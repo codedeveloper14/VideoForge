@@ -54,3 +54,7 @@ cookies/*.txt
 # Logs (mantener carpeta, ignorar contenido)
 logs/*
 !logs/.gitkeep
+
+# Frontend (Vite + React)
+frontend/node_modules/
+frontend/dist/

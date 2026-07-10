@@ -27,6 +27,13 @@ PUBLIC_PREFIXES = ("/docs", "/openapi.json", "/redoc")
 
 
 def _is_public(path: str) -> bool:
+    # Todo lo que no sea /api/* es el frontend (React) servido estatico, o Swagger --
+    # ninguno de los dos expone datos sensibles del lado del servidor. El SPA hace su
+    # propio chequeo de sesion via /api/auth/me y redirige a /login si hace falta;
+    # bloquear aqui la carga del index.html rompe la app entera antes de que React
+    # pueda siquiera mostrar la pantalla de login.
+    if not path.startswith("/api"):
+        return True
     if path in PUBLIC_ROUTES:
         return True
     return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
