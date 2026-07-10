@@ -37,6 +37,23 @@ def _wait_for_backend(health_url: str, max_wait: float = 20.0, interval: float =
     return False
 
 
+def _reload_when_ready(window, url: str, health_url: str) -> None:
+    """Red de seguridad para cuando create_app() tarda mas que el timeout inicial
+    (ensure_tables/ensure_stripe_table/docs.ensure_tables contra una DB remota
+    pueden tardar mucho si la red esta lenta ese momento): la ventana ya se abrio
+    apuntando a un puerto que todavia no escuchaba y quedo en blanco para siempre,
+    porque WebKit no reintenta un load fallido por su cuenta. Sigue el polling en
+    segundo plano (hasta 3 min mas) y fuerza un reload en cuanto el backend responda."""
+    if _wait_for_backend(health_url, max_wait=180.0, interval=1.0):
+        logger.info("Backend listo (tarde) -- recargando la ventana.")
+        try:
+            window.load_url(url)
+        except Exception:
+            logger.exception("No se pudo recargar la ventana tras esperar el backend")
+    else:
+        logger.error("El backend no respondio tras 200s -- la ventana puede haber quedado en blanco.")
+
+
 def _screen_size() -> tuple[int, int]:
     try:
         import tkinter as tk
@@ -64,7 +81,8 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
     backend_thread.start()
 
     logger.info("Esperando a que el backend responda...")
-    if _wait_for_backend(health_url):
+    backend_ready = _wait_for_backend(health_url)
+    if backend_ready:
         logger.info("Backend listo.")
     else:
         logger.warning("Timeout esperando al backend -- se abre la ventana/navegador igual.")
@@ -110,6 +128,13 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
             window = webview.create_window(**window_kwargs)
 
         window.events.closed += events.on_closed
+        if not backend_ready:
+            threading.Thread(
+                target=_reload_when_ready,
+                args=(window, url, health_url),
+                daemon=True,
+                name="VF-BackendReload",
+            ).start()
         try:
             webview.start(debug=config.debug, http_server=False, func=lambda: events.on_shown(window))
         except TypeError:
