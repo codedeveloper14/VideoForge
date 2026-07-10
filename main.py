@@ -10,6 +10,8 @@ if getattr(sys, "frozen", False) and len(sys.argv) >= 2 and sys.argv[1] == "--vf
     runpy.run_path(_worker_script, run_name="__main__")
     raise SystemExit(0)
 
+import threading
+
 from src.core.config import config
 from src.presentation.app import create_app
 from src.utils.logger import get_logger, setup_logging
@@ -17,8 +19,24 @@ from src.utils.logger import get_logger, setup_logging
 
 def _run_backend() -> None:
     """Bloqueante -- corre en un hilo de fondo (ver desktop.window.run), nunca en el
-    hilo principal: pywebview necesita el hilo principal para la ventana nativa."""
+    hilo principal: pywebview necesita el hilo principal para la ventana nativa.
+
+    La misma app se sirve en dos puertos: flask_port (8080, la API real que
+    consume el frontend) y docs_port (8081, dedicado a Swagger/OpenAPI -- ver
+    `_register_docs_port_gate` en src/presentation/app.py). Una sola instancia
+    de `create_app()` -- evita duplicar el servidor WS de Flow, los hilos de
+    sync, etc. -- corriendo en dos sockets via werkzeug."""
     app = create_app()
+
+    docs_thread = threading.Thread(
+        target=lambda: app.run(
+            host=config.flask_host, port=config.docs_port, debug=False, use_reloader=False, threaded=True
+        ),
+        daemon=True,
+        name="VF-Docs",
+    )
+    docs_thread.start()
+
     app.run(
         host=config.flask_host, port=config.flask_port, debug=config.debug, use_reloader=False, threaded=True
     )

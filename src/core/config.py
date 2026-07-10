@@ -14,6 +14,7 @@ class Config:
     app_name: str = "VideoForge"
     flask_host: str = "0.0.0.0"
     flask_port: int = 8080
+    docs_port: int = 8081
     websocket_port: int = 5557
     public_base_url: str = os.getenv("PUBLIC_BASE_URL", "http://localhost:8080")
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"

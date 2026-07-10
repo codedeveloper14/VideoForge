@@ -1,4 +1,5 @@
 from apiflask import APIFlask
+from flask import jsonify, request
 
 from src.core.config import config
 from src.domain.services import flow_animation_service, gentube_animation_service
@@ -30,6 +31,22 @@ from src.presentation.routes.user import user_bp
 from src.presentation.routes.voice import voice_bp
 from src.presentation.routes.whisk import pollination_bp, whisk_bp
 
+_DOCS_PATHS = ("/docs", "/openapi.json", "/redoc")
+
+
+def _register_docs_port_gate(app: APIFlask) -> None:
+    """El mismo `app` se sirve en dos puertos (ver `main.py`): flask_port (8080,
+    para la API real + el futuro frontend estatico) y docs_port (8081, dedicado
+    a Swagger/OpenAPI). Sin este gate, /docs tambien respondería en el puerto
+    8080 -- se oculta ahi para que ese puerto quede "limpio" para el frontend,
+    y el testeo de la API con Swagger siempre viva en 8081."""
+
+    @app.before_request
+    def _gate_docs():
+        if request.path.startswith(_DOCS_PATHS) and f":{config.docs_port}" not in request.host:
+            return jsonify({"error": "not found"}), 404
+        return None
+
 
 def create_app() -> APIFlask:
     app = APIFlask(__name__, title=f"{config.app_name} API", version="0.1.0")
@@ -39,6 +56,7 @@ def create_app() -> APIFlask:
     ensure_stripe_table()
     docs_repository.ensure_tables()
 
+    _register_docs_port_gate(app)
     register_auth_middleware(app)
     register_task_tracker(app)
 
