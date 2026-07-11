@@ -22,6 +22,9 @@ PUBLIC_ROUTES = {
     "/api/meta/ext-learn",
     "/api/meta/ext-captured",
     "/api/meta/ext-state",
+    # La extension de Flow envia la cookie desde su propio popup, misma razon
+    # que las rutas ext-* de Meta arriba: no hay cookie de sesion de VideoForge.
+    "/api/flow/save-cookie",
 }
 PUBLIC_PREFIXES = ("/docs", "/openapi.json", "/redoc")
 
