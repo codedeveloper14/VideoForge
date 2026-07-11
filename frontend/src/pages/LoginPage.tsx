@@ -12,7 +12,7 @@ function EyeToggle({ shown, onClick }: EyeToggleProps) {
     <button
       type="button"
       onClick={onClick}
-      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-white/30 transition-colors hover:text-white/60"
+      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-white/25 transition-colors hover:text-white/60"
     >
       {shown ? "🙈" : "👁"}
     </button>
@@ -30,12 +30,49 @@ function FieldIcon({ d }: FieldIconProps) {
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
-      className="h-[11px] w-[11px] opacity-50"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/20"
     >
       {d}
     </svg>
   );
 }
+
+const FEATURES = [
+  {
+    bg: "rgba(251,191,36,.12)",
+    stroke: "#fbbf24",
+    d: <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
+    title: "Pipeline inteligente",
+    desc: "Automatiza cada etapa de tu producción.",
+  },
+  {
+    bg: "rgba(124,106,255,.12)",
+    stroke: "#a78bfa",
+    d: (
+      <>
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </>
+    ),
+    title: "Colaboración en equipo",
+    desc: "Trabaja junto a tu equipo en tiempo real.",
+  },
+  {
+    bg: "rgba(34,211,160,.1)",
+    stroke: "#22d3a0",
+    d: (
+      <>
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </>
+    ),
+    title: "Seguro y confiable",
+    desc: "Tus proyectos están siempre protegidos.",
+  },
+];
 
 export default function LoginPage() {
   const { login, changePassword } = useAuth();
@@ -43,15 +80,23 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [mustChange, setMustChange] = useState(false);
   const [error, setError] = useState("");
+  const [changeError, setChangeError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!username.trim() || !password) {
+      setError("Completa usuario y contraseña.");
+      return;
+    }
     setSubmitting(true);
     try {
       const data = await login(username, password);
@@ -61,7 +106,7 @@ export default function LoginPage() {
       }
       navigate("/app/home");
     } catch (err) {
-      setError((err as Error).message);
+      setError((err as Error).message || "Credenciales incorrectas.");
     } finally {
       setSubmitting(false);
     }
@@ -69,13 +114,17 @@ export default function LoginPage() {
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    setChangeError("");
+    if (newPassword !== confirmPassword) {
+      setChangeError("Las contraseñas no coinciden.");
+      return;
+    }
     setSubmitting(true);
     try {
       await changePassword(username, newPassword);
       navigate("/app/home");
     } catch (err) {
-      setError((err as Error).message);
+      setChangeError((err as Error).message || "Error al guardar.");
     } finally {
       setSubmitting(false);
     }
@@ -84,97 +133,147 @@ export default function LoginPage() {
   const reqLen = newPassword.length >= 8;
   const reqNum = /[0-9]/.test(newPassword);
   const reqUp = /[A-Z]/.test(newPassword);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmitChange = reqLen && reqNum && reqUp && passwordsMatch;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#06060d] text-[var(--vf-text)]">
-      {/* Decorative gradient orbs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div
-          className="absolute -left-[25%] -top-[40%] h-[1000px] w-[1000px] rounded-full opacity-90"
-          style={{ background: "radial-gradient(circle, rgba(124,106,255,.15), transparent 60%)", filter: "blur(120px)" }}
-        />
-        <div
-          className="absolute -right-[25%] -top-[15%] h-[800px] w-[800px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(244,114,182,.08), transparent 60%)", filter: "blur(120px)" }}
-        />
-        <div
-          className="absolute bottom-[-35%] left-[20%] h-[700px] w-[700px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(34,211,160,.07), transparent 60%)", filter: "blur(120px)" }}
-        />
-      </div>
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-6"
+      style={{ background: "#08080f", color: "#ebebf5" }}
+    >
+      {/* Decorative background gradients, matching the original body::before */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 55% 55% at 15% 15%, rgba(99,80,255,.18) 0%, transparent 55%)," +
+            "radial-gradient(ellipse 45% 45% at 85% 80%, rgba(124,106,255,.12) 0%, transparent 50%)," +
+            "radial-gradient(ellipse 35% 35% at 75% 8%,  rgba(167,139,250,.08) 0%, transparent 45%)," +
+            "radial-gradient(ellipse 30% 30% at 5%  90%, rgba(80,60,200,.07)  0%, transparent 45%)",
+        }}
+      />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-5 py-6">
+      {/* Two-panel card: left = hero/features, right = form */}
+      <div
+        className="relative z-10 flex w-[min(1080px,96vw)] h-[min(660px,88vh)] overflow-hidden rounded-[18px] border border-white/[0.09]"
+        style={{ boxShadow: "0 40px 120px rgba(0,0,0,.8), 0 0 80px rgba(99,80,255,.08)" }}
+      >
+        {/* LEFT PANEL */}
         <div
-          className="w-full max-w-[440px] rounded-[28px] border border-white/[0.065] p-9 pb-8"
-          style={{
-            background: "rgba(11,11,24,.9)",
-            backdropFilter: "blur(32px)",
-            boxShadow:
-              "0 0 0 1px rgba(124,106,255,.06), 0 40px 100px rgba(0,0,0,.75), 0 0 160px rgba(124,106,255,.04), inset 0 1px 0 rgba(255,255,255,.04)",
-          }}
+          className="relative flex flex-1 flex-col overflow-hidden px-12 py-10"
+          style={{ background: "rgba(12,12,24,.82)" }}
         >
-          {/* Logo */}
-          <div className="mb-7 flex items-center justify-center gap-3.5">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(ellipse 90% 70% at -10% -10%, rgba(124,106,255,.13) 0%, transparent 55%)," +
+                "radial-gradient(ellipse 60% 40% at 110% 110%, rgba(99,80,255,.07) 0%, transparent 50%)",
+            }}
+          />
+
+          <div className="relative z-10 flex items-center gap-3">
             <div
-              className="relative flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px]"
               style={{
-                background: "linear-gradient(145deg,#4f35d6 0%,#7c6aff 45%,#a855f7 100%)",
-                boxShadow: "0 0 0 1px rgba(168,85,247,.2), 0 8px 28px rgba(124,106,255,.55), 0 0 60px rgba(124,106,255,.12)",
+                background: "linear-gradient(135deg,#6f5eff 0%,#9b68ff 100%)",
+                boxShadow: "0 0 22px rgba(124,106,255,.38)",
               }}
             >
-              <svg viewBox="0 0 24 24" width="19" height="19" className="relative z-10">
-                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(255,255,255,.22)" />
-                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
-                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
-                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
-                <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="white" />
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(255,255,255,.25)" stroke="none" />
+                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(255,255,255,.65)" stroke="none" />
+                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(255,255,255,.65)" stroke="none" />
+                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(255,255,255,.65)" stroke="none" />
+                <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="white" stroke="none" />
               </svg>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[21px] font-extrabold leading-none tracking-[-0.6px]">Studio IVR</span>
+              <span className="text-[15px] font-extrabold tracking-[-0.3px]">Studio IVR</span>
               <span
-                className="text-[9px] uppercase tracking-[0.15em]"
-                style={{ fontFamily: "var(--vf-mono)", color: "rgba(167,139,250,.65)" }}
+                className="text-[7.5px] uppercase tracking-[0.2em]"
+                style={{ fontFamily: "var(--vf-mono)", color: "rgba(167,139,250,.5)" }}
               >
                 AI Pipeline
               </span>
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="mb-6 flex gap-0.5 rounded-xl border border-white/5 bg-white/[0.04] p-[3px]">
-            <button
-              type="button"
-              className="flex-1 rounded-[9px] border border-[rgba(124,106,255,0.2)] bg-[rgba(124,106,255,0.18)] px-3 py-2.5 text-[11px] font-medium tracking-[0.04em] text-white"
+          <div className="relative z-10 flex flex-1 flex-col justify-center">
+            <h1
+              className="mb-4 font-extrabold leading-[1.06] tracking-[-1.8px] text-[#eeeef8]"
+              style={{ fontSize: "clamp(32px,3.5vw,50px)" }}
+            >
+              Crea. Automatiza.
+              <br />
+              <span style={{ color: "var(--vf-c1)" }}>Produce.</span>
+            </h1>
+            <p
+              className="max-w-[360px] text-[13px] leading-[1.7] text-white/35"
               style={{ fontFamily: "var(--vf-mono)" }}
             >
-              Iniciar sesión
-            </button>
-            <Link
-              to="/register"
-              className="flex flex-1 items-center justify-center rounded-[9px] border border-transparent px-3 py-2.5 text-center text-[11px] font-medium tracking-[0.04em] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
-              style={{ fontFamily: "var(--vf-mono)" }}
-            >
-              Crear cuenta
-            </Link>
+              La plataforma completa para producción audiovisual con IA. Guión, voz, video y
+              renderizado en un solo flujo.
+            </p>
           </div>
 
-          {!mustChange ? (
+          <div className="relative z-10 flex flex-col gap-4">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="flex items-start gap-3.5">
+                <div
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px]"
+                  style={{ background: f.bg }}
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke={f.stroke} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    {f.d}
+                  </svg>
+                </div>
+                <div>
+                  <div className="mb-0.5 text-[13px] font-bold text-white/80">{f.title}</div>
+                  <div className="text-[11.5px] leading-[1.4] text-white/30" style={{ fontFamily: "var(--vf-mono)" }}>
+                    {f.desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="relative z-10 mt-6 text-[8.5px] text-white/20"
+            style={{ fontFamily: "var(--vf-mono)" }}
+          >
+            © 2026 Studio IVR. Todos los derechos reservados.
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div
+          className="flex w-[400px] flex-shrink-0 items-center justify-center border-l border-white/[0.06] px-11 py-11"
+          style={{ background: "rgba(14,14,28,.90)" }}
+        >
+          <div className="w-full max-w-[320px]">
+            <div className="mb-1.5 whitespace-nowrap text-xl font-extrabold tracking-[-0.4px]">
+              Bienvenido de nuevo
+            </div>
+            <p className="mb-6 text-[12.5px] leading-[1.55] text-white/35">
+              Inicia sesión para continuar con tus proyectos.
+            </p>
+
             <form onSubmit={handleSubmit}>
               {error && (
                 <div
-                  className="mb-3.5 rounded-[11px] border border-[rgba(255,60,80,0.18)] px-3.5 py-2.5 text-[11px] leading-[1.55]"
-                  style={{ fontFamily: "var(--vf-mono)", background: "rgba(255,60,80,.07)", color: "#ff6677" }}
+                  className="mb-3 rounded-[9px] border px-3 py-2.5 text-[10.5px] leading-[1.5]"
+                  style={{ background: "rgba(255,60,80,.06)", borderColor: "rgba(255,60,80,.15)", color: "#ff6677", fontFamily: "var(--vf-mono)" }}
                 >
                   ⚠ {error}
                 </div>
               )}
 
-              <div className="mb-3.5">
-                <label
-                  className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
+              <div className="mb-3">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white/60">Correo electrónico o usuario</span>
+                </div>
+                <div className="relative">
                   <FieldIcon
                     d={
                       <>
@@ -183,27 +282,34 @@ export default function LoginPage() {
                       </>
                     }
                   />
-                  Usuario
-                </label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="tu_usuario"
-                  autoComplete="username"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  autoFocus
-                  required
-                  className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
-                />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="tu_usuario"
+                    autoComplete="username"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                    autoFocus
+                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.035] py-3 pl-[38px] pr-3.5 text-[13.5px] font-medium tracking-[-0.2px] text-[#ebebf5] outline-none transition-colors focus:border-[rgba(124,106,255,0.5)] focus:bg-[rgba(124,106,255,0.05)]"
+                  />
+                </div>
               </div>
 
-              <div className="mb-3.5">
-                <label
-                  className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
+              <div className="mb-3">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white/60">Contraseña</span>
+                  <a
+                    href="#"
+                    tabIndex={-1}
+                    onClick={(e) => e.preventDefault()}
+                    className="pointer-events-none text-[11px] opacity-40"
+                    style={{ fontFamily: "var(--vf-mono)", color: "rgba(124,106,255,.6)" }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+                <div className="relative">
                   <FieldIcon
                     d={
                       <>
@@ -212,110 +318,153 @@ export default function LoginPage() {
                       </>
                     }
                   />
-                  Contraseña
-                </label>
-                <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    required
-                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.035] py-3 pl-[38px] pr-[42px] text-[13.5px] font-medium tracking-[-0.2px] text-[#ebebf5] outline-none transition-colors focus:border-[rgba(124,106,255,0.5)] focus:bg-[rgba(124,106,255,0.05)]"
                   />
                   <EyeToggle shown={showPassword} onClick={() => setShowPassword((v) => !v)} />
                 </div>
               </div>
 
+              <div className="my-3 mb-[18px] flex items-center justify-between">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-white/45">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="hidden"
+                  />
+                  <span
+                    className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded-[4px] border transition-colors"
+                    style={{
+                      borderColor: remember ? "var(--vf-c1)" : "rgba(255,255,255,.18)",
+                      background: remember ? "var(--vf-c1)" : "rgba(255,255,255,.03)",
+                    }}
+                  >
+                    {remember && (
+                      <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                        <path d="M1 3L3 5L7 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  Recordarme
+                </label>
+              </div>
+
               <button
                 type="submit"
                 disabled={submitting}
-                className="mt-1 w-full rounded-[13px] py-3.5 text-xs font-semibold uppercase tracking-[0.07em] text-white transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                className="mb-[18px] w-full rounded-[10px] py-[13.5px] text-[14.5px] font-bold tracking-[-0.1px] text-white transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
                 style={{
-                  fontFamily: "var(--vf-mono)",
-                  background: "linear-gradient(135deg,#5d45f0 0%,#7c6aff 50%,#9f7aea 100%)",
-                  boxShadow: "0 4px 24px rgba(124,106,255,.38), 0 0 60px rgba(124,106,255,.08)",
+                  background: "linear-gradient(135deg,#6f5eff 0%,#9b68ff 100%)",
+                  boxShadow: "0 4px 18px rgba(112,90,255,.3)",
                 }}
               >
-                {submitting ? "Ingresando…" : "Ingresar →"}
+                {submitting ? "Ingresando…" : "Iniciar sesión →"}
               </button>
 
-              <div
-                className="mt-4.5 flex items-center justify-center gap-2 border-t border-white/[0.04] pt-3.5 text-[9px] text-white/20"
-                style={{ fontFamily: "var(--vf-mono)" }}
-              >
-                <span
-                  className="h-[5px] w-[5px] flex-shrink-0 rounded-full"
-                  style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-                />
-                Servidor activo · Conexión segura
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleChangePassword}>
-              <div className="mb-5 text-center">
-                <div
-                  className="mx-auto mb-4 flex h-[54px] w-[54px] items-center justify-center rounded-2xl border border-[rgba(251,191,36,0.2)] text-[22px]"
-                  style={{ background: "linear-gradient(135deg, rgba(251,191,36,.14), rgba(251,191,36,.04))" }}
-                >
-                  🔐
-                </div>
-                <h2 className="mb-1.5 text-xl font-extrabold tracking-[-0.4px]">Cambia tu contraseña</h2>
-                <p
-                  className="text-[10.5px] leading-[1.65] text-white/30"
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
-                  Es tu primer acceso. Por seguridad debes establecer una nueva contraseña.
-                </p>
+              <div className="mb-3.5 flex items-center gap-2.5 text-[11px] text-white/20" style={{ fontFamily: "var(--vf-mono)" }}>
+                <span className="h-px flex-1 bg-white/[0.07]" />
+                O continúa con
+                <span className="h-px flex-1 bg-white/[0.07]" />
               </div>
 
-              {error && (
-                <div
-                  className="mb-3.5 rounded-[11px] border border-[rgba(255,60,80,0.18)] px-3.5 py-2.5 text-[11px] leading-[1.55]"
-                  style={{ fontFamily: "var(--vf-mono)", background: "rgba(255,60,80,.07)", color: "#ff6677" }}
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => alert("Próximamente.")}
+                  className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] border border-white/[0.09] bg-white/[0.03] px-2 py-2.5 text-xs font-semibold text-white/65 transition-colors hover:border-white/[0.16] hover:bg-white/[0.055] hover:text-white"
                 >
-                  ⚠ {error}
+                  <svg width="14" height="14" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => alert("Próximamente.")}
+                  className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] border border-white/[0.09] bg-white/[0.03] px-2 py-2.5 text-xs font-semibold text-white/65 transition-colors hover:border-white/[0.16] hover:bg-white/[0.055] hover:text-white"
+                >
+                  <svg width="12" height="14" viewBox="0 0 814 1000" fill="currentColor">
+                    <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-36.8-162.8-106.3C180.9 742.2 139 649 139 603c0-188.1 130.9-314.3 260.2-314.3 73.9 0 135.4 48.4 179.9 48.4 42.6 0 113.5-50.7 196.7-50.7z" />
+                    <path d="M555.5 0c-58.1 0-115.8 38.4-153.1 97.8-33.1 53.2-60.3 131.2-60.3 209.5 0 4.7.5 9.4.5 14.1 3.7.2 7.5.3 11.2.3 55.1 0 113.9-37.1 149.7-95.7 37.7-62.4 62.3-140.6 62.3-218.8 0-2.6-.1-5.2-.2-7.8z" />
+                  </svg>
+                  Apple
+                </button>
+              </div>
+
+              <div className="text-center text-xs text-white/25" style={{ fontFamily: "var(--vf-mono)" }}>
+                ¿No tienes cuenta?{" "}
+                <Link to="/register" className="ml-1 font-bold text-[var(--vf-c2)] hover:text-white">
+                  Registrarse
+                </Link>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      {/* CHANGE PASSWORD MODAL (overlay on top of the two-panel card, matches original) */}
+      {mustChange && (
+        <div className="fixed inset-0 z-[900] flex items-center justify-center bg-black/85 p-5 backdrop-blur-[18px]">
+          <div
+            className="relative w-full max-w-[370px] rounded-[18px] border border-white/[0.07] p-8"
+            style={{ background: "#0e0e1e", boxShadow: "0 40px 100px rgba(0,0,0,.88)" }}
+          >
+            <div
+              className="mx-auto mb-4 flex h-[50px] w-[50px] items-center justify-center rounded-[13px] border text-xl"
+              style={{ background: "rgba(251,191,36,.07)", borderColor: "rgba(251,191,36,.16)" }}
+            >
+              🔐
+            </div>
+            <h2 className="mb-1 text-center text-lg font-extrabold tracking-[-0.35px]">
+              Cambia tu contraseña
+            </h2>
+            <p
+              className="mb-[18px] text-center text-[10px] leading-[1.6] text-white/28"
+              style={{ fontFamily: "var(--vf-mono)" }}
+            >
+              Es tu primer acceso. Por seguridad
+              <br />
+              debes establecer una nueva contraseña.
+            </p>
+
+            <form onSubmit={handleChangePassword}>
+              {changeError && (
+                <div
+                  className="mb-3 rounded-[9px] border px-3 py-2.5 text-[10.5px] leading-[1.5]"
+                  style={{ background: "rgba(255,60,80,.06)", borderColor: "rgba(255,60,80,.15)", color: "#ff6677", fontFamily: "var(--vf-mono)" }}
+                >
+                  ⚠ {changeError}
                 </div>
               )}
 
-              <div className="mb-3.5 flex flex-col gap-1.5 rounded-[11px] border border-white/5 bg-white/[0.02] p-3.5">
-                <div
-                  className={`flex items-center gap-1.5 text-[10px] transition-colors ${
-                    reqLen ? "text-[var(--vf-success)]" : "text-white/28"
-                  }`}
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
-                  <span className="w-3.5 text-center text-[11px]">{reqLen ? "✓" : "○"}</span>
-                  Mínimo 8 caracteres
-                </div>
-                <div
-                  className={`flex items-center gap-1.5 text-[10px] transition-colors ${
-                    reqNum ? "text-[var(--vf-success)]" : "text-white/28"
-                  }`}
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
-                  <span className="w-3.5 text-center text-[11px]">{reqNum ? "✓" : "○"}</span>
-                  Al menos un número
-                </div>
-                <div
-                  className={`flex items-center gap-1.5 text-[10px] transition-colors ${
-                    reqUp ? "text-[var(--vf-success)]" : "text-white/28"
-                  }`}
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
-                  <span className="w-3.5 text-center text-[11px]">{reqUp ? "✓" : "○"}</span>
-                  Al menos una mayúscula
-                </div>
+              <div className="mb-3 flex flex-col gap-1.5 rounded-[9px] border border-white/5 bg-white/[0.02] p-2.5">
+                {[
+                  { ok: reqLen, label: "Mínimo 8 caracteres" },
+                  { ok: reqNum, label: "Al menos un número" },
+                  { ok: reqUp, label: "Al menos una mayúscula" },
+                ].map((r) => (
+                  <div
+                    key={r.label}
+                    className="flex items-center gap-1.5 text-[9.5px] transition-colors"
+                    style={{ fontFamily: "var(--vf-mono)", color: r.ok ? "var(--vf-success)" : "rgba(255,255,255,.26)" }}
+                  >
+                    <span className="w-3 text-center text-[10px]">{r.ok ? "✓" : "○"}</span>
+                    {r.label}
+                  </div>
+                ))}
               </div>
 
-              <div className="mb-3.5">
-                <label
-                  className="mb-1.5 block text-[9.5px] uppercase tracking-[0.1em] text-white/40"
-                  style={{ fontFamily: "var(--vf-mono)" }}
-                >
-                  Nueva contraseña
-                </label>
+              <div className="mb-3">
+                <label className="mb-1.5 block text-xs font-semibold text-white/60">Nueva contraseña</label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? "text" : "password"}
@@ -323,40 +472,48 @@ export default function LoginPage() {
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Nueva contraseña"
                     autoComplete="new-password"
-                    required
-                    minLength={8}
                     autoFocus
-                    className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.035] py-3 pl-3.5 pr-[42px] text-[13.5px] font-medium text-[#ebebf5] outline-none transition-colors focus:border-[rgba(124,106,255,0.5)] focus:bg-[rgba(124,106,255,0.05)]"
                   />
                   <EyeToggle shown={showNewPassword} onClick={() => setShowNewPassword((v) => !v)} />
                 </div>
               </div>
 
+              <div className="mb-3">
+                <label className="mb-1.5 block text-xs font-semibold text-white/60">Confirmar contraseña</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repite la contraseña"
+                    autoComplete="new-password"
+                    className="w-full rounded-[10px] border border-white/[0.08] bg-white/[0.035] py-3 pl-3.5 pr-[42px] text-[13.5px] font-medium text-[#ebebf5] outline-none transition-colors focus:border-[rgba(124,106,255,0.5)] focus:bg-[rgba(124,106,255,0.05)]"
+                  />
+                  <EyeToggle shown={showConfirmPassword} onClick={() => setShowConfirmPassword((v) => !v)} />
+                </div>
+                {confirmPassword.length > 0 && (
+                  <div
+                    className="mt-1 text-[9.5px]"
+                    style={{ fontFamily: "var(--vf-mono)", color: passwordsMatch ? "var(--vf-success)" : "#ff5566" }}
+                  >
+                    {passwordsMatch ? "✓ Coinciden" : "✗ No coinciden"}
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
-                disabled={submitting}
-                className="mt-1 w-full rounded-xl py-[13px] text-xs font-bold uppercase tracking-[0.07em] text-black transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                style={{
-                  fontFamily: "var(--vf-mono)",
-                  background: "linear-gradient(135deg,#b8860b,#fbbf24,#f59e0b)",
-                  boxShadow: "0 4px 22px rgba(251,191,36,.28)",
-                }}
+                disabled={!canSubmitChange || submitting}
+                className="mt-1 w-full rounded-[9px] py-3 text-[11.5px] font-bold uppercase tracking-[0.05em] text-black transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+                style={{ background: "#fbbf24", fontFamily: "var(--vf-mono)" }}
               >
                 {submitting ? "Guardando…" : "Guardar contraseña →"}
               </button>
             </form>
-          )}
-
-          {!mustChange && (
-            <p className="mt-5 text-center text-sm text-[var(--vf-muted)]">
-              ¿No tienes cuenta?{" "}
-              <Link to="/register" className="text-[var(--vf-accent)] hover:underline">
-                Regístrate
-              </Link>
-            </p>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
