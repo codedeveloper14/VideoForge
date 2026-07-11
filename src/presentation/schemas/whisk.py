@@ -18,11 +18,3 @@ class WhiskRunPromptsInSchema(Schema):
     slots = Integer(load_default=1)
     repeat = Integer(load_default=1)
     output_dir = String(load_default="")
-
-
-class PollinationGenerateInSchema(Schema):
-    prompts = Raw(load_default="")
-    ratio = String(load_default="16:9")
-    width = Integer(load_default=1920)
-    height = Integer(load_default=1097)
-    output_dir = String(load_default="")

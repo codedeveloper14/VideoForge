@@ -63,13 +63,6 @@ const SHORTCUTS: Shortcut[] = [
     title: "Editor",
     desc: "Editor visual de escenas con overlays.",
   },
-  {
-    to: "/app/miniaturas",
-    icon: "🏷️",
-    color: "var(--vf-c3)",
-    title: "Miniaturas",
-    desc: "Generar miniaturas para YouTube.",
-  },
 ];
 
 interface UsageStatProps {

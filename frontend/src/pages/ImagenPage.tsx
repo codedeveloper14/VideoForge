@@ -3,13 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import WhiskPanel from "./imagen/WhiskPanel";
-import PollinationPanel from "./imagen/PollinationPanel";
 import FlowPanel from "./imagen/FlowPanel";
 import GentubePanel from "./imagen/GentubePanel";
 
 const TABS = [
   { id: "whisk", label: "Whisk" },
-  { id: "pollination", label: "Pollination" },
   { id: "flow", label: "Flow" },
   { id: "gentube", label: "Gentube" },
 ];
@@ -82,9 +80,6 @@ export default function ImagenPage() {
       <div className="mt-4">
         {tab === "whisk" && (
           <WhiskPanel project={project} defaultOutputDir={defaultOutputDir} />
-        )}
-        {tab === "pollination" && (
-          <PollinationPanel project={project} defaultOutputDir={defaultOutputDir} />
         )}
         {tab === "flow" && <FlowPanel project={project} defaultOutputDir={defaultOutputDir} />}
         {tab === "gentube" && (

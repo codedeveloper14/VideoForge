@@ -3,13 +3,11 @@ from flask import jsonify, request, send_file
 
 from src.domain.services import whisk_service
 from src.presentation.schemas.whisk import (
-    PollinationGenerateInSchema,
     WhiskLoginInSchema,
     WhiskRunPromptsInSchema,
 )
 
 whisk_bp = APIBlueprint("whisk", __name__, url_prefix="/api/whisk")
-pollination_bp = APIBlueprint("pollination", __name__, url_prefix="/api/pollination")
 
 _IMAGE_MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 
@@ -133,24 +131,3 @@ def run_prompts(json_data):
         return jsonify(ok=True, **result)
     except (ValueError, RuntimeError) as exc:
         return jsonify(error=str(exc)), 400
-
-
-@pollination_bp.post("/generate")
-@pollination_bp.input(PollinationGenerateInSchema)
-def pollination_generate(json_data):
-    prompts = _parse_prompts(json_data["prompts"])
-    try:
-        result = whisk_service.pollination_generate(
-            prompts,
-            json_data["ratio"],
-            json_data["width"],
-            json_data["height"],
-            json_data["output_dir"],
-        )
-        return jsonify(ok=True, **result)
-    except ValueError as exc:
-        return jsonify(error=str(exc)), 400
-    except RuntimeError as exc:
-        return jsonify(error=str(exc)), 502
-    except Exception as exc:
-        return jsonify(error=f"Pollination proxy error: {exc}"), 500

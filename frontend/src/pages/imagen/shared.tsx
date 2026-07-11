@@ -1,4 +1,4 @@
-// Small shared UI bits reused across the Imagen sub-panels (Whisk/Pollination/Flow/Gentube).
+// Small shared UI bits reused across the Imagen sub-panels (Whisk/Flow/Gentube).
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export interface GalleryImage {

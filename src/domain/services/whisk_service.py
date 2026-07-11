@@ -19,10 +19,6 @@ from src.utils.paths import get_cookies_dir, get_whisk_downloads_dir, get_whisk_
 logger = get_logger(__name__)
 
 NUM_ACCOUNTS = 5
-POLLINATION_WEBHOOK = os.environ.get(
-    "POLLINATION_WEBHOOK",
-    "https://n8n-n8n.y9c1cn.easypanel.host/webhook/3dab8315-b12b-4c76-9b7c-91fc67daf120",
-)
 
 _state = {
     "running": False,
@@ -848,73 +844,6 @@ def run_prompts(prompts: list[str], slots: int, repeat: int, output_dir: str) ->
         target=_run_batch, args=(all_prompts, slots, _subject_path[0], out_dir), daemon=True
     ).start()
     return {"total": total, "message": f"{total} imagen(es) en cola - {slots} slot(s)"}
-
-
-def pollination_generate(prompts: list[str], ratio: str, width: int, height: int, output_dir: str) -> dict:
-    """Proxy al webhook n8n de Pollination; guarda img_* en la misma carpeta que Whisk."""
-    if not prompts:
-        raise ValueError("Sin prompts")
-
-    out_dir = output_dir.strip() or str(get_whisk_downloads_dir())
-    os.makedirs(out_dir, exist_ok=True)
-
-    payload = {"prompts": prompts, "ratio": ratio, "width": width, "height": height}
-    r = requests.post(POLLINATION_WEBHOOK, json=payload, timeout=600)
-    r.raise_for_status()
-    try:
-        result = r.json()
-    except ValueError as exc:
-        ct = (r.headers.get("content-type") or "").lower()
-        raise RuntimeError(f"n8n no devolvio JSON valido (content-type={ct}, body={r.text[:400]})") from exc
-
-    if isinstance(result, dict) and "images" in result:
-        images_list = result["images"]
-    elif isinstance(result, list):
-        images_list = result
-    else:
-        images_list = [result]
-
-    def _extract_b64_mime(item):
-        if not isinstance(item, dict):
-            return None, None
-        j = item.get("json") or {}
-        return item.get("base64") or j.get("base64"), item.get("mime") or j.get("mime") or "image/png"
-
-    def _next_img_index() -> int:
-        mx = 0
-        if not Path(out_dir).exists():
-            return 1
-        for f in Path(out_dir).glob("img_*"):
-            try:
-                mx = max(mx, int(f.stem.split("_", 1)[1]))
-            except (ValueError, IndexError):
-                pass
-        return mx + 1
-
-    idx = _next_img_index()
-    saved = []
-    for item in images_list:
-        b64, mime = _extract_b64_mime(item)
-        if not b64:
-            continue
-        b64 = "".join(str(b64).split())
-        try:
-            raw_img = base64.b64decode(b64, validate=False)
-        except Exception:
-            continue
-        m = (mime or "image/png").lower()
-        ext = ".jpg" if ("jpeg" in m or "jpg" in m) else ".webp" if "webp" in m else ".png"
-        fname = f"img_{idx:05d}{ext}"
-        Path(out_dir, fname).write_bytes(raw_img)
-        saved.append(fname)
-        idx += 1
-
-    if not saved:
-        raise RuntimeError("n8n no devolvio imagenes base64 validas")
-
-    with _lock:
-        _state["output_dir"] = out_dir
-    return {"images": saved, "count": len(saved), "output_dir": out_dir}
 
 
 threading.Thread(target=lambda: (time.sleep(1.2), sync_profile_rows()), daemon=True).start()

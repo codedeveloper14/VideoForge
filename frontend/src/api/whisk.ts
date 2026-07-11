@@ -92,36 +92,3 @@ export function whiskClearImages() {
 export function whiskAbrirCarpeta() {
   return api.post<{ ok: boolean }>("/whisk/abrir_carpeta").then((r) => r.data);
 }
-
-// ── Pollination (lives here per one-endpoint convention) ────────────
-export interface PollinationGenerateParams {
-  prompts: string;
-  ratio?: string;
-  width?: number;
-  height?: number;
-  output_dir?: string;
-}
-
-export interface PollinationGenerateResult {
-  images?: string[];
-  files?: string[];
-  urls?: Record<string, string>;
-}
-
-export function pollinationGenerate({
-  prompts,
-  ratio = "16:9",
-  width = 1920,
-  height = 1097,
-  output_dir = "",
-}: PollinationGenerateParams) {
-  return api
-    .post<PollinationGenerateResult>("/pollination/generate", {
-      prompts,
-      ratio,
-      width,
-      height,
-      output_dir,
-    })
-    .then((r) => r.data);
-}

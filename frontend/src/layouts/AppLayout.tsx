@@ -10,7 +10,6 @@ type IconKey =
   | "video"
   | "render"
   | "editor"
-  | "miniaturas"
   | "proyectos"
   | "planes"
   | "perfil"
@@ -70,13 +69,6 @@ const ICONS: Record<IconKey, React.ReactNode> = {
       <path d="M7 8h5M7 11h3" />
     </svg>
   ),
-  miniaturas: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2.5" />
-      <circle cx="8.5" cy="8.5" r="1.5" />
-      <polyline points="21,15 16,10 5,21" />
-    </svg>
-  ),
   proyectos: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -117,7 +109,6 @@ const PIPELINE_ITEMS: NavItemDef[] = [
   { to: "/app/video", label: "Video", icon: "video" },
   { to: "/app/render", label: "Render", icon: "render" },
   { to: "/app/editor", label: "Editor", icon: "editor" },
-  { to: "/app/miniaturas", label: "Miniaturas", icon: "miniaturas" },
 ];
 
 const ACCOUNT_ITEMS: NavItemDef[] = [
