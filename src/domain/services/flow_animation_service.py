@@ -50,16 +50,19 @@ def save_account_cookie(idx: int, cookie: str) -> dict:
     if not cookie:
         raise ValueError("cookie vacio")
 
-    flow_service.save_cookie(idx, cookie)
+    # Validar ANTES de guardar -- una cookie invalida no debe pisar una cookie
+    # buena que ya estuviera guardada para esta cuenta.
     sess = flow_service.get_session(cookie)
     email = sess.get("email", "")
     ok = bool(sess.get("bearer", ""))
-    if ok:
-        acc_hash = flow_service.account_hash(email)
-        with lock:
-            state["accounts"][idx].update({"ok": True, "email": email})
-        return {"ok": True, "email": email, "hash": acc_hash}
-    return {"ok": False, "error": "Cookie invalida o sesion expirada"}
+    if not ok:
+        return {"ok": False, "error": "Cookie invalida o sesion expirada"}
+
+    flow_service.save_cookie(idx, cookie)
+    acc_hash = flow_service.account_hash(email)
+    with lock:
+        state["accounts"][idx].update({"ok": True, "email": email})
+    return {"ok": True, "email": email, "hash": acc_hash}
 
 
 def check_accounts() -> list[dict]:
