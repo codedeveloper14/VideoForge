@@ -12,6 +12,7 @@ import ImagenPage from "./pages/ImagenPage";
 import VideoPage from "./pages/VideoPage";
 import RenderPage from "./pages/RenderPage";
 import EditorPage from "./pages/EditorPage";
+import TareasPage from "./pages/TareasPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import PlansPage from "./pages/PlansPage";
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="render" element={<RenderPage />} />
               <Route path="editor" element={<EditorPage />} />
               <Route path="editor/:proyecto" element={<EditorPage />} />
+              <Route path="tareas" element={<TareasPage />} />
               <Route path="proyectos" element={<ProjectsPage />} />
               <Route path="proyectos/:nombre" element={<ProjectDetailPage />} />
               <Route path="planes" element={<PlansPage />} />
