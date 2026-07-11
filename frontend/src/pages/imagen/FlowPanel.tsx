@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import {
   flowAbrirCarpeta,
   flowAccounts,
@@ -31,7 +32,8 @@ const POLL_MS = 2000;
 
 interface FlowPanelProps {
   project: string;
-  defaultOutputDir: string;
+  outputDir: string;
+  resolvingDir: boolean;
 }
 
 interface Progress {
@@ -40,14 +42,14 @@ interface Progress {
   label: string;
 }
 
-export default function FlowPanel({ defaultOutputDir }: FlowPanelProps) {
+export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const [prompts, setPrompts] = useState("");
-  const [outputDir, setOutputDir] = useState(defaultOutputDir || "");
   const [slots, setSlots] = useState(2);
   const [aspect, setAspect] = useState("IMAGE_ASPECT_RATIO_LANDSCAPE");
   const [model, setModel] = useState("NANO_BANANA_2");
   const [maxRetries, setMaxRetries] = useState(2);
   const [referenceImage, setReferenceImage] = useState("");
+  const [referenceImageName, setReferenceImageName] = useState("");
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: "Listo para generar" });
@@ -61,14 +63,28 @@ export default function FlowPanel({ defaultOutputDir }: FlowPanelProps) {
   const sinceRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dirRef = useRef(outputDir);
-
-  useEffect(() => {
-    if (defaultOutputDir) setOutputDir(defaultOutputDir);
-  }, [defaultOutputDir]);
+  const refInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     dirRef.current = outputDir;
   }, [outputDir]);
+
+  function handleRefFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isImage = file.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name);
+    if (!isImage) {
+      setError("Elige un archivo de imagen (JPG, PNG, WebP, etc.).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setReferenceImage(reader.result as string);
+      setReferenceImageName(file.name);
+    };
+    reader.onerror = () => setError("No se pudo leer la imagen de referencia.");
+    reader.readAsDataURL(file);
+  }
 
   function loadAccounts() {
     flowAccounts()
@@ -156,6 +172,10 @@ export default function FlowPanel({ defaultOutputDir }: FlowPanelProps) {
       setError("Escribe al menos un prompt.");
       return;
     }
+    if (!outputDir) {
+      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
+      return;
+    }
     try {
       sinceRef.current = 0;
       setLogLines([]);
@@ -234,12 +254,11 @@ export default function FlowPanel({ defaultOutputDir }: FlowPanelProps) {
         <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
           Destino:
         </span>
-        <input
-          value={outputDir}
-          onChange={(e) => setOutputDir(e.target.value)}
-          placeholder="— selecciona proyecto arriba o escribe una ruta —"
-          className="flex-1 bg-transparent font-mono text-[11px] text-[var(--vf-c5)] outline-none"
-        />
+        <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
+          {resolvingDir
+            ? "Resolviendo carpeta del proyecto…"
+            : outputDir || "— selecciona un proyecto arriba —"}
+        </span>
       </div>
 
       <div className="mb-4 grid grid-cols-[1.35fr_460px] gap-4 max-[1040px]:grid-cols-1">
@@ -260,13 +279,50 @@ export default function FlowPanel({ defaultOutputDir }: FlowPanelProps) {
             />
           </SectionCard>
 
-          <SectionCard title="Referencia visual">
+          <SectionCard title="Referencia visual" right={<span className="font-mono text-[9px] text-[var(--vf-muted)]">Opcional · guía de estilo</span>}>
             <input
-              value={referenceImage}
-              onChange={(e) => setReferenceImage(e.target.value)}
-              placeholder="Ruta o URL de imagen de referencia (opcional)"
-              className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+              ref={refInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleRefFileChange}
             />
+            {referenceImage ? (
+              <div className="flex items-center gap-3 rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-2.5">
+                <img src={referenceImage} alt="" className="h-16 w-16 rounded-md object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-[10px] text-[var(--vf-text)]">{referenceImageName}</p>
+                  <button
+                    onClick={() => refInputRef.current?.click()}
+                    className="font-mono text-[10px] text-[var(--vf-c2)] underline"
+                  >
+                    Reemplazar
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    setReferenceImage("");
+                    setReferenceImageName("");
+                    if (refInputRef.current) refInputRef.current.value = "";
+                  }}
+                  className="rounded-full px-2 py-1 font-mono text-xs text-[var(--vf-danger)]"
+                  aria-label="Quitar"
+                >
+                  ×
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => refInputRef.current?.click()}
+                className="flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.02] px-3 py-5 text-center transition-colors hover:border-[var(--vf-c2)]"
+              >
+                <span className="font-mono text-[11px] text-[var(--vf-text)]">Adjuntar imagen</span>
+                <span className="font-mono text-[9px] text-[var(--vf-muted)]">
+                  Haz clic para elegir · JPG, PNG, WebP
+                </span>
+              </button>
+            )}
           </SectionCard>
         </div>
 

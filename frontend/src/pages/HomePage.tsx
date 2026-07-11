@@ -1,247 +1,252 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { getProfile } from "../api/user";
-import { listProjects } from "../api/projects";
-import type { Project, UserProfile } from "../types";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import { createProject, deleteProject, listProjects } from "../api/projects";
+import type { Project } from "../types";
 
-interface Shortcut {
-  to: string;
-  icon: string;
-  color: string;
-  title: string;
-  desc: string;
-}
-
-const SHORTCUTS: Shortcut[] = [
-  {
-    to: "/app/idea2video",
-    icon: "💡",
-    color: "var(--vf-c1)",
-    title: "Idea a Video",
-    desc: "Pipeline automático de una idea a un video completo.",
-  },
-  {
-    to: "/app/guion",
-    icon: "📝",
-    color: "var(--vf-c2)",
-    title: "Guion",
-    desc: "Escribir guion con IA.",
-  },
-  {
-    to: "/app/voz",
-    icon: "🎙️",
-    color: "var(--vf-c6)",
-    title: "Voz",
-    desc: "Generar narración con TTS / clonación de voz.",
-  },
-  {
-    to: "/app/imagen",
-    icon: "🖼️",
-    color: "var(--vf-c3)",
-    title: "Imagen",
-    desc: "Generar imágenes de escenas.",
-  },
-  {
-    to: "/app/video",
-    icon: "🎬",
-    color: "var(--vf-c4)",
-    title: "Video",
-    desc: "Animar imágenes a video con Grok, Qwen o Meta.",
-  },
-  {
-    to: "/app/render",
-    icon: "🧩",
-    color: "var(--vf-c5)",
-    title: "Render",
-    desc: "Renderizar el video final.",
-  },
-  {
-    to: "/app/editor",
-    icon: "✂️",
-    color: "var(--vf-c2)",
-    title: "Editor",
-    desc: "Editor visual de escenas con overlays.",
-  },
+const PALETTE = [
+  { color: "#7c6aff", emoji: "🎬" },
+  { color: "#f472b6", emoji: "📽️" },
+  { color: "#22d3a0", emoji: "🎞️" },
+  { color: "#fbbf24", emoji: "🎥" },
+  { color: "#38bdf8", emoji: "✨" },
+  { color: "#a855f7", emoji: "🌟" },
 ];
 
-interface UsageStatProps {
-  label: string;
-  value: number;
-  limit: number | null;
+function pmStyle(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % PALETTE.length;
+  return PALETTE[idx];
 }
 
-function UsageStat({ label, value, limit }: UsageStatProps) {
-  const pct = limit ? Math.min(100, Math.round((value / limit) * 100)) : null;
-  return (
-    <div className="flex-1">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[11px]" style={{ fontFamily: "var(--vf-mono)", color: "rgba(255,255,255,.65)" }}>
-          {label}
-        </span>
-        <span className="text-[11px]" style={{ fontFamily: "var(--vf-mono)", color: "var(--vf-m)" }}>
-          {value}
-          {limit != null ? ` / ${limit}` : ""}
-        </span>
-      </div>
-      <div className="h-[8px] overflow-hidden rounded-full bg-white/[0.06]">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: pct != null ? `${pct}%` : "100%",
-            background: "linear-gradient(90deg, var(--vf-c1), var(--vf-c3))",
-          }}
-        />
-      </div>
-    </div>
-  );
+function formatDate(creado: number) {
+  return new Date(creado * 1000).toLocaleDateString("es-CO", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function HomePage() {
-  const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([getProfile(), listProjects()])
-      .then(([profileData, projectsData]) => {
-        setProfile(profileData);
-        setProjects(Array.isArray(projectsData) ? projectsData : []);
-      })
-      .catch((err) => setError((err as Error).message))
+  function load() {
+    setLoading(true);
+    listProjects()
+      .then(setProjects)
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }
 
-  const recentProjects = [...projects]
-    .sort((a, b) => String(b.creado || "").localeCompare(String(a.creado || "")))
-    .slice(0, 5);
+  useEffect(load, []);
+
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    setCreating(true);
+    setError("");
+    try {
+      await createProject(nombre.trim());
+      setNombre("");
+      setShowCreate(false);
+      load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function handleDelete(name: string) {
+    setOpenMenu(null);
+    if (!confirm(`¿Borrar el proyecto "${name}"? Esta acción no se puede deshacer.`)) return;
+    setError("");
+    try {
+      await deleteProject(name);
+      load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  function openProject(name: string) {
+    navigate(`/app/proyectos/${encodeURIComponent(name)}`);
+  }
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-10">
-        <div
-          className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-white/[0.03] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
-          style={{ fontFamily: "var(--vf-mono)" }}
-        >
-          <span
-            className="h-[5px] w-[5px] rounded-full"
-            style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-          />
-          Studio IVR · Pipeline
+    <div className="max-w-6xl" onClick={() => openMenu && setOpenMenu(null)}>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-white/[0.03] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
+            style={{ fontFamily: "var(--vf-mono)" }}
+          >
+            <span
+              className="h-[5px] w-[5px] rounded-full"
+              style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
+            />
+            IVR Pipeline
+          </div>
+          <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-extrabold leading-[1.05] tracking-[-2px]">
+            Mis{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2), var(--vf-c1), var(--vf-c3))" }}
+            >
+              Proyectos
+            </span>
+          </h1>
+          <p className="max-w-[380px] text-xs leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
+            Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.
+          </p>
         </div>
-        <h1 className="mb-2 text-[clamp(26px,3vw,38px)] font-extrabold leading-tight tracking-[-1.5px]">
-          Hola, <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2), var(--vf-c1), var(--vf-c3))" }}>{user}</span>
-        </h1>
-        <p className="max-w-md text-[12.5px] leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
-          Bienvenido de nuevo. Aquí tienes un resumen de tu cuenta y accesos rápidos a cada herramienta del pipeline.
-        </p>
+        <button
+          onClick={() => setShowCreate((v) => !v)}
+          className="inline-flex flex-shrink-0 items-center gap-2 rounded-[10px] border-none px-[22px] py-3 text-xs font-semibold tracking-[0.03em] text-white transition-all hover:-translate-y-0.5"
+          style={{
+            fontFamily: "var(--vf-mono)",
+            background: "linear-gradient(135deg, var(--vf-c1), #9f7aea)",
+            boxShadow: "0 4px 20px rgba(124,106,255,.38)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Nuevo Proyecto
+        </button>
       </div>
+
+      {showCreate && (
+        <form
+          onSubmit={handleCreate}
+          className="mb-8 flex flex-wrap gap-2 rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)] p-4"
+        >
+          <input
+            autoFocus
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Nombre del nuevo proyecto"
+            className="min-w-[220px] flex-1 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
+          />
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-lg bg-[var(--vf-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
+          >
+            {creating ? "Creando…" : "Crear"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreate(false)}
+            className="rounded-lg border border-[var(--vf-border)] px-4 py-2 text-sm hover:bg-white/[0.04]"
+          >
+            Cancelar
+          </button>
+        </form>
+      )}
 
       {error && <p className="mb-6 text-sm text-[var(--vf-danger)]">{error}</p>}
 
       {loading ? (
         <p className="text-[var(--vf-muted)]">Cargando…</p>
+      ) : projects.length === 0 ? (
+        <div
+          className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[var(--vf-b2)] bg-white/[0.02] p-[60px_40px] text-center"
+        >
+          <div className="text-[40px] opacity-40">🎬</div>
+          <div className="text-lg font-bold tracking-[-0.4px] text-[var(--vf-text)] opacity-60">Sin proyectos aún</div>
+          <p className="max-w-[300px] text-[11px] leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
+            Crea tu primer proyecto para comenzar a trabajar en el pipeline completo.
+          </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="mt-1 inline-flex items-center gap-2 rounded-[10px] border-none px-[22px] py-3 text-xs font-semibold tracking-[0.03em] text-white transition-all hover:-translate-y-0.5"
+            style={{
+              fontFamily: "var(--vf-mono)",
+              background: "linear-gradient(135deg, var(--vf-c1), #9f7aea)",
+              boxShadow: "0 4px 20px rgba(124,106,255,.38)",
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Crear primer proyecto
+          </button>
+        </div>
       ) : (
-        <>
-          {/* Usage / plan summary */}
-          {profile && (
-            <div className="mb-10 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-6">
-              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-lg font-semibold">{profile.username}</p>
-                  <p className="text-sm text-[var(--vf-muted)]">{profile.email}</p>
-                </div>
-                <div
-                  className="rounded-full border border-[rgba(124,106,255,0.25)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                  style={{ fontFamily: "var(--vf-mono)", background: "rgba(124,106,255,.14)", color: "var(--vf-c2)" }}
-                >
-                  Plan {profile.plan_name}
-                </div>
-              </div>
-              <div className="flex flex-col gap-4 sm:flex-row">
-                <UsageStat
-                  label="Videos"
-                  value={profile.usage?.videos ?? 0}
-                  limit={profile.limits?.videos_per_month ?? null}
-                />
-                <UsageStat
-                  label="Shorts"
-                  value={profile.usage?.shorts ?? 0}
-                  limit={profile.limits?.shorts_per_month ?? null}
-                />
-                <UsageStat
-                  label="Caracteres TTS"
-                  value={profile.usage?.tts_chars ?? 0}
-                  limit={null}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Recent projects */}
-          <div className="mb-10">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-[var(--vf-muted)]">Proyectos recientes</h2>
-              <Link to="/app/proyectos" className="text-xs text-[var(--vf-accent)] hover:underline">
-                Ver todos →
-              </Link>
-            </div>
-            {recentProjects.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--vf-b2)] bg-white/[0.02] p-8 text-center">
-                <p className="text-sm text-[var(--vf-muted)]">Aún no tienes proyectos. Crea uno en Proyectos.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {recentProjects.map((p) => (
-                  <Link
-                    key={p.nombre}
-                    to={`/app/proyectos/${encodeURIComponent(p.nombre)}`}
-                    className="flex flex-col gap-1 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5 transition-colors hover:border-[rgba(124,106,255,0.3)]"
-                  >
-                    <h3 className="truncate text-base font-semibold">{p.nombre}</h3>
-                    <p className="text-xs text-[var(--vf-muted)]">
-                      {p.videos ?? 0} videos · {p.audios ?? 0} audios
-                    </p>
-                    {p.creado && (
-                      <p className="mt-1 text-[10px] text-[var(--vf-m2)]" style={{ fontFamily: "var(--vf-mono)" }}>
-                        {p.creado}
-                      </p>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Pipeline shortcuts */}
-          <div>
-            <h2 className="mb-4 text-sm font-semibold text-[var(--vf-muted)]">Herramientas del pipeline</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {SHORTCUTS.map((s) => (
-                <Link
-                  key={s.to}
-                  to={s.to}
-                  className="group flex flex-col gap-3 rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)] p-5 transition-all hover:-translate-y-0.5 hover:border-[rgba(124,106,255,0.28)]"
-                >
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}
+        >
+          {projects.map((p) => {
+            const { color, emoji } = pmStyle(p.nombre);
+            return (
+              <div
+                key={p.nombre}
+                onClick={() => openProject(p.nombre)}
+                className="relative flex cursor-pointer flex-col gap-2.5 overflow-hidden rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)] p-[24px_20px] transition-all hover:-translate-y-[3px] hover:border-[rgba(124,106,255,0.3)] hover:shadow-[0_16px_40px_rgba(0,0,0,.35)]"
+              >
+                <div className="flex items-start justify-between gap-2">
                   <div
-                    className="flex h-[42px] w-[42px] items-center justify-center rounded-[11px] text-lg"
-                    style={{ background: "rgba(124,106,255,.12)" }}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[11px] text-lg"
+                    style={{ background: `${color}22`, border: `1px solid ${color}33` }}
                   >
-                    {s.icon}
+                    {emoji}
                   </div>
-                  <div>
-                    <h3 className="mb-1 text-[14.5px] font-bold tracking-[-0.3px]">{s.title}</h3>
-                    <p className="text-[10.5px] leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
-                      {s.desc}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenu(openMenu === p.nombre ? null : p.nombre);
+                    }}
+                    title="Opciones"
+                    className="rounded-[5px] border-none bg-transparent px-1.5 py-0.5 text-base text-[var(--vf-m)] transition-colors hover:bg-white/[0.06] hover:text-[var(--vf-text)]"
+                  >
+                    ⋯
+                  </button>
+                  {openMenu === p.nombre && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-4 top-14 z-10 min-w-[150px] rounded-[10px] border border-[var(--vf-b2)] bg-[var(--vf-p)] p-1.5 shadow-[0_12px_36px_rgba(0,0,0,.5)]"
+                    >
+                      <button
+                        onClick={() => handleDelete(p.nombre)}
+                        className="flex w-full items-center gap-2 rounded-[7px] border-none bg-transparent px-3 py-2 text-left text-[11px] text-[var(--vf-danger)] transition-colors hover:bg-[rgba(255,85,102,0.1)]"
+                        style={{ fontFamily: "var(--vf-mono)" }}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="truncate text-[15px] font-bold tracking-[-0.3px] text-[var(--vf-text)]">{p.nombre}</div>
+                <div className="text-[10px] tracking-[0.04em] text-[var(--vf-m2)]" style={{ fontFamily: "var(--vf-mono)" }}>
+                  Creado {formatDate(p.creado)}
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openProject(p.nombre);
+                  }}
+                  className="mt-1 w-full rounded-lg border border-[rgba(124,106,255,0.2)] py-2 text-[11px] font-medium tracking-[0.04em] transition-all hover:border-[rgba(124,106,255,0.35)]"
+                  style={{ fontFamily: "var(--vf-mono)", background: "rgba(124,106,255,.1)", color: "var(--vf-c2)" }}
+                >
+                  Abrir proyecto →
+                </button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

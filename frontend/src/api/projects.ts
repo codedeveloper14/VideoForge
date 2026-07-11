@@ -14,12 +14,19 @@ export interface ProjectScene {
   has_video: boolean;
 }
 
+export interface ProjectContentDebug {
+  img_dir: string;
+  img_count: number;
+  vid_count: number;
+  img_dir_exists: boolean;
+}
+
 export interface ProjectContent {
   scenes: ProjectScene[];
   total: number;
   with_video: number;
   images_only: number;
-  debug: Record<string, unknown>;
+  debug: ProjectContentDebug;
 }
 
 export function listProjects() {

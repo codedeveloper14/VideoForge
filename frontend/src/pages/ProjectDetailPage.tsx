@@ -17,7 +17,7 @@ export default function ProjectDetailPage() {
 
   return (
     <div>
-      <Link to="/app/proyectos" className="text-sm text-[var(--vf-muted)] hover:underline">
+      <Link to="/app/home" className="text-sm text-[var(--vf-muted)] hover:underline">
         ← Proyectos
       </Link>
       <h1 className="mb-6 mt-2 text-2xl font-semibold">{nombre}</h1>

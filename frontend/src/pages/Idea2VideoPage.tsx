@@ -12,20 +12,44 @@ import type { Voice } from "../api/voice";
 
 const VOICE_ID_KEY = "vf_i2v_voice_id";
 
+const DUR_OPTIONS = [
+  { value: 60, label: "60 segundos" },
+  { value: 90, label: "90 segundos" },
+  { value: 120, label: "2 minutos" },
+  { value: 180, label: "3 minutos" },
+  { value: 300, label: "5 minutos" },
+  { value: 600, label: "10 minutos" },
+];
+
 const STYLE_OPTIONS = [
   { value: "cinematic", label: "Cinemático" },
-  { value: "tutorial", label: "Tutorial" },
+  { value: "tutorial", label: "Tutorial / Explainer" },
   { value: "documental", label: "Documental" },
-  { value: "viral", label: "Viral" },
-  { value: "corporativo", label: "Corporativo" },
+  { value: "viral", label: "Viral / Social Media" },
+  { value: "corporativo", label: "Corporativo / B2B" },
 ];
 
 const TONE_OPTIONS = [
   { value: "inspirador", label: "Inspirador" },
   { value: "profesional", label: "Profesional" },
-  { value: "casual", label: "Casual" },
-  { value: "tecnico", label: "Técnico" },
-  { value: "urgente", label: "Urgente" },
+  { value: "casual", label: "Casual / Cercano" },
+  { value: "tecnico", label: "Técnico / Experto" },
+  { value: "urgente", label: "Urgente / Impactante" },
+];
+
+const AUDIENCE_OPTIONS = [
+  { value: "general", label: "Audiencia general" },
+  { value: "profesional", label: "Profesionales" },
+  { value: "jovenes", label: "Jóvenes (18-30)" },
+  { value: "empresarial", label: "Empresarial" },
+  { value: "educativo", label: "Estudiantes" },
+];
+
+const LOADING_LABELS = [
+  "Analizando concepto e idea central...",
+  "Estructurando narrativa y arco dramático...",
+  "Escribiendo escenas y narración...",
+  "Ajustando timing y finalizando guión...",
 ];
 
 const PHASE_LABELS: Record<string, string> = {
@@ -45,39 +69,257 @@ interface ScenesInfo {
   dur?: number;
 }
 
-function StepEyebrow({ children }: { children: React.ReactNode }) {
+function formatDur(secs?: number): string {
+  if (secs == null) return "—";
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
+}
+
+/** Steps bar shown at the top of the overlay: "1 Tu Idea / 2 Generando / 3 Tu Guión" */
+function StepsBar({ step }: { step: number }) {
+  const items = [
+    { n: 1, label: "Tu Idea" },
+    { n: 2, label: "Generando" },
+    { n: 3, label: "Tu Guión" },
+  ];
   return (
-    <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
-      <span
-        className="h-[5px] w-[5px] rounded-full"
-        style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-      />
-      {children}
+    <div className="mx-auto flex items-center gap-0">
+      {items.map((it, idx) => {
+        const isActive = step === it.n;
+        const isDone = step > it.n;
+        return (
+          <div key={it.n} className="flex items-center gap-0">
+            <div
+              className="flex items-center gap-[7px] whitespace-nowrap rounded-full px-3.5 py-[5px] text-[11.5px] font-semibold transition-all"
+              style={{
+                background: isActive ? "rgba(124,106,255,.18)" : "transparent",
+                color: isActive ? "#a89aff" : isDone ? "#4ade80" : "#3a3a55",
+              }}
+            >
+              <div
+                className="flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full text-[9px] font-extrabold"
+                style={{
+                  background: isActive
+                    ? "#7c6aff"
+                    : isDone
+                      ? "#22c55e"
+                      : "rgba(255,255,255,.06)",
+                  color: isActive ? "#fff" : isDone ? "#000" : "inherit",
+                }}
+              >
+                {it.n}
+              </div>
+              <span>{it.label}</span>
+            </div>
+            {idx < items.length - 1 && (
+              <div className="h-px w-7 flex-shrink-0" style={{ background: "rgba(255,255,255,.08)" }} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function PhaseBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; color: string }> = {
-    pending: { label: "Pendiente", color: "var(--vf-muted)" },
-    active: { label: "En curso", color: "var(--vf-c6)" },
-    done: { label: "Listo", color: "var(--vf-c5)" },
-    partial: { label: "Parcial", color: "var(--vf-c4)" },
-    skip: { label: "Omitido", color: "var(--vf-muted)" },
-    error: { label: "Error", color: "var(--vf-danger)" },
-  };
-  const info = map[status] || map.pending;
+/** Hero decoration: concentric spinning rings + glow orb, used in step 1. */
+function HeroDecoration() {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--vf-border)] px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider"
-      style={{ color: info.color }}
+    <div
+      className="relative flex flex-1 flex-col justify-end overflow-hidden px-10 py-11"
+      style={{
+        flex: "0 0 38%",
+        background: "linear-gradient(145deg,rgba(30,16,80,.95) 0%,rgba(10,6,30,.98) 100%)",
+      }}
     >
-      <span
-        className="h-[5px] w-[5px] rounded-full"
-        style={{ background: info.color, boxShadow: status === "active" ? `0 0 6px ${info.color}` : "none" }}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 120% 90% at 30% 20%,rgba(124,106,255,.45) 0%,transparent 60%)",
+        }}
       />
-      {info.label}
-    </span>
+      <div
+        className="xi2v-hero-orb pointer-events-none absolute rounded-full"
+        style={{
+          width: 280,
+          height: 280,
+          top: "38%",
+          left: "50%",
+          background: "radial-gradient(circle,rgba(124,106,255,.35),transparent 70%)",
+        }}
+      />
+      <div
+        className="xi2v-ring-1 pointer-events-none absolute rounded-full"
+        style={{ width: 160, height: 160, top: "38%", left: "50%", border: "1px solid rgba(124,106,255,.2)" }}
+      >
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 7,
+            height: 7,
+            top: -3.5,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#7c6aff",
+            boxShadow: "0 0 10px rgba(124,106,255,.9)",
+          }}
+        />
+      </div>
+      <div
+        className="xi2v-ring-2 pointer-events-none absolute rounded-full"
+        style={{
+          width: 240,
+          height: 240,
+          top: "38%",
+          left: "50%",
+          border: "1px solid rgba(124,106,255,.2)",
+          opacity: 0.5,
+        }}
+      />
+      <div
+        className="xi2v-ring-3 pointer-events-none absolute rounded-full"
+        style={{
+          width: 340,
+          height: 340,
+          top: "38%",
+          left: "50%",
+          border: "1px solid rgba(124,106,255,.2)",
+          opacity: 0.3,
+        }}
+      />
+
+      <div className="relative z-[1] mb-2.5 text-[10px] font-bold uppercase tracking-[.18em]" style={{ color: "rgba(124,106,255,.75)" }}>
+        VideoForge AI Studio
+      </div>
+      <div className="relative z-[1] mb-2.5 text-[28px] font-black leading-[1.15]" style={{ color: "#eeeef5" }}>
+        De idea a
+        <br />
+        <span style={{ color: "#7c6aff" }}>video</span>
+        <br />
+        profesional
+      </div>
+      <p className="relative z-[1] text-[13px] leading-relaxed" style={{ color: "rgba(238,238,245,.38)" }}>
+        Escribe tu concepto. La IA genera el guión completo, listo para el pipeline de producción.
+      </p>
+    </div>
+  );
+}
+
+/** Spinning orb decoration used in the step-2 loading state. */
+function LoadingOrb() {
+  return (
+    <div className="relative" style={{ width: 100, height: 100 }}>
+      <div
+        className="absolute rounded-full"
+        style={{
+          width: 42,
+          height: 42,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%,-50%)",
+          background: "linear-gradient(135deg,#7c6aff,#5b42f3)",
+          boxShadow: "0 0 28px rgba(124,106,255,.55)",
+        }}
+      />
+      <div
+        className="xi2v-orb-ring absolute inset-0 rounded-full"
+        style={{ border: "2px solid rgba(124,106,255,.35)" }}
+      >
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 7,
+            height: 7,
+            top: -3.5,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#a089ff",
+          }}
+        />
+      </div>
+      <div
+        className="xi2v-orb-ring-slow absolute rounded-full"
+        style={{ inset: -16, border: "2px solid rgba(124,106,255,.15)" }}
+      />
+    </div>
+  );
+}
+
+function StatBox({ value, label, wide }: { value: string | number; label: string; wide?: boolean }) {
+  return (
+    <div
+      className="rounded-lg border px-3 py-[11px]"
+      style={{
+        background: "#0e0e1a",
+        borderColor: "rgba(255,255,255,.05)",
+        gridColumn: wide ? "1 / -1" : undefined,
+      }}
+    >
+      <div className="text-[19px] font-black" style={{ color: "#eeeef5" }}>
+        {value}
+      </div>
+      <div className="mt-0.5 text-[9.5px] font-bold uppercase tracking-[.08em]" style={{ color: "#3a3a55" }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function PipelineStep({ icon, label, active }: { icon: string; label: string; active: boolean }) {
+  return (
+    <div
+      className="flex items-center gap-[9px] py-[5px] text-xs"
+      style={{ color: active ? "#eeeef5" : "#2a2a40" }}
+    >
+      <div
+        className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[6px] text-[10px]"
+        style={{
+          background: active ? "rgba(124,106,255,.25)" : "rgba(255,255,255,.04)",
+          color: active ? "#a089ff" : "inherit",
+        }}
+      >
+        {icon}
+      </div>
+      {label}
+    </div>
+  );
+}
+
+function PhaseRow({ label, status }: { label: string; status: string }) {
+  const iconMap: Record<string, { icon: string; bg: string; color: string; glow?: boolean }> = {
+    pending: { icon: "·", bg: "rgba(255,255,255,.04)", color: "#2a2a40" },
+    active: { icon: "●", bg: "rgba(124,106,255,.25)", color: "#a089ff", glow: true },
+    done: { icon: "✓", bg: "rgba(34,197,94,.15)", color: "#22c55e" },
+    skip: { icon: "–", bg: "rgba(255,255,255,.03)", color: "#3a3a55" },
+    partial: { icon: "◐", bg: "rgba(251,191,36,.1)", color: "#fbbf24" },
+    error: { icon: "✕", bg: "rgba(239,68,68,.15)", color: "#f87171" },
+  };
+  const info = iconMap[status] || iconMap.pending;
+  const rowColor = status === "active" ? "#c4c4dc" : status === "done" || status === "skip" ? "#4a4a65" : "#3a3a55";
+  return (
+    <div
+      className="mb-[3px] flex items-center gap-[11px] rounded-[10px] px-[11px] py-2.5 text-[12.5px] transition-all"
+      style={{
+        background: status === "active" ? "rgba(124,106,255,.07)" : "transparent",
+        color: rowColor,
+      }}
+    >
+      <div
+        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold ${
+          status === "active" ? "xi2v-blink" : ""
+        }`}
+        style={{
+          background: info.bg,
+          color: info.color,
+          boxShadow: info.glow ? "0 0 10px rgba(124,106,255,.5)" : "none",
+        }}
+      >
+        {info.icon}
+      </div>
+      <span>{label}</span>
+    </div>
   );
 }
 
@@ -103,6 +345,7 @@ export default function Idea2VideoPage() {
   const [refImageFile, setRefImageFile] = useState<File | null>(null);
   const [refImageBase64, setRefImageBase64] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [renderMode, setRenderMode] = useState<"rapido" | "profesional">("rapido");
 
   // Step 3 — progress
   const [jobId, setJobId] = useState<string | null>(null);
@@ -182,6 +425,11 @@ export default function Idea2VideoPage() {
     }
   }
 
+  function handleClearRefImage() {
+    setRefImageFile(null);
+    setRefImageBase64(null);
+  }
+
   async function handleGenerateScript() {
     if (!idea.trim()) {
       setError("Escribe una idea primero.");
@@ -189,18 +437,21 @@ export default function Idea2VideoPage() {
     }
     setError("");
     setGeneratingScript(true);
+    setStep(2);
     try {
       const data = await generateScript({ idea, dur, style, tone, audience });
       if (!data.ok) {
         setError(data.error || "No se pudo generar el guión.");
+        setStep(1);
         return;
       }
       setScript(data.script || "");
       setTitle(data.title || idea.slice(0, 60));
       setScenesInfo({ scenes: data.scenes, words: data.words, dur: data.dur });
-      setStep(2);
+      setStep(3);
     } catch (err) {
       setError((err as Error).message);
+      setStep(1);
     } finally {
       setGeneratingScript(false);
     }
@@ -223,7 +474,7 @@ export default function Idea2VideoPage() {
         title,
         voiceId,
         refImage: refImageBase64,
-        mode: "rapido",
+        mode: renderMode,
       });
       if (data.error) {
         setError(data.error);
@@ -231,7 +482,7 @@ export default function Idea2VideoPage() {
       }
       setJobId(data.job_id);
       setStatus(null);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -266,372 +517,500 @@ export default function Idea2VideoPage() {
     ? PHASE_ORDER.filter((p) => status.phases?.[p] === "done" || status.phases?.[p] === "skip").length
     : 0;
   const progressPct = Math.round((donePhases / PHASE_ORDER.length) * 100);
+  const modeHint =
+    renderMode === "profesional"
+      ? "WhisperX + render profesional (más lento)"
+      : "Slideshow rápido con FFmpeg";
+
+  // Steps-bar step (1 = idea, 2 = generando, 3 = guión) collapses our internal
+  // step 3 (script review) and step 4 (execution) both onto steps-bar position 3,
+  // since the reference design hands off script review -> a separate execution HUD,
+  // but our data/flow keeps them as one screen after generation.
+  const barStep = step >= 3 ? 3 : step;
 
   return (
-    <div>
-      <div className="mb-9 max-w-2xl">
-        <StepEyebrow>Autopilot · Idea a Video</StepEyebrow>
-        <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Idea a{" "}
-          <span
-            className="bg-clip-text text-transparent"
-            style={{
-              backgroundImage:
-                "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
-            }}
-          >
-            Video
-          </span>
-        </h1>
-        <p className="font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
-          Escribe una idea en una línea y deja que el autopilot genere guión, imágenes, voz y video sin
-          intervención manual.
-        </p>
-      </div>
+    <div className="-m-6 flex min-h-[calc(100vh-0px)] flex-col overflow-hidden sm:-m-8" style={{ background: "#06060e" }}>
+      <style>{`
+        @keyframes xi2vPulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.95)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
+        @keyframes xi2vSpin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+        @keyframes xi2vSpinRev{from{transform:translate(-50%,-50%) rotate(360deg)}to{transform:translate(-50%,-50%) rotate(0)}}
+        @keyframes xi2vBlink{0%,100%{opacity:.3}50%{opacity:1}}
+        .xi2v-hero-orb{animation:xi2vPulse 3.5s ease-in-out infinite}
+        .xi2v-ring-1{animation:xi2vSpin 5s linear infinite}
+        .xi2v-ring-2{animation:xi2vSpinRev 8s linear infinite}
+        .xi2v-ring-3{animation:xi2vSpin 12s linear infinite}
+        .xi2v-orb-ring{animation:xi2vSpin 2.2s linear infinite}
+        .xi2v-orb-ring-slow{animation:xi2vSpinRev 4s linear infinite}
+        .xi2v-blink{animation:xi2vBlink 1s infinite}
+        .xi2v-ta:focus, .xi2v-sel:focus, .xi2v-vsel:focus{border-color:rgba(124,106,255,.45) !important;}
+      `}</style>
 
-      {/* Step indicator */}
-      <div className="mb-6 flex items-center gap-2">
-        {[1, 2, 3].map((n) => (
-          <div key={n} className="flex items-center gap-2">
-            <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full font-mono text-[11px] font-semibold ${
-                step === n
-                  ? "bg-[var(--vf-accent)] text-white"
-                  : step > n
-                    ? "bg-[var(--vf-c5)] text-white"
-                    : "border border-[var(--vf-border)] text-[var(--vf-muted)]"
-              }`}
-            >
-              {n}
-            </div>
-            {n < 3 && <div className="h-px w-8 bg-[var(--vf-border)]" />}
-          </div>
-        ))}
-        <span className="ml-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-          {step === 1 ? "Idea" : step === 2 ? "Guión" : "Progreso"}
+      {/* Top bar: back-style eyebrow + steps bar + badge */}
+      <div
+        className="flex flex-shrink-0 items-center gap-4 border-b px-6 py-3.5"
+        style={{ borderColor: "rgba(124,106,255,.13)", background: "rgba(6,6,14,.96)" }}
+      >
+        <span className="font-mono text-[13px]" style={{ color: "#5a5a75" }}>
+          Idea → Video
+        </span>
+        <StepsBar step={barStep} />
+        <span
+          className="ml-auto text-[10px] font-bold uppercase tracking-[.15em]"
+          style={{ color: "rgba(124,106,255,.6)" }}
+        >
+          Idea → Video
         </span>
       </div>
 
-      {error && <p className="mb-4 text-sm text-[var(--vf-danger)]">{error}</p>}
+      {error && (
+        <p className="px-6 pt-3 text-sm" style={{ color: "var(--vf-danger)" }}>
+          {error}
+        </p>
+      )}
 
+      {/* Step 1 — hero + idea form */}
       {step === 1 && (
-        <div className="max-w-2xl rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-            // Tu idea
-          </div>
-          <textarea
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            placeholder="Ej: Los beneficios ocultos de caminar 30 minutos al día"
-            className="mb-4 min-h-[100px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-          />
+        <div className="flex flex-1 overflow-hidden">
+          <HeroDecoration />
+          <div className="flex-1 overflow-y-auto px-12 py-9">
+            <div className="mb-1 text-[21px] font-extrabold" style={{ color: "#eeeef5" }}>
+              ¿Cuál es tu idea?
+            </div>
+            <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "#5a5a75" }}>
+              Describe tu concepto con el mayor detalle posible. Mientras más contexto des, mejor será el
+              guión.
+            </p>
 
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div>
-              <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Duración (s)
-              </label>
-              <input
-                type="number"
-                min={15}
-                max={1200}
-                value={dur}
-                onChange={(e) => setDur(Number(e.target.value))}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Estilo
-              </label>
-              <select
-                value={style}
-                onChange={(e) => setStyle(e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-              >
-                {STYLE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Tono
-              </label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-              >
-                {TONE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Audiencia
-              </label>
-              <input
-                type="text"
-                value={audience}
-                onChange={(e) => setAudience(e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-              />
-            </div>
-          </div>
+            <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+              Concepto
+            </label>
+            <textarea
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              rows={4}
+              placeholder="Ej: Un video sobre cómo la inteligencia artificial está transformando la medicina..."
+              className="xi2v-ta w-full resize-y rounded-[10px] border-[1.5px] px-[15px] py-[13px] text-sm outline-none transition-colors"
+              style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5", minHeight: 108 }}
+            />
 
-          <button
-            type="button"
-            onClick={handleGenerateScript}
-            disabled={generatingScript}
-            className="w-full rounded-lg bg-[var(--vf-accent)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
-          >
-            {generatingScript ? "Generando guión…" : "✨ Generar guión"}
-          </button>
+            <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex flex-col">
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                  Duración
+                </label>
+                <select
+                  value={dur}
+                  onChange={(e) => setDur(Number(e.target.value))}
+                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                >
+                  {DUR_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                  Estilo
+                </label>
+                <select
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                >
+                  {STYLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                  Tono
+                </label>
+                <select
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                >
+                  {TONE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col">
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                  Audiencia
+                </label>
+                <select
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                >
+                  {AUDIENCE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGenerateScript}
+              disabled={generatingScript}
+              className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-[10px] py-3.5 text-[14.5px] font-bold text-white transition-transform disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#7c6aff 0%,#5b42f3 100%)" }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5" />
+              </svg>
+              {generatingScript ? "Generando guión…" : "Generar guión con IA"}
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Step 2 — loading state: spinning orb + sequential checklist */}
       {step === 2 && (
-        <div className="max-w-2xl">
-          <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Guión generado
+        <div className="flex flex-1 flex-col items-center justify-center gap-9">
+          <LoadingOrb />
+          <div className="flex min-w-[270px] flex-col gap-2">
+            {LOADING_LABELS.map((label, i) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] transition-all"
+                style={{
+                  background: i === 0 ? "rgba(124,106,255,.1)" : "transparent",
+                  color: i === 0 ? "#eeeef5" : "#3a3a55",
+                }}
+              >
+                <div
+                  className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${i === 0 ? "xi2v-blink" : ""}`}
+                  style={{
+                    background: i === 0 ? "#7c6aff" : "#2a2a40",
+                    boxShadow: i === 0 ? "0 0 8px rgba(124,106,255,.8)" : "none",
+                  }}
+                />
+                {label}
               </div>
-              {scenesInfo && (
-                <div className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  {scenesInfo.scenes} escenas · {scenesInfo.words} palabras · {scenesInfo.dur}
-                </div>
-              )}
+            ))}
+          </div>
+          <div className="text-xs" style={{ color: "#3a3a55" }}>
+            Esto tarda entre 3 y 15 segundos
+          </div>
+        </div>
+      )}
+
+      {/* Step 3 — script review: editable script + meta column */}
+      {step === 3 && (
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden border-r px-8 py-7" style={{ borderColor: "rgba(255,255,255,.05)" }}>
+            <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+              Guión generado — puedes editarlo antes de continuar
             </div>
-
-            <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Título
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-            />
-
-            <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Guión (editable)
-            </label>
             <textarea
               value={script}
               onChange={(e) => setScript(e.target.value)}
-              className="mb-1 min-h-[240px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 font-mono text-[12px] leading-relaxed outline-none focus:border-[var(--vf-accent)]"
+              className="flex-1 resize-none overflow-y-auto rounded-[10px] border p-[15px] text-[12.5px] leading-[1.75] outline-none"
+              style={{
+                background: "#07070f",
+                borderColor: "rgba(255,255,255,.06)",
+                color: "#c4c4dc",
+                fontFamily: "ui-monospace, monospace",
+              }}
             />
           </div>
 
-          <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-            <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-              // Voz y referencia visual
+          <div className="flex w-[300px] flex-shrink-0 flex-col gap-4 overflow-y-auto px-6 py-7">
+            <div>
+              <label className="mb-[7px] block text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+                Título sugerido
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full rounded-lg border bg-transparent px-2.5 py-1.5 text-[15px] font-extrabold outline-none"
+                style={{ borderColor: "transparent", color: "#eeeef5" }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(124,106,255,.4)")}
+                onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+              />
             </div>
 
-            <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Voz
-            </label>
-            <select
-              value={voiceId}
-              onChange={(e) => setVoiceId(e.target.value)}
-              disabled={voicesLoading}
-              className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
-            >
-              {voicesLoading && <option>Cargando voces...</option>}
-              {!voicesLoading && voices.length === 0 && (
-                <option value="">Sin voces disponibles</option>
-              )}
-              {voices.map((v) => {
-                const id = v["ID Voz"] || v.id || v.voice_id;
-                const name = v["Nombre Voz"] || v.name || id;
-                return (
-                  <option key={id} value={id}>
-                    {name}
-                  </option>
-                );
-              })}
-            </select>
+            <div className="grid grid-cols-2 gap-[7px]">
+              <StatBox value={scenesInfo?.scenes ?? "—"} label="Escenas" />
+              <StatBox value={formatDur(scenesInfo?.dur)} label="Duración" />
+              <StatBox value={scenesInfo?.words ?? "—"} label="Palabras" wide />
+            </div>
 
-            <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Imagen de referencia (opcional)
-            </label>
-            <div className="relative rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.015] p-4 text-center">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleRefImageChange}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
-              <div className="mb-1 text-xl">🖼️</div>
-              <div className="font-mono text-[11px] text-[var(--vf-muted)]">
-                <strong>Clic o arrastra</strong> una imagen para guiar el estilo visual
+            <div className="h-px" style={{ background: "rgba(255,255,255,.05)" }} />
+
+            <div>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+                Voz narradora <span className="font-normal" style={{ fontSize: 10, color: "#2a2a40" }}>(opcional)</span>
               </div>
-              {refImageFile && (
-                <div className="mt-1 font-mono text-[10px] text-[var(--vf-success)]">
-                  {refImageFile.name}
+              <select
+                value={voiceId}
+                onChange={(e) => setVoiceId(e.target.value)}
+                disabled={voicesLoading}
+                className="xi2v-vsel w-full cursor-pointer rounded-lg border px-2.5 py-[7px] text-xs outline-none"
+                style={{ background: "#0a0a14", borderColor: "rgba(255,255,255,.1)", color: "#c4c4dc" }}
+              >
+                {voicesLoading && <option>Cargando voces...</option>}
+                {!voicesLoading && voices.length === 0 && <option value="">Sin voces disponibles</option>}
+                {voices.map((v) => {
+                  const id = v["ID Voz"] || v.id || v.voice_id;
+                  const name = v["Nombre Voz"] || v.name || id;
+                  return (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+                Imagen de referencia <span className="font-normal" style={{ fontSize: 10, color: "#2a2a40" }}>(opcional)</span>
+              </div>
+              {!refImageFile ? (
+                <label
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all"
+                  style={{ color: "#a089ff", background: "rgba(124,106,255,.1)", borderColor: "rgba(124,106,255,.3)" }}
+                >
+                  📎 Adjuntar imagen
+                  <input type="file" accept="image/*" onChange={handleRefImageChange} className="hidden" />
+                </label>
+              ) : (
+                <div className="mt-2 flex items-center gap-2">
+                  {refImageBase64 && (
+                    <img
+                      src={`data:image/*;base64,${refImageBase64}`}
+                      alt=""
+                      className="h-14 w-20 rounded-md border object-cover"
+                      style={{ borderColor: "rgba(124,106,255,.3)" }}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleClearRefImage}
+                    className="bg-transparent text-[11px]"
+                    style={{ color: "#5a5a75" }}
+                  >
+                    ✕ Quitar
+                  </button>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-4 py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
-            >
-              ← Atrás
-            </button>
+            <div>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+                Modo de render
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRenderMode("rapido")}
+                  className="rounded-lg border px-3.5 py-1.5 text-[11.5px] font-semibold transition-all"
+                  style={
+                    renderMode === "rapido"
+                      ? { background: "rgba(124,106,255,.2)", color: "#eeeef5", borderColor: "rgba(124,106,255,.5)" }
+                      : { background: "rgba(255,255,255,.04)", color: "#5a5a75", borderColor: "rgba(124,106,255,.25)" }
+                  }
+                >
+                  ⚡ Rápido
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRenderMode("profesional")}
+                  className="rounded-lg border px-3.5 py-1.5 text-[11.5px] font-semibold transition-all"
+                  style={
+                    renderMode === "profesional"
+                      ? { background: "rgba(124,106,255,.2)", color: "#eeeef5", borderColor: "rgba(124,106,255,.5)" }
+                      : { background: "rgba(255,255,255,.04)", color: "#5a5a75", borderColor: "rgba(124,106,255,.25)" }
+                  }
+                >
+                  🎬 Profesional
+                </button>
+              </div>
+              <div className="mt-[5px] text-[10px]" style={{ color: "#3a3a55" }}>
+                {modeHint}
+              </div>
+            </div>
+
+            <div className="rounded-[10px] border px-4 py-3.5" style={{ background: "#0a0a14", borderColor: "rgba(255,255,255,.05)" }}>
+              <div className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+                Flujo de producción
+              </div>
+              <PipelineStep icon="✎" label="Guión" active />
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <PipelineStep icon="▢" label="Imágenes" active={false} />
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <PipelineStep icon="♪" label="Voz" active={false} />
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <PipelineStep icon="▶" label="Video" active={false} />
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <PipelineStep icon="★" label="Render" active={false} />
+            </div>
+
             <button
               type="button"
               onClick={handleStartAutopilot}
               disabled={starting || !voiceId}
-              className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, var(--vf-c1), var(--vf-c3))" }}
+              className="w-full rounded-[10px] py-[13px] text-[13.5px] font-bold text-white transition-transform disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#7c6aff,#5b42f3)" }}
             >
-              {starting ? "Iniciando…" : "🚀 Iniciar autopilot"}
+              {starting ? "Iniciando…" : "▶ Generar Video Automático"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full rounded-[10px] border py-[9px] text-[12.5px] transition-all"
+              style={{ background: "transparent", borderColor: "rgba(255,255,255,.08)", color: "#5a5a75" }}
+            >
+              ↺ Regenerar
             </button>
           </div>
         </div>
       )}
 
-      {step === 3 && (
-        <div className="max-w-2xl">
-          <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Progreso del autopilot
+      {/* Step 4 — execution HUD: phases list, image gallery, video player, log */}
+      {step === 4 && (
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-hidden">
+            <div className="w-[240px] flex-shrink-0 overflow-y-auto border-r px-3.5 py-[22px]" style={{ borderColor: "rgba(255,255,255,.05)", background: "rgba(0,0,0,.2)" }}>
+              <div className="mb-3.5 text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: "#2a2a40" }}>
+                Fases del pipeline
               </div>
-              {status && (
-                <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  {status.elapsed != null ? `${status.elapsed}s` : ""}
-                </span>
-              )}
+              {PHASE_ORDER.map((p) => (
+                <PhaseRow key={p} label={PHASE_LABELS[p]} status={status?.phases?.[p] || "pending"} />
+              ))}
             </div>
 
-            {!status && (
-              <p className="font-mono text-[12px] text-[var(--vf-muted)]">Conectando con el job…</p>
-            )}
-
-            {status && (
-              <>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                    {status.current_detail || "Procesando…"}
-                  </span>
-                  <span className="font-mono text-[10px] text-[var(--vf-muted)]">{progressPct}%</span>
+            <div className="flex flex-1 flex-col gap-4 overflow-hidden px-6 py-[22px]">
+              <div
+                className="flex flex-shrink-0 items-center gap-3.5 rounded-xl border px-[17px] py-[13px]"
+                style={{ background: "rgba(124,106,255,.08)", borderColor: "rgba(124,106,255,.2)" }}
+              >
+                <div className="flex-shrink-0 text-xl">⚡</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-bold" style={{ color: "#eeeef5" }}>
+                    {title || "Autopilot"}
+                  </div>
+                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]" style={{ color: "#5a5a75" }}>
+                    {status?.current_detail || "Procesando…"}
+                  </div>
                 </div>
-                <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-[var(--vf-surface-2)]">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${progressPct}%`,
-                      background: "linear-gradient(90deg, var(--vf-c1), var(--vf-c3))",
-                    }}
-                  />
+                <div
+                  className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-bold"
+                  style={{ background: "rgba(255,255,255,.04)", color: "#5a5a75", fontVariantNumeric: "tabular-nums" }}
+                >
+                  {status?.elapsed != null ? `${status.elapsed}s` : "0s"} · {progressPct}%
                 </div>
+              </div>
 
-                <div className="flex flex-col gap-2">
-                  {PHASE_ORDER.map((p) => (
-                    <div
-                      key={p}
-                      className="flex items-center justify-between rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2"
-                    >
-                      <span className="font-mono text-[11px]">{PHASE_LABELS[p]}</span>
-                      <PhaseBadge status={status.phases?.[p] || "pending"} />
-                    </div>
+              <div className="flex-shrink-0 text-[11.5px] font-bold" style={{ color: "#5a5a75" }}>
+                Imágenes ({status?.images?.length || 0}/{scenesInfo?.scenes || 0})
+              </div>
+
+              {!status?.images?.length ? (
+                <div className="flex-shrink-0 py-3 text-[12.5px] italic" style={{ color: "#2a2a40" }}>
+                  Las imágenes aparecerán conforme se generen...
+                </div>
+              ) : (
+                <div className="grid flex-1 gap-2 overflow-y-auto" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
+                  {status.images.map((src) => (
+                    <img
+                      key={src}
+                      src={src}
+                      alt=""
+                      className="w-full rounded-lg border object-cover"
+                      style={{ aspectRatio: "16/9", borderColor: "rgba(255,255,255,.06)" }}
+                    />
                   ))}
                 </div>
+              )}
 
-                {status.status === "error" && (
-                  <p className="mt-3 text-sm text-[var(--vf-danger)]">
-                    {status.error || "El autopilot falló."}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+              {status?.status === "done" && (
+                <div
+                  className="flex flex-shrink-0 flex-col gap-2.5 rounded-[10px] border px-4 py-3"
+                  style={{ background: "rgba(34,197,94,.07)", borderColor: "rgba(34,197,94,.2)" }}
+                >
+                  {status.video_url && (
+                    <video
+                      src={status.video_url}
+                      controls
+                      className="w-full rounded-lg"
+                      style={{ maxHeight: 420, background: "#000" }}
+                    />
+                  )}
+                  <div className="flex w-full items-center gap-2.5">
+                    <span className="flex-1 text-xs font-bold" style={{ color: "#4ade80" }}>
+                      ✓ Video listo
+                    </span>
+                    {status.video_dl && (
+                      <a
+                        href={status.video_dl}
+                        download
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold text-white no-underline"
+                        style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)" }}
+                      >
+                        ↓ Descargar
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAbrirCarpeta}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
+                      style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", color: "#eeeef5" }}
+                    >
+                      📁 Abrir carpeta
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRestart}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
+                      style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", color: "#eeeef5" }}
+                    >
+                      + Nueva idea
+                    </button>
+                  </div>
+                </div>
+              )}
 
-          {status && status.images?.length > 0 && (
-            <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-              <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Galería ({status.images.length})
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {status.images.map((src) => (
-                  <img
-                    key={src}
-                    src={src}
-                    alt=""
-                    className="aspect-video w-full rounded-lg border border-[var(--vf-border)] object-cover"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {status?.status === "done" && (
-            <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-              <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-success)]">
-                // Video final
-              </div>
-              {status.video_url ? (
-                <video
-                  src={status.video_url}
-                  controls
-                  className="mb-3 w-full rounded-lg border border-[var(--vf-border)]"
-                />
-              ) : (
-                <p className="mb-3 font-mono text-[11px] text-[var(--vf-muted)]">
-                  No se generó un video final (revisa el log de fases).
+              {status?.status === "error" && (
+                <p className="flex-shrink-0 text-sm" style={{ color: "var(--vf-danger)" }}>
+                  {status.error || "El autopilot falló."}
                 </p>
               )}
-              <div className="flex flex-wrap gap-3">
-                {status.video_dl && (
-                  <a
-                    href={status.video_dl}
-                    className="rounded-lg bg-[var(--vf-accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--vf-accent-hover)]"
-                  >
-                    ⬇ Descargar video
-                  </a>
-                )}
-                <button
-                  type="button"
-                  onClick={handleAbrirCarpeta}
-                  className="rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
-                >
-                  📁 Abrir carpeta
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRestart}
-                  className="rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-4 py-2 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
-                >
-                  + Nueva idea
-                </button>
-              </div>
-            </div>
-          )}
 
-          {status && status.log?.length > 0 && (
-            <details className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
-              <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Log ({status.log.length})
-              </summary>
-              <ul className="mt-3 space-y-1 font-mono text-[10.5px] text-[var(--vf-muted)]">
-                {status.log.map((l, i) => (
-                  <li key={i}>{l}</li>
-                ))}
-              </ul>
-            </details>
-          )}
+              {status && status.log?.length > 0 && (
+                <details className="flex-shrink-0 border-t pt-2.5" style={{ borderColor: "rgba(255,255,255,.05)" }}>
+                  <summary className="cursor-pointer text-[11px]" style={{ color: "#2a2a40" }}>
+                    Registro de ejecución
+                  </summary>
+                  <div className="max-h-[100px] overflow-y-auto pt-1.5">
+                    {status.log.map((l, i) => (
+                      <div key={i} className="py-[1.5px] text-[10.5px]" style={{ color: "#3a3a55", fontFamily: "ui-monospace, monospace" }}>
+                        {l}
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

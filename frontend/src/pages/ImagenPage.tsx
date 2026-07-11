@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { listProjects } from "../api/projects";
+import { getProjectContent, listProjects } from "../api/projects";
 import type { Project } from "../types";
 import WhiskPanel from "./imagen/WhiskPanel";
 import FlowPanel from "./imagen/FlowPanel";
@@ -36,8 +36,24 @@ export default function ImagenPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, tab]);
 
-  // Default output_dir suggestion: project-scoped "imagen" subfolder.
-  const defaultOutputDir = project ? `${project}/imagen` : "";
+  // output_dir es la carpeta real "imagen/" del proyecto en disco -- la resuelve
+  // el backend (project_service.get_project_content -> debug.img_dir), igual que
+  // hacia el launcher.py original (flowResolveOutputDir / gtStart / mntGenerar).
+  // Nunca se adivina como string ni la escribe el usuario.
+  const [resolvedOutputDir, setResolvedOutputDir] = useState("");
+  const [resolvingDir, setResolvingDir] = useState(false);
+
+  useEffect(() => {
+    if (!project) {
+      setResolvedOutputDir("");
+      return;
+    }
+    setResolvingDir(true);
+    getProjectContent(project)
+      .then((data) => setResolvedOutputDir(data.debug?.img_dir || ""))
+      .catch(() => setResolvedOutputDir(""))
+      .finally(() => setResolvingDir(false));
+  }, [project]);
 
   return (
     <div>
@@ -79,11 +95,13 @@ export default function ImagenPage() {
 
       <div className="mt-4">
         {tab === "whisk" && (
-          <WhiskPanel project={project} defaultOutputDir={defaultOutputDir} />
+          <WhiskPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
         )}
-        {tab === "flow" && <FlowPanel project={project} defaultOutputDir={defaultOutputDir} />}
+        {tab === "flow" && (
+          <FlowPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
+        )}
         {tab === "gentube" && (
-          <GentubePanel project={project} defaultOutputDir={defaultOutputDir} />
+          <GentubePanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
         )}
       </div>
     </div>

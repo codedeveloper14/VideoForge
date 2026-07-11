@@ -12,12 +12,13 @@ import ImagenPage from "./pages/ImagenPage";
 import VideoPage from "./pages/VideoPage";
 import RenderPage from "./pages/RenderPage";
 import EditorPage from "./pages/EditorPage";
-import TareasPage from "./pages/TareasPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import PlansPage from "./pages/PlansPage";
 import ProfilePage from "./pages/ProfilePage";
 import HelpPage from "./pages/HelpPage";
+import DocumentacionPage from "./pages/DocumentacionPage";
+import TareasPage from "./pages/TareasPage";
 
 export default function App() {
   return (
@@ -33,6 +34,8 @@ export default function App() {
               <Route index element={<Navigate to="home" replace />} />
               <Route path="home" element={<HomePage />} />
               <Route path="idea2video" element={<Idea2VideoPage />} />
+              <Route path="tareas" element={<TareasPage />} />
+              <Route path="documentacion" element={<DocumentacionPage />} />
               <Route path="guion" element={<GuionPage />} />
               <Route path="voz" element={<VozPage />} />
               <Route path="imagen" element={<ImagenPage />} />
@@ -40,11 +43,11 @@ export default function App() {
               <Route path="render" element={<RenderPage />} />
               <Route path="editor" element={<EditorPage />} />
               <Route path="editor/:proyecto" element={<EditorPage />} />
-              <Route path="tareas" element={<TareasPage />} />
               <Route path="proyectos" element={<ProjectsPage />} />
               <Route path="proyectos/:nombre" element={<ProjectDetailPage />} />
               <Route path="planes" element={<PlansPage />} />
-              <Route path="perfil" element={<ProfilePage />} />
+              <Route path="ajustes" element={<ProfilePage />} />
+              <Route path="perfil" element={<Navigate to="/app/ajustes" replace />} />
               <Route path="ayuda" element={<HelpPage />} />
             </Route>
           </Route>

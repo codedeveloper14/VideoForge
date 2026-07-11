@@ -30,14 +30,14 @@ const POLL_MS = 2000;
 
 interface WhiskPanelProps {
   project: string;
-  defaultOutputDir: string;
+  outputDir: string;
+  resolvingDir: boolean;
 }
 
-export default function WhiskPanel({ defaultOutputDir }: WhiskPanelProps) {
+export default function WhiskPanel({ outputDir, resolvingDir }: WhiskPanelProps) {
   const [prompts, setPrompts] = useState("");
   const [repeat, setRepeat] = useState<number | string>(1);
   const [slots, setSlots] = useState(1);
-  const [outputDir, setOutputDir] = useState(defaultOutputDir || "");
   const [error, setError] = useState("");
 
   const [running, setRunning] = useState(false);
@@ -50,10 +50,6 @@ export default function WhiskPanel({ defaultOutputDir }: WhiskPanelProps) {
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (defaultOutputDir) setOutputDir(defaultOutputDir);
-  }, [defaultOutputDir]);
 
   function refreshImages() {
     whiskImages()
@@ -143,6 +139,10 @@ export default function WhiskPanel({ defaultOutputDir }: WhiskPanelProps) {
     setError("");
     if (!prompts.trim()) {
       setError("Escribe al menos un prompt.");
+      return;
+    }
+    if (!outputDir) {
+      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
       return;
     }
     try {
@@ -285,12 +285,11 @@ export default function WhiskPanel({ defaultOutputDir }: WhiskPanelProps) {
             <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Destino:
             </span>
-            <input
-              value={outputDir}
-              onChange={(e) => setOutputDir(e.target.value)}
-              placeholder="— selecciona proyecto arriba o escribe una ruta —"
-              className="flex-1 bg-transparent font-mono text-[11px] text-[var(--vf-c5)] outline-none"
-            />
+            <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
+              {resolvingDir
+                ? "Resolviendo carpeta del proyecto…"
+                : outputDir || "— selecciona un proyecto arriba —"}
+            </span>
           </div>
 
           <SectionCard

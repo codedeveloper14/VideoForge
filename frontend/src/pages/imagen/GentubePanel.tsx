@@ -28,16 +28,16 @@ const POLL_MS = 2000;
 
 interface GentubePanelProps {
   project: string;
-  defaultOutputDir: string;
+  outputDir: string;
+  resolvingDir: boolean;
 }
 
-export default function GentubePanel({ defaultOutputDir }: GentubePanelProps) {
+export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelProps) {
   const [prompts, setPrompts] = useState("");
   const [repeat, setRepeat] = useState<number | string>(1);
   const [slots, setSlots] = useState(1);
   const [ratio, setRatio] = useState("1:1");
   const [quality, setQuality] = useState("standard");
-  const [outputDir, setOutputDir] = useState(defaultOutputDir || "");
 
   const [running, setRunning] = useState(false);
   const [statusData, setStatusData] = useState<GentubeStatus | null>(null);
@@ -48,10 +48,6 @@ export default function GentubePanel({ defaultOutputDir }: GentubePanelProps) {
   const [error, setError] = useState("");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (defaultOutputDir) setOutputDir(defaultOutputDir);
-  }, [defaultOutputDir]);
 
   function refreshImages() {
     gentubeImages()
@@ -114,6 +110,10 @@ export default function GentubePanel({ defaultOutputDir }: GentubePanelProps) {
       .filter(Boolean);
     if (!list.length) {
       setError("Escribe al menos un prompt.");
+      return;
+    }
+    if (!outputDir) {
+      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
       return;
     }
     try {
@@ -260,12 +260,11 @@ export default function GentubePanel({ defaultOutputDir }: GentubePanelProps) {
             <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Destino:
             </span>
-            <input
-              value={outputDir}
-              onChange={(e) => setOutputDir(e.target.value)}
-              placeholder="— selecciona proyecto arriba o escribe una ruta —"
-              className="flex-1 bg-transparent font-mono text-[11px] text-[var(--vf-c5)] outline-none"
-            />
+            <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
+              {resolvingDir
+                ? "Resolviendo carpeta del proyecto…"
+                : outputDir || "— selecciona un proyecto arriba —"}
+            </span>
           </div>
 
           <SectionCard
