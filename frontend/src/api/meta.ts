@@ -121,7 +121,7 @@ export function metaAbrirCarpeta(project: string) {
 }
 
 export function metaLaunchChrome({
-  account = "cuenta1",
+  account = "meta_cuenta_1",
   slots = 3,
 }: MetaLaunchChromeParams = {}) {
   return api
@@ -129,7 +129,7 @@ export function metaLaunchChrome({
     .then((r) => r.data);
 }
 
-export function metaOpenDevmode({ account = "cuenta1" }: MetaOpenDevmodeParams = {}) {
+export function metaOpenDevmode({ account = "meta_cuenta_1" }: MetaOpenDevmodeParams = {}) {
   return api
     .post<MetaOpenDevmodeResult>("/meta/open_devmode", { account })
     .then((r) => r.data);

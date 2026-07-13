@@ -5,6 +5,7 @@ import {
   gentubeClearImages,
   gentubeImages,
   gentubeImageUrl,
+  gentubeLogin,
   gentubeReset,
   gentubeRunPrompts,
   gentubeStatus,
@@ -47,6 +48,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [logLines, setLogLines] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -75,12 +77,16 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
       .catch(() => {});
   }
 
-  useEffect(() => {
-    pollStatus();
-    refreshImages();
+  function loadAccounts() {
     gentubeCheckLogin()
       .then((data) => setAccounts(data.profiles || []))
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    pollStatus();
+    refreshImages();
+    loadAccounts();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
@@ -148,6 +154,19 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
     }
   }
 
+  async function handleLogin(idx: number) {
+    setLoggingIn(idx);
+    setError("");
+    try {
+      await gentubeLogin({ profile: idx });
+      loadAccounts();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoggingIn(null);
+    }
+  }
+
   async function handleReset() {
     if (!confirm("¿Reiniciar el estado de Gentube?")) return;
     try {
@@ -181,7 +200,17 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
 
       <div className="mb-4 grid grid-cols-[260px_1fr] gap-4 max-lg:grid-cols-1">
         <div className="flex flex-col gap-3">
-          <SectionCard title="// Cuentas">
+          <SectionCard
+            title="// Cuentas"
+            right={
+              <button
+                onClick={loadAccounts}
+                className="font-mono text-[9px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+              >
+                ↺ Actualizar
+              </button>
+            }
+          >
             <div className="flex flex-col gap-1.5">
               {accounts.length === 0 ? (
                 <div className="font-mono text-[10px] text-[var(--vf-m2)]">Sin datos aún</div>
@@ -194,12 +223,21 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                     <span className="font-mono text-[10px] text-[var(--vf-muted)]">
                       {a.name || `Cuenta ${i}`}
                     </span>
-                    <span
-                      className="font-mono text-[9px]"
-                      style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
-                    >
-                      {a.logged_in ? "conectado" : "desconectado"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="font-mono text-[9px]"
+                        style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
+                      >
+                        {a.logged_in ? "conectado" : "desconectado"}
+                      </span>
+                      <button
+                        onClick={() => handleLogin(i)}
+                        disabled={loggingIn === i}
+                        className="font-mono text-[9px] text-[var(--vf-c2)] underline disabled:opacity-50"
+                      >
+                        {loggingIn === i ? "Abriendo…" : "Login"}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

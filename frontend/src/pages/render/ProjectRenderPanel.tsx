@@ -125,7 +125,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
       const data = await startRender({
         project_name: project,
         render_mode: renderMode,
-        guion: useProjectScript ? "" : guion,
+        guion,
         resolucion,
         modelo,
         whisper_backend: whisperBackend,
