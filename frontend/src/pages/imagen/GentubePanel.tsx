@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Select, SelectOption } from "../../components/Select";
 import {
   gentubeCheckLogin,
   gentubeClearImages,
@@ -228,28 +229,28 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
                   Ratio
                 </label>
-                <select
+                <Select
                   value={ratio}
-                  onChange={(e) => setRatio(e.target.value)}
+                  onChange={(v) => setRatio(v)}
                   className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <option value="1:1">1:1</option>
-                  <option value="16:9">16:9</option>
-                  <option value="9:16">9:16</option>
-                </select>
+                  <SelectOption value="1:1">1:1</SelectOption>
+                  <SelectOption value="16:9">16:9</SelectOption>
+                  <SelectOption value="9:16">9:16</SelectOption>
+                </Select>
               </div>
               <div>
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
                   Calidad
                 </label>
-                <select
+                <Select
                   value={quality}
-                  onChange={(e) => setQuality(e.target.value)}
+                  onChange={(v) => setQuality(v)}
                   className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <option value="standard">Standard</option>
-                  <option value="high">High</option>
-                </select>
+                  <SelectOption value="standard">Standard</SelectOption>
+                  <SelectOption value="high">High</SelectOption>
+                </Select>
               </div>
             </div>
           </SectionCard>

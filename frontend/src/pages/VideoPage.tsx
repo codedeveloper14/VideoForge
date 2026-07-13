@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
+import { Select, SelectOption } from "../components/Select";
 import GrokPanel from "./video/GrokPanel";
 import QwenPanel from "./video/QwenPanel";
 import MetaPanel from "./video/MetaPanel";
@@ -69,18 +70,18 @@ export default function VideoPage() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
           Proyecto
         </span>
-        <select
+        <Select
           value={project}
-          onChange={(e) => setProject(e.target.value)}
+          onChange={(v) => setProject(v)}
           className="min-w-[200px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
-          <option value="">— Sin proyecto seleccionado —</option>
+          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
+            <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
-            </option>
+            </SelectOption>
           ))}
-        </select>
+        </Select>
         {error && <span className="text-xs text-[var(--vf-danger)]">{error}</span>}
       </div>
 

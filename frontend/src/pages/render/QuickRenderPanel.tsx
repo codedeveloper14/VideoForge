@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getQuickRenderDownloadUrl, startQuickRender } from "../../api/quickRender";
+import { Select, SelectOption } from "../../components/Select";
 
 const RESOLUCIONES = [
   { value: "1920x1080", label: "1920×1080 — YouTube" },
@@ -327,45 +328,45 @@ export default function QuickRenderPanel() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Resolución</label>
-              <select
+              <Select
                 value={resolucion}
-                onChange={(e) => setResolucion(e.target.value)}
+                onChange={(v) => setResolucion(v)}
                 className="w-full rounded-lg border border-[var(--vf-border)] bg-black/20 p-2 text-sm text-[var(--vf-text)]"
               >
                 {RESOLUCIONES.map((r) => (
-                  <option key={r.value} value={r.value}>
+                  <SelectOption key={r.value} value={r.value}>
                     {r.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Modelo Whisper</label>
-              <select
+              <Select
                 value={modelo}
-                onChange={(e) => setModelo(e.target.value)}
+                onChange={(v) => setModelo(v)}
                 className="w-full rounded-lg border border-[var(--vf-border)] bg-black/20 p-2 text-sm text-[var(--vf-text)]"
               >
                 {MODELOS.map((m) => (
-                  <option key={m.value} value={m.value}>
+                  <SelectOption key={m.value} value={m.value}>
                     {m.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Motor Whisper</label>
-              <select
+              <Select
                 value={whisperBackend}
-                onChange={(e) => setWhisperBackend(e.target.value)}
+                onChange={(v) => setWhisperBackend(v)}
                 className="w-full rounded-lg border border-[var(--vf-border)] bg-black/20 p-2 text-sm text-[var(--vf-text)]"
               >
                 {WHISPER_BACKENDS.map((w) => (
-                  <option key={w.value} value={w.value}>
+                  <SelectOption key={w.value} value={w.value}>
                     {w.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Fade (s)</label>

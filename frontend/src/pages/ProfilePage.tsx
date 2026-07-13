@@ -117,7 +117,7 @@ export default function ProfilePage() {
   const ttsUsedHours = Math.round((profile.usage.tts_chars / 10000) * 10) / 10;
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-5xl">
       <h1
         className="mb-2 text-[34px] font-extrabold"
         style={{

@@ -124,7 +124,7 @@ export default function LoginPage() {
         style={{
           width: "min(1080px, 96vw)",
           height: "min(660px, 88vh)",
-          boxShadow: "0 40px 120px rgba(0,0,0,.8), 0 0 80px rgba(99,80,255,.08)",
+          boxShadow: "0 40px 120px rgba(88,70,230,.5), 0 0 90px rgba(124,106,255,.25)",
         }}
       >
         {/* LEFT PANEL */}

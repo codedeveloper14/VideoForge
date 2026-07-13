@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Select, SelectOption } from "../components/Select";
 
 type TaskStatus = "todo" | "progress" | "done";
 type TaskPriority = "low" | "normal" | "high";
@@ -131,17 +132,17 @@ function NewTaskModal({
           <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
             Prioridad
           </label>
-          <select
+          <Select
             value={priority}
-            onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="w-full cursor-pointer appearance-none rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.09)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
+            onChange={(v) => setPriority(v as TaskPriority)}
+            className="w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           >
             {PRIORITY_OPTIONS.map((p) => (
-              <option key={p.value} value={p.value}>
+              <SelectOption key={p.value} value={p.value}>
                 {p.label}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -214,7 +215,7 @@ export default function TareasPage() {
   const shown = tasks.filter((t) => filter === "all" || t.status === filter);
 
   return (
-    <div className="max-w-[860px]">
+    <div className="mx-auto max-w-5xl">
       <h1 className="mb-7 text-[34px] font-extrabold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
         Tareas
       </h1>
@@ -237,7 +238,7 @@ export default function TareasPage() {
 
         <button
           onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--vf-c1)]/35 bg-[var(--vf-c1)]/[0.18] px-5 py-2.5 text-[13px] font-semibold text-[#c4b8ff] transition-colors hover:bg-[var(--vf-c1)]/[0.28] hover:border-[var(--vf-c1)]/60"
+          className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--vf-c1)]/40 bg-[var(--vf-c1)]/[0.14] px-5 py-2.5 text-[13px] font-semibold text-[var(--vf-c1)] transition-colors hover:bg-[var(--vf-c1)]/[0.24] hover:border-[var(--vf-c1)]/65"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <line x1="12" y1="5" x2="12" y2="19" />

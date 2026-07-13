@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { Select, SelectOption } from "../../components/Select";
 import {
   flowAbrirCarpeta,
   flowAccounts,
@@ -346,42 +347,42 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
                   Aspect ratio
                 </label>
-                <select
+                <Select
                   value={aspect}
-                  onChange={(e) => setAspect(e.target.value)}
+                  onChange={(v) => setAspect(v)}
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</option>
-                  <option value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</option>
-                  <option value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</option>
-                </select>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</SelectOption>
+                </Select>
               </div>
               <div>
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
                   Modelo
                 </label>
-                <select
+                <Select
                   value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                  onChange={(v) => setModel(v)}
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <option value="NANO_BANANA_2">Nano Banana 2 · calidad</option>
-                  <option value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</option>
-                </select>
+                  <SelectOption value="NANO_BANANA_2">Nano Banana 2 · calidad</SelectOption>
+                  <SelectOption value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</SelectOption>
+                </Select>
               </div>
               <div>
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
                   Reintentos
                 </label>
-                <select
+                <Select
                   value={maxRetries}
-                  onChange={(e) => setMaxRetries(Number(e.target.value))}
+                  onChange={(v) => setMaxRetries(Number(v))}
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <option value={1}>1</option>
-                  <option value={2}>2 · equilibrado</option>
-                  <option value={3}>3 · máx. tolerancia</option>
-                </select>
+                  <SelectOption value={1}>1</SelectOption>
+                  <SelectOption value={2}>2 · equilibrado</SelectOption>
+                  <SelectOption value={3}>3 · máx. tolerancia</SelectOption>
+                </Select>
               </div>
             </div>
           </SectionCard>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as metaApi from "../../api/meta";
+import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
 import type { ProviderApi, ProviderIniciarParams } from "./ProviderPanel";
 import { GhostButton } from "./shared";
@@ -94,17 +95,17 @@ export default function MetaPanel({ project }: MetaPanelProps) {
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
                 Modo
               </label>
-              <select
+              <Select
                 value={options.mode as string}
-                onChange={(e) => setOption("mode", e.target.value)}
+                onChange={(v) => setOption("mode", v)}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
               >
                 {MODE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
+                  <SelectOption key={o.value} value={o.value}>
                     {o.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">

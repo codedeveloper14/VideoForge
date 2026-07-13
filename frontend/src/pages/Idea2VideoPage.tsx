@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { Select, SelectOption } from "../components/Select";
 import {
   abrirCarpetaAutopilot,
   generateScript,
@@ -600,69 +601,69 @@ export default function Idea2VideoPage() {
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Duración
                 </label>
-                <select
+                <Select
                   value={dur}
-                  onChange={(e) => setDur(Number(e.target.value))}
-                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  onChange={(v) => setDur(Number(v))}
+                  className="xi2v-sel rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
                   style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {DUR_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
+                    <SelectOption key={o.value} value={o.value}>
                       {o.label}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Estilo
                 </label>
-                <select
+                <Select
                   value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  onChange={(v) => setStyle(v)}
+                  className="xi2v-sel rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
                   style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {STYLE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
+                    <SelectOption key={o.value} value={o.value}>
                       {o.label}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Tono
                 </label>
-                <select
+                <Select
                   value={tone}
-                  onChange={(e) => setTone(e.target.value)}
-                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  onChange={(v) => setTone(v)}
+                  className="xi2v-sel rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
                   style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {TONE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
+                    <SelectOption key={o.value} value={o.value}>
                       {o.label}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Audiencia
                 </label>
-                <select
+                <Select
                   value={audience}
-                  onChange={(e) => setAudience(e.target.value)}
-                  className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
+                  onChange={(v) => setAudience(v)}
+                  className="xi2v-sel rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
                   style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {AUDIENCE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
+                    <SelectOption key={o.value} value={o.value}>
                       {o.label}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 
@@ -761,25 +762,25 @@ export default function Idea2VideoPage() {
               <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
                 Voz narradora <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>(opcional)</span>
               </div>
-              <select
+              <Select
                 value={voiceId}
-                onChange={(e) => setVoiceId(e.target.value)}
+                onChange={(v) => setVoiceId(v)}
                 disabled={voicesLoading}
-                className="xi2v-vsel w-full cursor-pointer rounded-lg border px-2.5 py-[7px] text-xs outline-none"
+                className="xi2v-vsel w-full rounded-lg border px-2.5 py-[7px] text-xs outline-none"
                 style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-text)" }}
               >
-                {voicesLoading && <option>Cargando voces...</option>}
-                {!voicesLoading && voices.length === 0 && <option value="">Sin voces disponibles</option>}
+                {voicesLoading && <SelectOption value="">Cargando voces...</SelectOption>}
+                {!voicesLoading && voices.length === 0 && <SelectOption value="">Sin voces disponibles</SelectOption>}
                 {voices.map((v) => {
                   const id = v["ID Voz"] || v.id || v.voice_id;
                   const name = v["Nombre Voz"] || v.name || id;
                   return (
-                    <option key={id} value={id}>
+                    <SelectOption key={id} value={id || ""}>
                       {name}
-                    </option>
+                    </SelectOption>
                   );
                 })}
-              </select>
+              </Select>
             </div>
 
             <div>

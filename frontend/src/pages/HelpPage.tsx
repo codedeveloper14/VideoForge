@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { submitHelpRequest } from "../api/docs";
+import { Select, SelectOption } from "../components/Select";
 
 type TabId = "faq" | "bug" | "suggestion" | "contact";
 
@@ -65,7 +66,7 @@ function SuccessState({
       <p className="m-0 text-sm leading-relaxed text-[var(--vf-muted)]">{message}</p>
       <button
         onClick={onReset}
-        className="mt-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-6 py-2 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.1)] hover:text-white"
+        className="mt-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-6 py-2 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.1)] hover:text-[var(--vf-text)]"
       >
         Volver
       </button>
@@ -86,7 +87,7 @@ function FaqAccordion() {
               type="button"
               onClick={() => setOpenIdx(isOpen ? null : idx)}
               className={`flex w-full items-center justify-between gap-4 py-4.5 text-left text-[14.5px] font-semibold transition-colors ${
-                isOpen ? "text-white" : "text-[rgba(var(--vf-fg-rgb),0.65)] hover:text-white"
+                isOpen ? "text-[var(--vf-text)]" : "text-[rgba(var(--vf-fg-rgb),0.65)] hover:text-[var(--vf-text)]"
               }`}
             >
               {item.q}
@@ -166,17 +167,17 @@ function BugReportForm() {
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--vf-accent)]/70" />
           Categoría
         </label>
-        <select
+        <Select
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
+          onChange={(v) => setCategory(v)}
+          className="w-full rounded-[10px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         >
           {BUG_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>
+            <SelectOption key={c.value} value={c.value}>
               {c.label}
-            </option>
+            </SelectOption>
           ))}
-        </select>
+        </Select>
       </div>
       <div className="mb-4.5">
         <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
@@ -189,7 +190,7 @@ function BugReportForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Describe brevemente el problema..."
-          className="w-full rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
+          className="w-full rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
       </div>
       <div className="mb-4.5">
@@ -202,7 +203,7 @@ function BugReportForm() {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="¿Cuándo ocurre? ¿Cómo reproducirlo?"
           rows={4}
-          className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
+          className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
       </div>
       {error && <p className="mb-3 text-sm text-[var(--vf-danger)]">{error}</p>}
@@ -266,7 +267,7 @@ function SuggestionForm() {
           onChange={(e) => setSuggestion(e.target.value)}
           placeholder="¿Qué funcionalidad te gustaría ver?"
           rows={4}
-          className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
+          className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
       </div>
       {error && <p className="mb-3 text-sm text-[var(--vf-danger)]">{error}</p>}
@@ -301,7 +302,7 @@ export default function HelpPage() {
   const [tab, setTab] = useState<TabId>("faq");
 
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 text-[34px] font-extrabold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
         Centro de Ayuda
       </h1>
@@ -316,8 +317,8 @@ export default function HelpPage() {
             onClick={() => setTab(t.id)}
             className={`whitespace-nowrap rounded-[10px] px-5 py-2 text-xs font-semibold transition-colors ${
               tab === t.id
-                ? "bg-[rgba(var(--vf-fg-rgb),0.08)] text-white shadow-[0_1px_4px_rgba(0,0,0,.3)]"
-                : "text-[rgba(var(--vf-fg-rgb),0.4)] hover:text-[rgba(var(--vf-fg-rgb),0.7)]"
+                ? "bg-[rgba(var(--vf-fg-rgb),0.1)] text-[var(--vf-text)] shadow-[0_1px_4px_rgba(0,0,0,.15)]"
+                : "text-[rgba(var(--vf-fg-rgb),0.55)] hover:text-[rgba(var(--vf-fg-rgb),0.85)]"
             }`}
           >
             {t.label}

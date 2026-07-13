@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
+import { Select, SelectOption } from "../components/Select";
 import {
   analizarEscenas,
   cargarPlan,
@@ -271,18 +272,18 @@ export default function EditorPage() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
           Proyecto
         </span>
-        <select
+        <Select
           value={project}
-          onChange={(e) => handleSelectProject(e.target.value)}
+          onChange={(v) => handleSelectProject(v)}
           className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
-          <option value="">— Sin proyecto seleccionado —</option>
+          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
+            <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
-            </option>
+            </SelectOption>
           ))}
-        </select>
+        </Select>
         {loading && <span className="font-mono text-xs text-[var(--vf-muted)]">Cargando…</span>}
         {audioUrl && <audio controls src={audioUrl} className="ml-auto h-8 max-w-[260px]" />}
       </div>
@@ -303,33 +304,33 @@ export default function EditorPage() {
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
             Resolución
           </label>
-          <select
+          <Select
             value={resolucion}
-            onChange={(e) => setResolucion(e.target.value)}
+            onChange={(v) => setResolucion(v)}
             className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           >
             {RESOLUCIONES.map((r) => (
-              <option key={r} value={r}>
+              <SelectOption key={r} value={r}>
                 {r}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
             Transición
           </label>
-          <select
+          <Select
             value={transicion}
-            onChange={(e) => setTransicion(e.target.value)}
+            onChange={(v) => setTransicion(v)}
             className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           >
             {TRANSICIONES.map((t) => (
-              <option key={t.value} value={t.value}>
+              <SelectOption key={t.value} value={t.value}>
                 {t.label}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="w-[90px]">
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">

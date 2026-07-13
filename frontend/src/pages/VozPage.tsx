@@ -6,6 +6,7 @@ import { listProjects } from "../api/projects";
 import { audioFileUrl, loadAudio, loadScript } from "../api/script";
 import type { LoadAudioResult } from "../api/script";
 import { cloneVoice, generateVoice, listVoices, mergeAudio } from "../api/voice";
+import { Select, SelectOption } from "../components/Select";
 import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import type { Project } from "../types";
 
@@ -228,18 +229,18 @@ export default function VozPage() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
           Proyecto
         </span>
-        <select
+        <Select
           value={project}
-          onChange={(e) => setProject(e.target.value)}
+          onChange={(v) => setProject(v)}
           className="min-w-[200px] rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--vf-accent)]"
         >
-          <option value="">— Sin proyecto seleccionado —</option>
+          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
+            <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
-            </option>
+            </SelectOption>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="mb-9 max-w-2xl">
@@ -327,24 +328,24 @@ export default function VozPage() {
               <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
                 Voz
               </label>
-              <select
+              <Select
                 value={voiceId}
-                onChange={(e) => setVoiceId(e.target.value)}
+                onChange={(v) => setVoiceId(v)}
                 disabled={voicesLoading}
                 className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
               >
-                {voicesLoading && <option>Cargando voces...</option>}
-                {!voicesLoading && voices.length === 0 && <option value="">Sin voces disponibles</option>}
+                {voicesLoading && <SelectOption value="">Cargando voces...</SelectOption>}
+                {!voicesLoading && voices.length === 0 && <SelectOption value="">Sin voces disponibles</SelectOption>}
                 {voices.map((v) => {
                   const id = v["ID Voz"] || v.id || v.voice_id;
                   const name = v["Nombre Voz"] || v.name || id;
                   return (
-                    <option key={id} value={id}>
+                    <SelectOption key={id} value={id || ""}>
                       {name}
-                    </option>
+                    </SelectOption>
                   );
                 })}
-              </select>
+              </Select>
 
               <div className="mb-1 flex items-center justify-between">
                 <label className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
@@ -495,18 +496,18 @@ export default function VozPage() {
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Idioma
             </label>
-            <select
+            <Select
               value={cloneLang}
-              onChange={(e) => setCloneLang(e.target.value)}
+              onChange={(v) => setCloneLang(v)}
               className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
             >
-              <option value="AUTO">Detección Automática</option>
-              <option value="ES_ES">Español</option>
-              <option value="EN_US">Inglés</option>
-              <option value="PT_BR">Portugués</option>
-              <option value="FR_FR">Francés</option>
-              <option value="DE_DE">Alemán</option>
-            </select>
+              <SelectOption value="AUTO">Detección Automática</SelectOption>
+              <SelectOption value="ES_ES">Español</SelectOption>
+              <SelectOption value="EN_US">Inglés</SelectOption>
+              <SelectOption value="PT_BR">Portugués</SelectOption>
+              <SelectOption value="FR_FR">Francés</SelectOption>
+              <SelectOption value="DE_DE">Alemán</SelectOption>
+            </Select>
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Transcripción

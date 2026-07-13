@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
+import { Select, SelectOption } from "../components/Select";
 import JobsPanel from "./render/JobsPanel";
 import ProjectRenderPanel from "./render/ProjectRenderPanel";
 import QuickRenderPanel from "./render/QuickRenderPanel";
@@ -72,18 +73,18 @@ export default function RenderPage() {
           <span className="font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
             Proyecto
           </span>
-          <select
+          <Select
             value={project}
-            onChange={(e) => setProject(e.target.value)}
+            onChange={(v) => setProject(v)}
             className="proj-select flex-1 rounded-lg border border-[var(--vf-border)] bg-black/20 p-2 text-sm text-[var(--vf-text)]"
           >
-            <option value="">— Sin proyecto seleccionado —</option>
+            <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
             {projects.map((p) => (
-              <option key={p.nombre} value={p.nombre}>
+              <SelectOption key={p.nombre} value={p.nombre}>
                 {p.nombre}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
       )}
 

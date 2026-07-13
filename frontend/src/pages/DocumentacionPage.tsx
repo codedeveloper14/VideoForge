@@ -48,7 +48,7 @@ export default function DocumentacionPage() {
 
   if (activeDoc) {
     return (
-      <div className="max-w-3xl">
+      <div className="mx-auto max-w-3xl">
         <button
           onClick={() => setActiveDoc(null)}
           className="mb-8 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
@@ -107,7 +107,7 @@ export default function DocumentacionPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-5xl">
       <h1
         className="mb-2 text-3xl font-extrabold"
         style={{

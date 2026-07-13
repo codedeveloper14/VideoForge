@@ -154,7 +154,7 @@ export default function AppLayout() {
 
         <nav className="flex flex-1 flex-col gap-px px-2 pt-2.5">
           <NavLink to="/app/home" end className={xiClass} title={collapsed ? "Inicio" : undefined}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
             {!collapsed && "Inicio"}
@@ -167,7 +167,7 @@ export default function AppLayout() {
           )}
 
           <NavLink to="/app/home" className={xiClass} title={collapsed ? "Proyectos" : undefined}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
             {!collapsed && "Proyectos"}
@@ -178,7 +178,7 @@ export default function AppLayout() {
             title={collapsed ? "Idea → Video" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
             {!collapsed && <>Idea &rarr; Video</>}
@@ -189,14 +189,14 @@ export default function AppLayout() {
             title={collapsed ? "Tareas" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
             {!collapsed && "Tareas"}
           </button>
 
           <NavLink to="/app/ajustes" className={xiClass} title={collapsed ? "Ajustes" : undefined}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
             {!collapsed && "Ajustes"}
@@ -247,7 +247,7 @@ export default function AppLayout() {
             title={collapsed ? "Documentación" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
             {!collapsed && "Documentación"}
@@ -257,7 +257,7 @@ export default function AppLayout() {
             title={collapsed ? "Centro de ayuda" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
             {!collapsed && "Centro de ayuda"}
@@ -313,7 +313,10 @@ export default function AppLayout() {
                 }}
                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-text)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <IconSettings /> Configuración
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <IconSettings />
+                </span>
+                Configuración
               </button>
               <button
                 onClick={() => {
@@ -322,18 +325,23 @@ export default function AppLayout() {
                 }}
                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#a78bfa] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <IconUpgrade /> Upgrade
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <IconUpgrade />
+                </span>
+                Upgrade
               </button>
               <div style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.06)" }} />
               <button
                 onClick={logout}
                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-danger)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
                 Cerrar sesión
               </button>
             </div>

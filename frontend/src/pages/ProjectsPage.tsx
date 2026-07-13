@@ -48,7 +48,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-5xl">
       <h1 className="mb-6 text-2xl font-semibold">Proyectos</h1>
 
       <form onSubmit={handleCreate} className="mb-6 flex gap-2">

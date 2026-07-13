@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import { loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
+import { Select, SelectOption } from "../components/Select";
 import type { Project } from "../types";
 
 type ActivePanel = "prompts" | "guion";
@@ -119,18 +120,18 @@ export default function GuionPage() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
           Proyecto
         </span>
-        <select
+        <Select
           value={project}
-          onChange={(e) => setProject(e.target.value)}
+          onChange={(v) => setProject(v)}
           className="min-w-[200px] rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--vf-accent)]"
         >
-          <option value="">— Sin proyecto seleccionado —</option>
+          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
+            <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
-            </option>
+            </SelectOption>
           ))}
-        </select>
+        </Select>
         {saveStatus && (
           <span className="ml-auto font-mono text-xs text-[var(--vf-success)]">{saveStatus}</span>
         )}

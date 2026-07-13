@@ -1,4 +1,5 @@
 import * as qwenApi from "../../api/qwen";
+import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
 import type { ProviderApi, ProviderIniciarParams, ProviderRegenerarParams } from "./ProviderPanel";
 
@@ -67,33 +68,33 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
                 Aspect Ratio
               </label>
-              <select
+              <Select
                 value={options.aspect_ratio as string}
-                onChange={(e) => setOption("aspect_ratio", e.target.value)}
+                onChange={(v) => setOption("aspect_ratio", v)}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
               >
                 {ASPECT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
+                  <SelectOption key={o.value} value={o.value}>
                     {o.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
                 Tamaño
               </label>
-              <select
+              <Select
                 value={options.size as string}
-                onChange={(e) => setOption("size", e.target.value)}
+                onChange={(v) => setOption("size", v)}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
               >
                 {SIZE_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
+                  <SelectOption key={s} value={s}>
                     {s}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
