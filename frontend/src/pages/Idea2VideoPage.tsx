@@ -532,7 +532,7 @@ export default function Idea2VideoPage() {
   const barStep = step >= 3 ? 3 : step;
 
   return (
-    <div className="-m-6 flex min-h-[calc(100vh-0px)] flex-col overflow-hidden sm:-m-8" style={{ background: "var(--vf-bg)" }}>
+    <div className="-mx-6 -mb-6 flex min-h-[640px] flex-col overflow-hidden sm:-mx-8 sm:-mb-8" style={{ background: "var(--vf-bg)" }}>
       <style>{`
         @keyframes xi2vPulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.95)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
         @keyframes xi2vSpin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}

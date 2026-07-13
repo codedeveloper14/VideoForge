@@ -3,6 +3,16 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getProjectFromLocation, useTabs } from "../context/TabsContext";
+import TopTabBar from "../components/TopTabBar";
+
+const NO_SIDEBAR_ROUTES = [
+  "/app/idea2video",
+  "/app/tareas",
+  "/app/ajustes",
+  "/app/planes",
+  "/app/documentacion",
+  "/app/ayuda",
+];
 
 function IconHome() {
   return (
@@ -70,6 +80,14 @@ function IconUpgrade() {
   );
 }
 
+function IconBack() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15,18 9,12 15,6" />
+    </svg>
+  );
+}
+
 function IconMenu() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -96,6 +114,7 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
 
   const initial = (user || "?").charAt(0).toUpperCase();
+  const hideSidebar = NO_SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
 
   useEffect(() => {
     const project = getProjectFromLocation(location.pathname, location.search);
@@ -105,6 +124,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
+      {!hideSidebar && (
       <aside
         className={`fixed left-0 top-0 bottom-0 z-[920] flex flex-col overflow-y-auto transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[220px]"}`}
         style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
@@ -357,11 +377,24 @@ export default function AppLayout() {
           )}
         </div>
       </aside>
+      )}
 
       <main
-        className={`flex-1 overflow-y-auto p-8 transition-[margin] duration-200 ${collapsed ? "ml-[64px]" : "ml-[220px]"}`}
+        className={`flex-1 overflow-y-auto p-8 transition-[margin] duration-200 ${
+          hideSidebar ? "ml-0" : collapsed ? "ml-[64px]" : "ml-[220px]"
+        }`}
         style={{ background: "var(--vf-bg)" }}
       >
+        <TopTabBar />
+        {hideSidebar && (
+          <button
+            onClick={() => navigate("/app/home")}
+            className="mb-4 flex items-center gap-1.5 text-sm text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
+          >
+            <IconBack />
+            Volver
+          </button>
+        )}
         <Outlet />
       </main>
     </div>
