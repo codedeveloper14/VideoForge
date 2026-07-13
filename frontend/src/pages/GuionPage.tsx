@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
-import { loadScript, n8nProxy, saveScript } from "../api/script";
+import { analyzeImage, loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
 import { Select, SelectOption } from "../components/Select";
 import type { Project } from "../types";
@@ -16,6 +16,13 @@ export default function GuionPage() {
 
   const [guion, setGuion] = useState("");
   const [outputMode, setOutputMode] = useState("con_prompts");
+  const [promptMode, setPromptMode] = useState("general");
+
+  const [refImageFile, setRefImageFile] = useState<File | null>(null);
+  const [refImagePreviewUrl, setRefImagePreviewUrl] = useState("");
+  const [refImageDescription, setRefImageDescription] = useState("");
+  const [analyzingImage, setAnalyzingImage] = useState(false);
+  const [refImageError, setRefImageError] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -74,6 +81,41 @@ export default function GuionPage() {
     ? extractText(result, ["guion", "guion_con_saltos", "guion_texto", "texto"])
     : "";
 
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleRefImageChange(file: File | null) {
+    if (!file) return;
+    setRefImageFile(file);
+    setRefImagePreviewUrl(URL.createObjectURL(file));
+    setRefImageDescription("");
+    setRefImageError("");
+    setAnalyzingImage(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await analyzeImage(base64, file.type || "image/png");
+      const desc = res.descripcion_completa;
+      setRefImageDescription(typeof desc === "string" ? desc : "");
+    } catch (err) {
+      setRefImageError((err as Error).message);
+    } finally {
+      setAnalyzingImage(false);
+    }
+  }
+
+  function clearRefImage() {
+    setRefImageFile(null);
+    setRefImagePreviewUrl("");
+    setRefImageDescription("");
+    setRefImageError("");
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!guion.trim()) return;
@@ -81,7 +123,12 @@ export default function GuionPage() {
     setError("");
     setResult(null);
     try {
-      const data = await n8nProxy({ guion, outputMode });
+      const data = await n8nProxy({
+        guion,
+        outputMode,
+        promptMode,
+        descripcionReferencia: refImageDescription,
+      });
       setResult(data);
       setActivePanel("prompts");
     } catch (err) {
@@ -246,6 +293,110 @@ export default function GuionPage() {
             </div>
           </div>
 
+          {outputMode === "con_prompts" && (
+            <>
+              {/* Prompt mode toggle */}
+              <div className="flex flex-wrap items-center gap-3 border-t border-[var(--vf-border)] px-5 py-3.5">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
+                  Modo de prompt
+                </span>
+                <div className="flex gap-0.5 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setPromptMode("general")}
+                    className={`rounded-md px-3 py-1.5 font-mono text-[10.5px] font-medium transition ${
+                      promptMode === "general"
+                        ? "bg-[var(--vf-c1)] text-white"
+                        : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                    }`}
+                  >
+                    General
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPromptMode("stick")}
+                    className={`rounded-md px-3 py-1.5 font-mono text-[10.5px] font-medium transition ${
+                      promptMode === "stick"
+                        ? "bg-[var(--vf-c1)] text-white"
+                        : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                    }`}
+                  >
+                    Figuras de palitos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPromptMode("ultrarealismo")}
+                    className={`rounded-md px-3 py-1.5 font-mono text-[10.5px] font-medium transition ${
+                      promptMode === "ultrarealismo"
+                        ? "bg-[var(--vf-c1)] text-white"
+                        : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                    }`}
+                  >
+                    Ultrarealismo
+                  </button>
+                </div>
+              </div>
+
+              {/* Reference image upload */}
+              <div className="border-t border-[var(--vf-border)] px-5 py-3.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
+                    Imagen de referencia (opcional)
+                  </span>
+                  {refImageFile && (
+                    <button
+                      type="button"
+                      onClick={clearRefImage}
+                      className="font-mono text-[10px] text-[var(--vf-danger)] hover:underline"
+                    >
+                      Quitar
+                    </button>
+                  )}
+                </div>
+
+                {!refImageFile ? (
+                  <div className="relative rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-4 text-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleRefImageChange(e.target.files?.[0] || null)}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                    <div className="font-mono text-[11px] text-[var(--vf-muted)]">
+                      <strong>Clic o arrastra</strong> una imagen de estilo/referencia
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-3">
+                    <img
+                      src={refImagePreviewUrl}
+                      alt="Referencia"
+                      className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 truncate font-mono text-[10.5px] text-[var(--vf-text)]">
+                        {refImageFile.name}
+                      </div>
+                      {analyzingImage ? (
+                        <div className="font-mono text-[10px] text-[var(--vf-muted)]">
+                          Analizando imagen…
+                        </div>
+                      ) : refImageError ? (
+                        <div className="font-mono text-[10px] text-[var(--vf-danger)]">
+                          {refImageError}
+                        </div>
+                      ) : refImageDescription ? (
+                        <div className="line-clamp-2 font-mono text-[10px] text-[var(--vf-muted)]">
+                          {refImageDescription}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {error && (
             <div className="px-5 pb-3">
               <p className="text-sm text-[var(--vf-danger)]">{error}</p>
@@ -255,7 +406,7 @@ export default function GuionPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--vf-border)] px-5 py-4">
             <button
               type="submit"
-              disabled={loading || !guion.trim()}
+              disabled={loading || !guion.trim() || analyzingImage}
               className="rounded-lg bg-[var(--vf-accent)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
             >
               {loading ? "Procesando…" : "Procesar Guión →"}
