@@ -351,13 +351,13 @@ export default function PlansPage() {
                   >
                     {(PLAN_ICONS[plan.id] ?? IconFree)()}
                   </span>
-                  <span className="text-[22px] font-extrabold" style={{ letterSpacing: "-.5px", color: theme.nameColor }}>
+                  <span className="text-[22px] font-bold" style={{ letterSpacing: "-.3px", color: theme.nameColor }}>
                     {plan.name}
                   </span>
                 </div>
 
                 <div className="mb-5 flex items-end gap-[5px]" style={{ lineHeight: 1 }}>
-                  <span className="text-[46px] font-extrabold" style={{ letterSpacing: "-2.5px", lineHeight: 0.88, color: theme.nameColor }}>
+                  <span className="text-[46px] font-bold" style={{ letterSpacing: "-1.5px", lineHeight: 0.88, color: theme.nameColor }}>
                     ${plan.price_usd}
                   </span>
                   <span className="mb-[5px] text-xs" style={{ color: "rgba(var(--vf-fg-rgb),.28)" }}>
