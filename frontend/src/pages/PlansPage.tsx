@@ -4,6 +4,55 @@ import { startCheckout } from "../api/stripe";
 import { getProfile } from "../api/user";
 import type { Plan } from "../types";
 
+function IconFree() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="7.5" />
+    </svg>
+  );
+}
+function IconSprout() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20V11" />
+      <path d="M12 11c0-3.5-2.5-6-6.5-6C5.5 9 8 11.5 12 11.5" />
+      <path d="M12 11c0-3 2-5.5 5.5-5.5C17.8 9 15.5 11 12 11" />
+    </svg>
+  );
+}
+function IconGrowthBars() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="12" y1="20" x2="12" y2="9" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+    </svg>
+  );
+}
+function IconGem() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12l3 5-9 13L3 8z" />
+      <path d="M3 8h18M9 3l3 5 3-5M12 8l-3 13M12 8l3 13" />
+    </svg>
+  );
+}
+function IconInfinity() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z" />
+    </svg>
+  );
+}
+
+const PLAN_ICONS = {
+  free: IconFree,
+  basico: IconSprout,
+  pro: IconGrowthBars,
+  ultra: IconGem,
+  unlimited: IconInfinity,
+} as Record<string, () => React.ReactElement>;
+
 type PlanTheme = {
   accent: string;
   iconBg: string;
@@ -206,10 +255,10 @@ export default function PlansPage() {
 
                 <div className="mb-1 flex items-center gap-3">
                   <span
-                    className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[13px] text-lg"
+                    className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[13px]"
                     style={{ background: theme.iconBg, color: theme.iconColor, border: theme.iconBorder }}
                   >
-                    {plan.emoji}
+                    {(PLAN_ICONS[plan.id] ?? IconFree)()}
                   </span>
                   <span className="text-[22px] font-extrabold" style={{ letterSpacing: "-.5px", color: theme.nameColor }}>
                     {plan.name}

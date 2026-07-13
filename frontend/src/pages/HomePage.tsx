@@ -3,13 +3,72 @@ import { useNavigate } from "react-router-dom";
 import { createProject, deleteProject, listProjects } from "../api/projects";
 import type { Project } from "../types";
 
+function IconClapper() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="10" width="16" height="10" rx="1.5" />
+      <path d="M4 10l1.2-4.6a1 1 0 0 1 1.22-.72L19.8 7.9a1 1 0 0 1 .72 1.22L20 10z" />
+      <path d="M8 10 9 5.3M13 10l1-4.7" strokeWidth="1.3" />
+    </svg>
+  );
+}
+function IconPlayCircle() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M10 8.3l6 3.7-6 3.7z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+function IconFilmStrip() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="3" y1="8" x2="7" y2="8" />
+      <line x1="3" y1="12" x2="7" y2="12" />
+      <line x1="3" y1="16" x2="7" y2="16" />
+      <line x1="17" y1="8" x2="21" y2="8" />
+      <line x1="17" y1="12" x2="21" y2="12" />
+      <line x1="17" y1="16" x2="21" y2="16" />
+    </svg>
+  );
+}
+function IconCamera() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="12" height="10" rx="2" />
+      <path d="M15 10.5 21 7v10l-6-3.5z" />
+    </svg>
+  );
+}
+function IconAperture() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="14.31" y1="8" x2="20.05" y2="17.94" />
+      <line x1="9.69" y1="8" x2="21.17" y2="8" />
+      <line x1="7.38" y1="12" x2="13.12" y2="2.06" />
+      <line x1="9.69" y1="16" x2="3.95" y2="6.06" />
+      <line x1="14.31" y1="16" x2="2.83" y2="16" />
+      <line x1="16.62" y1="12" x2="10.88" y2="21.94" />
+    </svg>
+  );
+}
+function IconStar() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3.5l2.5 5.5 6 .7-4.4 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.5 9.7l6-.7z" />
+    </svg>
+  );
+}
+
 const PALETTE = [
-  { color: "#7c6aff", emoji: "🎬" },
-  { color: "#f472b6", emoji: "📽️" },
-  { color: "#22d3a0", emoji: "🎞️" },
-  { color: "#fbbf24", emoji: "🎥" },
-  { color: "#38bdf8", emoji: "✨" },
-  { color: "#a855f7", emoji: "🌟" },
+  { color: "#7c6aff", Icon: IconClapper },
+  { color: "#f472b6", Icon: IconPlayCircle },
+  { color: "#22d3a0", Icon: IconFilmStrip },
+  { color: "#fbbf24", Icon: IconCamera },
+  { color: "#38bdf8", Icon: IconAperture },
+  { color: "#a855f7", Icon: IconStar },
 ];
 
 function pmStyle(name: string) {
@@ -190,7 +249,7 @@ export default function HomePage() {
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}
         >
           {projects.map((p) => {
-            const { color, emoji } = pmStyle(p.nombre);
+            const { color, Icon } = pmStyle(p.nombre);
             return (
               <div
                 key={p.nombre}
@@ -199,10 +258,10 @@ export default function HomePage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[11px] text-lg"
-                    style={{ background: `${color}22`, border: `1px solid ${color}33` }}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[11px]"
+                    style={{ background: `${color}22`, border: `1px solid ${color}33`, color }}
                   >
-                    {emoji}
+                    <Icon />
                   </div>
                   <button
                     onClick={(e) => {
