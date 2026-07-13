@@ -6,7 +6,7 @@ from src.domain.services import usage_service
 from src.infrastructure.payments.stripe_service import get_payment_history
 from src.infrastructure.storage import user_repository
 from src.presentation.auth_middleware import get_current_user
-from src.presentation.schemas.user import PaymentOutSchema, UserProfileOutSchema
+from src.presentation.schemas.user import PaymentOutSchema, UserProfileOutSchema, UserThemeInSchema
 
 user_bp = APIBlueprint("user", __name__, url_prefix="/api/user")
 
@@ -35,6 +35,7 @@ def profile():
         "plan": plan_key,
         "plan_name": plan["name"],
         "subscription_date": sub_date,
+        "theme": user.get("theme", "dark"),
         "usage": {
             "videos": usage["videos"],
             "tts_chars": usage["tts_chars"],
@@ -63,3 +64,16 @@ def payments():
     if not username:
         return jsonify({"error": "No autenticado"}), 401
     return get_payment_history(username)
+
+
+@user_bp.post("/theme")
+@user_bp.input(UserThemeInSchema)
+def set_theme(json_data):
+    username = get_current_user()
+    if not username:
+        return jsonify({"error": "No autenticado"}), 401
+    theme = json_data["theme"].strip().lower()
+    if theme not in ("light", "dark"):
+        return jsonify({"error": "Tema invalido, usa 'light' o 'dark'"}), 400
+    user_repository.update_user_theme(username, theme)
+    return jsonify({"ok": True, "theme": theme})

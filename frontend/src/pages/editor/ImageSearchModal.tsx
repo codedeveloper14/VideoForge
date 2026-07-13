@@ -81,7 +81,7 @@ export default function ImageSearchModal({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="Query de búsqueda…"
-            className="flex-1 rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+            className="flex-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           />
           <button
             onClick={handleSearch}

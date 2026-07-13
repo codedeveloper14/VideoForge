@@ -111,7 +111,7 @@ export default function DocumentacionPage() {
       <h1
         className="mb-2 text-3xl font-extrabold"
         style={{
-          background: "linear-gradient(90deg, #eef2ff 30%, rgba(167,139,250,.7))",
+          background: "linear-gradient(90deg, var(--vf-text) 30%, var(--vf-c2))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -140,7 +140,7 @@ export default function DocumentacionPage() {
                   className={`whitespace-nowrap rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
                     activeCategory === name
                       ? "border-[var(--vf-accent)]/35 bg-[var(--vf-accent)]/16 text-[var(--vf-c2)]"
-                      : "border-[var(--vf-border)] bg-white/[0.04] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                      : "border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                   }`}
                 >
                   {name}
@@ -166,7 +166,7 @@ export default function DocumentacionPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar..."
-                className="w-[220px] rounded-xl border border-[var(--vf-border)] bg-white/5 py-2 pl-9 pr-3.5 text-sm text-[var(--vf-text)] outline-none focus:border-[var(--vf-accent)]/45"
+                className="w-[220px] rounded-xl border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] py-2 pl-9 pr-3.5 text-sm text-[var(--vf-text)] outline-none focus:border-[var(--vf-accent)]/45"
               />
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function DocumentacionPage() {
                   <div
                     key={doc.id}
                     onClick={() => setActiveDoc(doc)}
-                    className="group cursor-pointer overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-white/[0.03] transition-all hover:-translate-y-1 hover:border-[var(--vf-accent)]/30 hover:bg-[var(--vf-accent)]/[0.06]"
+                    className="group cursor-pointer overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] transition-all hover:-translate-y-1 hover:border-[var(--vf-accent)]/30 hover:bg-[var(--vf-accent)]/[0.06]"
                   >
                     {isVideo ? (
                       <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>

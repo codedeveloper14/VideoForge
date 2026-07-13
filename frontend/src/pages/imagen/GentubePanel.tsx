@@ -231,7 +231,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                 <select
                   value={ratio}
                   onChange={(e) => setRatio(e.target.value)}
-                  className="w-full rounded-md border border-[var(--vf-border)] bg-white/[0.04] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <option value="1:1">1:1</option>
                   <option value="16:9">16:9</option>
@@ -245,7 +245,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                 <select
                   value={quality}
                   onChange={(e) => setQuality(e.target.value)}
-                  className="w-full rounded-md border border-[var(--vf-border)] bg-white/[0.04] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <option value="standard">Standard</option>
                   <option value="high">High</option>
@@ -279,7 +279,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
               placeholder={"Un prompt por línea."}
-              className="min-h-[140px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-[var(--vf-text)] outline-none"
+              className="min-h-[140px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-2.5 font-mono text-[11px] leading-relaxed text-[var(--vf-text)] outline-none"
             />
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
@@ -292,7 +292,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                   max={20}
                   value={repeat}
                   onChange={(e) => setRepeat(e.target.value)}
-                  className="w-full rounded-md border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 />
               </div>
               <div>

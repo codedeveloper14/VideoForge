@@ -1,7 +1,7 @@
 import type { EditorScene, TimestampEntry } from "../../api/editor";
 
 const TIPO_STYLES: Record<string, string> = {
-  normal: "bg-white/10 text-[var(--vf-muted)]",
+  normal: "bg-[rgba(var(--vf-fg-rgb),0.1)] text-[var(--vf-muted)]",
   intro_dinamica: "bg-[var(--vf-c3)]/20 text-[var(--vf-c3)]",
   texto_enfasis: "bg-[var(--vf-c4)]/20 text-[var(--vf-c4)]",
   lower_third: "bg-[var(--vf-c6)]/20 text-[var(--vf-c6)]",
@@ -56,7 +56,7 @@ export default function SceneCard({
         "mb-1.5 grid cursor-pointer grid-cols-[28px_88px_1fr_auto] items-center gap-2.5 rounded-xl border p-2.5 transition-colors " +
         (selected
           ? "border-[var(--vf-c5)]/40 bg-[var(--vf-c5)]/10"
-          : "border-transparent bg-white/[0.025] hover:border-white/10 hover:bg-white/[0.045]") +
+          : "border-transparent bg-[rgba(var(--vf-fg-rgb),0.025)] hover:border-[rgba(var(--vf-fg-rgb),0.1)] hover:bg-[rgba(var(--vf-fg-rgb),0.045)]") +
         (disabled ? " opacity-40" : "")
       }
     >
@@ -64,7 +64,7 @@ export default function SceneCard({
         {index + 1}
       </div>
 
-      <div className="relative h-12 w-[88px] shrink-0 overflow-hidden rounded-lg bg-white/5">
+      <div className="relative h-12 w-[88px] shrink-0 overflow-hidden rounded-lg bg-[rgba(var(--vf-fg-rgb),0.05)]">
         {scene.imagen_url ? (
           <img
             src={scene.imagen_url}

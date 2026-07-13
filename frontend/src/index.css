@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 /* Paleta real de Studio IVR (extraida de ui_embedded.py / launcher.py) --
-   mantener estos nombres, el resto de la app los referencia como var(--vf-*). */
-:root {
+   mantener estos nombres, el resto de la app los referencia como var(--vf-*).
+
+   --vf-fg-rgb es el color de texto en formato "r,g,b" (sin rgb()/rgba()) para
+   poder construir overlays/bordes translucidos que funcionen en los dos temas:
+   rgba(var(--vf-fg-rgb), .08) da un blanco tenue en oscuro y un negro tenue en
+   claro, en vez de hardcodear rgba(255,255,255,...) que solo se ve bien en oscuro. */
+:root,
+:root[data-theme="dark"] {
   --vf-c1: #7c6aff;
   --vf-c2: #a78bfa;
   --vf-c3: #f472b6;
@@ -17,6 +23,7 @@
   --vf-b2: #252538;
 
   --vf-text: #eeeef5;
+  --vf-fg-rgb: 238, 238, 245;
   --vf-m: #5a5a75;
   --vf-m2: #38384e;
 
@@ -26,11 +33,43 @@
   /* Alias usados por las paginas */
   --vf-surface: var(--vf-s);
   --vf-surface-2: var(--vf-p);
-  --vf-border: rgba(255, 255, 255, 0.08);
+  --vf-border: rgba(var(--vf-fg-rgb), 0.08);
   --vf-muted: var(--vf-m);
   --vf-accent: var(--vf-c1);
   --vf-accent-hover: #6f5cf5;
   --vf-danger: #ff5566;
+  --vf-success: var(--vf-c5);
+}
+
+:root[data-theme="light"] {
+  --vf-c1: #6c56ff;
+  --vf-c2: #8b5cf6;
+  --vf-c3: #db2777;
+  --vf-c4: #d97706;
+  --vf-c5: #0d9c76;
+  --vf-c6: #0284c7;
+
+  --vf-bg: #f6f6fb;
+  --vf-s: #ffffff;
+  --vf-p: #eeeef4;
+  --vf-b: #e1e1ea;
+  --vf-b2: #d3d3e0;
+
+  --vf-text: #131320;
+  --vf-fg-rgb: 19, 19, 32;
+  --vf-m: #6b6b80;
+  --vf-m2: #9797ab;
+
+  --vf-mono: "JetBrains Mono", monospace;
+  --vf-sans: "Syne", sans-serif;
+
+  --vf-surface: var(--vf-s);
+  --vf-surface-2: var(--vf-p);
+  --vf-border: rgba(var(--vf-fg-rgb), 0.09);
+  --vf-muted: var(--vf-m);
+  --vf-accent: var(--vf-c1);
+  --vf-accent-hover: #5a45e0;
+  --vf-danger: #e11d48;
   --vf-success: var(--vf-c5);
 }
 
@@ -45,6 +84,9 @@ body {
     "Segoe UI",
     system-ui,
     sans-serif;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 #root {

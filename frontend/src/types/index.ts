@@ -42,6 +42,7 @@ export interface UserProfile {
   plan: string;
   plan_name: string;
   subscription_date: string | null;
+  theme: "light" | "dark";
   usage: UserUsage;
   limits: UserLimits;
   payment: {

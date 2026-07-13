@@ -275,7 +275,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
               placeholder={"Un prompt por línea. Ejemplo:\nCinematic wide shot, golden hour, anamorphic flare"}
-              className="min-h-[176px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-3 font-mono text-xs leading-relaxed text-[var(--vf-text)] outline-none"
+              className="min-h-[176px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-3 font-mono text-xs leading-relaxed text-[var(--vf-text)] outline-none"
             />
           </SectionCard>
 
@@ -288,7 +288,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               onChange={handleRefFileChange}
             />
             {referenceImage ? (
-              <div className="flex items-center gap-3 rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-2.5">
+              <div className="flex items-center gap-3 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-2.5">
                 <img src={referenceImage} alt="" className="h-16 w-16 rounded-md object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-mono text-[10px] text-[var(--vf-text)]">{referenceImageName}</p>
@@ -315,7 +315,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               <button
                 type="button"
                 onClick={() => refInputRef.current?.click()}
-                className="flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.02] px-3 py-5 text-center transition-colors hover:border-[var(--vf-c2)]"
+                className="flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.02)] px-3 py-5 text-center transition-colors hover:border-[var(--vf-c2)]"
               >
                 <span className="font-mono text-[11px] text-[var(--vf-text)]">Adjuntar imagen</span>
                 <span className="font-mono text-[9px] text-[var(--vf-muted)]">
@@ -349,7 +349,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <select
                   value={aspect}
                   onChange={(e) => setAspect(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</option>
                   <option value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</option>
@@ -363,7 +363,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <option value="NANO_BANANA_2">Nano Banana 2 · calidad</option>
                   <option value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</option>
@@ -376,7 +376,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <select
                   value={maxRetries}
                   onChange={(e) => setMaxRetries(Number(e.target.value))}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <option value={1}>1</option>
                   <option value={2}>2 · equilibrado</option>

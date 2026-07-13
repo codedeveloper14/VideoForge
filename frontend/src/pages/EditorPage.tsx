@@ -306,7 +306,7 @@ export default function EditorPage() {
           <select
             value={resolucion}
             onChange={(e) => setResolucion(e.target.value)}
-            className="rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+            className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           >
             {RESOLUCIONES.map((r) => (
               <option key={r} value={r}>
@@ -322,7 +322,7 @@ export default function EditorPage() {
           <select
             value={transicion}
             onChange={(e) => setTransicion(e.target.value)}
-            className="rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+            className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           >
             {TRANSICIONES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -341,7 +341,7 @@ export default function EditorPage() {
             min="0"
             value={transDur}
             onChange={(e) => setTransDur(parseFloat(e.target.value) || 0)}
-            className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 text-center font-mono text-xs text-[var(--vf-text)] outline-none"
+            className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 text-center font-mono text-xs text-[var(--vf-text)] outline-none"
           />
         </div>
 
@@ -392,7 +392,7 @@ export default function EditorPage() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--vf-c2)]">
                 Escenas
               </span>
-              <span className="rounded-full border border-[var(--vf-border)] bg-white/5 px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-muted)]">
+              <span className="rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-muted)]">
                 {escenas.length} escenas
               </span>
             </div>
@@ -509,7 +509,7 @@ export default function EditorPage() {
               {renderJob.estado}
             </span>
           </div>
-          <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-white/5">
+          <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
             <div
               className="h-full rounded-full transition-all"
               style={{

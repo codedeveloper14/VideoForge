@@ -154,7 +154,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
     <div className="flex flex-col gap-6">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {!project && (
-          <p className="rounded-lg border border-[var(--vf-border)] bg-white/5 p-3 text-sm text-[var(--vf-muted)]">
+          <p className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] p-3 text-sm text-[var(--vf-muted)]">
             Selecciona un proyecto arriba para renderizar.
           </p>
         )}
@@ -381,7 +381,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
             <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
               {job.estado === "completado" ? "Video listo" : "Progreso del render"}
             </h3>
-            <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-white/5">
+            <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
               <div
                 className={`h-full rounded-full transition-all ${
                   job.estado === "error" ? "bg-[var(--vf-danger)]" : "bg-[var(--vf-accent)]"

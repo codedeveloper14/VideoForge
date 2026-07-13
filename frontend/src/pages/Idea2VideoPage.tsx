@@ -95,7 +95,7 @@ function StepsBar({ step }: { step: number }) {
               className="flex items-center gap-[7px] whitespace-nowrap rounded-full px-3.5 py-[5px] text-[11.5px] font-semibold transition-all"
               style={{
                 background: isActive ? "rgba(124,106,255,.18)" : "transparent",
-                color: isActive ? "#a89aff" : isDone ? "#4ade80" : "#3a3a55",
+                color: isActive ? "#a89aff" : isDone ? "#4ade80" : "var(--vf-m2)",
               }}
             >
               <div
@@ -105,7 +105,7 @@ function StepsBar({ step }: { step: number }) {
                     ? "#7c6aff"
                     : isDone
                       ? "#22c55e"
-                      : "rgba(255,255,255,.06)",
+                      : "rgba(var(--vf-fg-rgb),.06)",
                   color: isActive ? "#fff" : isDone ? "#000" : "inherit",
                 }}
               >
@@ -114,7 +114,7 @@ function StepsBar({ step }: { step: number }) {
               <span>{it.label}</span>
             </div>
             {idx < items.length - 1 && (
-              <div className="h-px w-7 flex-shrink-0" style={{ background: "rgba(255,255,255,.08)" }} />
+              <div className="h-px w-7 flex-shrink-0" style={{ background: "rgba(var(--vf-fg-rgb),.08)" }} />
             )}
           </div>
         );
@@ -200,6 +200,8 @@ function HeroDecoration() {
         <br />
         profesional
       </div>
+      {/* Texto fijo claro: el fondo de este panel es siempre morado oscuro,
+          no sigue el tema del sitio (ver el gradiente en el div padre). */}
       <p className="relative z-[1] text-[13px] leading-relaxed" style={{ color: "rgba(238,238,245,.38)" }}>
         Escribe tu concepto. La IA genera el guión completo, listo para el pipeline de producción.
       </p>
@@ -252,15 +254,15 @@ function StatBox({ value, label, wide }: { value: string | number; label: string
     <div
       className="rounded-lg border px-3 py-[11px]"
       style={{
-        background: "#0e0e1a",
-        borderColor: "rgba(255,255,255,.05)",
+        background: "var(--vf-s)",
+        borderColor: "rgba(var(--vf-fg-rgb),.05)",
         gridColumn: wide ? "1 / -1" : undefined,
       }}
     >
-      <div className="text-[19px] font-black" style={{ color: "#eeeef5" }}>
+      <div className="text-[19px] font-black" style={{ color: "var(--vf-text)" }}>
         {value}
       </div>
-      <div className="mt-0.5 text-[9.5px] font-bold uppercase tracking-[.08em]" style={{ color: "#3a3a55" }}>
+      <div className="mt-0.5 text-[9.5px] font-bold uppercase tracking-[.08em]" style={{ color: "var(--vf-m2)" }}>
         {label}
       </div>
     </div>
@@ -271,12 +273,12 @@ function PipelineStep({ icon, label, active }: { icon: string; label: string; ac
   return (
     <div
       className="flex items-center gap-[9px] py-[5px] text-xs"
-      style={{ color: active ? "#eeeef5" : "#2a2a40" }}
+      style={{ color: active ? "var(--vf-text)" : "var(--vf-m2)" }}
     >
       <div
         className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-[6px] text-[10px]"
         style={{
-          background: active ? "rgba(124,106,255,.25)" : "rgba(255,255,255,.04)",
+          background: active ? "rgba(124,106,255,.25)" : "rgba(var(--vf-fg-rgb),.04)",
           color: active ? "#a089ff" : "inherit",
         }}
       >
@@ -289,15 +291,15 @@ function PipelineStep({ icon, label, active }: { icon: string; label: string; ac
 
 function PhaseRow({ label, status }: { label: string; status: string }) {
   const iconMap: Record<string, { icon: string; bg: string; color: string; glow?: boolean }> = {
-    pending: { icon: "·", bg: "rgba(255,255,255,.04)", color: "#2a2a40" },
+    pending: { icon: "·", bg: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m2)" },
     active: { icon: "●", bg: "rgba(124,106,255,.25)", color: "#a089ff", glow: true },
     done: { icon: "✓", bg: "rgba(34,197,94,.15)", color: "#22c55e" },
-    skip: { icon: "–", bg: "rgba(255,255,255,.03)", color: "#3a3a55" },
+    skip: { icon: "–", bg: "rgba(var(--vf-fg-rgb),.03)", color: "var(--vf-m2)" },
     partial: { icon: "◐", bg: "rgba(251,191,36,.1)", color: "#fbbf24" },
     error: { icon: "✕", bg: "rgba(239,68,68,.15)", color: "#f87171" },
   };
   const info = iconMap[status] || iconMap.pending;
-  const rowColor = status === "active" ? "#c4c4dc" : status === "done" || status === "skip" ? "#4a4a65" : "#3a3a55";
+  const rowColor = status === "active" ? "var(--vf-text)" : status === "done" || status === "skip" ? "var(--vf-m)" : "var(--vf-m2)";
   return (
     <div
       className="mb-[3px] flex items-center gap-[11px] rounded-[10px] px-[11px] py-2.5 text-[12.5px] transition-all"
@@ -529,7 +531,7 @@ export default function Idea2VideoPage() {
   const barStep = step >= 3 ? 3 : step;
 
   return (
-    <div className="-m-6 flex min-h-[calc(100vh-0px)] flex-col overflow-hidden sm:-m-8" style={{ background: "#06060e" }}>
+    <div className="-m-6 flex min-h-[calc(100vh-0px)] flex-col overflow-hidden sm:-m-8" style={{ background: "var(--vf-bg)" }}>
       <style>{`
         @keyframes xi2vPulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.95)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
         @keyframes xi2vSpin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
@@ -548,9 +550,9 @@ export default function Idea2VideoPage() {
       {/* Top bar: back-style eyebrow + steps bar + badge */}
       <div
         className="flex flex-shrink-0 items-center gap-4 border-b px-6 py-3.5"
-        style={{ borderColor: "rgba(124,106,255,.13)", background: "rgba(6,6,14,.96)" }}
+        style={{ borderColor: "rgba(124,106,255,.13)", background: "var(--vf-s)" }}
       >
-        <span className="font-mono text-[13px]" style={{ color: "#5a5a75" }}>
+        <span className="font-mono text-[13px]" style={{ color: "var(--vf-m)" }}>
           Idea → Video
         </span>
         <StepsBar step={barStep} />
@@ -573,15 +575,15 @@ export default function Idea2VideoPage() {
         <div className="flex flex-1 overflow-hidden">
           <HeroDecoration />
           <div className="flex-1 overflow-y-auto px-12 py-9">
-            <div className="mb-1 text-[21px] font-extrabold" style={{ color: "#eeeef5" }}>
+            <div className="mb-1 text-[21px] font-extrabold" style={{ color: "var(--vf-text)" }}>
               ¿Cuál es tu idea?
             </div>
-            <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "#5a5a75" }}>
+            <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "var(--vf-m)" }}>
               Describe tu concepto con el mayor detalle posible. Mientras más contexto des, mejor será el
               guión.
             </p>
 
-            <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+            <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
               Concepto
             </label>
             <textarea
@@ -590,19 +592,19 @@ export default function Idea2VideoPage() {
               rows={4}
               placeholder="Ej: Un video sobre cómo la inteligencia artificial está transformando la medicina..."
               className="xi2v-ta w-full resize-y rounded-[10px] border-[1.5px] px-[15px] py-[13px] text-sm outline-none transition-colors"
-              style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5", minHeight: 108 }}
+              style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)", minHeight: 108 }}
             />
 
             <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col">
-                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Duración
                 </label>
                 <select
                   value={dur}
                   onChange={(e) => setDur(Number(e.target.value))}
                   className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
-                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                  style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {DUR_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -612,14 +614,14 @@ export default function Idea2VideoPage() {
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Estilo
                 </label>
                 <select
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
                   className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
-                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                  style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {STYLE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -629,14 +631,14 @@ export default function Idea2VideoPage() {
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Tono
                 </label>
                 <select
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
                   className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
-                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                  style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {TONE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -646,14 +648,14 @@ export default function Idea2VideoPage() {
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+                <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
                   Audiencia
                 </label>
                 <select
                   value={audience}
                   onChange={(e) => setAudience(e.target.value)}
                   className="xi2v-sel cursor-pointer rounded-lg border-[1.5px] px-3 py-2 text-[13px] outline-none"
-                  style={{ background: "#0e0e1a", borderColor: "rgba(255,255,255,.07)", color: "#eeeef5" }}
+                  style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)" }}
                 >
                   {AUDIENCE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -691,13 +693,13 @@ export default function Idea2VideoPage() {
                 className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] transition-all"
                 style={{
                   background: i === 0 ? "rgba(124,106,255,.1)" : "transparent",
-                  color: i === 0 ? "#eeeef5" : "#3a3a55",
+                  color: i === 0 ? "var(--vf-text)" : "var(--vf-m2)",
                 }}
               >
                 <div
                   className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${i === 0 ? "xi2v-blink" : ""}`}
                   style={{
-                    background: i === 0 ? "#7c6aff" : "#2a2a40",
+                    background: i === 0 ? "#7c6aff" : "var(--vf-m2)",
                     boxShadow: i === 0 ? "0 0 8px rgba(124,106,255,.8)" : "none",
                   }}
                 />
@@ -705,7 +707,7 @@ export default function Idea2VideoPage() {
               </div>
             ))}
           </div>
-          <div className="text-xs" style={{ color: "#3a3a55" }}>
+          <div className="text-xs" style={{ color: "var(--vf-m2)" }}>
             Esto tarda entre 3 y 15 segundos
           </div>
         </div>
@@ -714,8 +716,8 @@ export default function Idea2VideoPage() {
       {/* Step 3 — script review: editable script + meta column */}
       {step === 3 && (
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex flex-1 flex-col overflow-hidden border-r px-8 py-7" style={{ borderColor: "rgba(255,255,255,.05)" }}>
-            <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: "#5a5a75" }}>
+          <div className="flex flex-1 flex-col overflow-hidden border-r px-8 py-7" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
+            <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
               Guión generado — puedes editarlo antes de continuar
             </div>
             <textarea
@@ -723,9 +725,9 @@ export default function Idea2VideoPage() {
               onChange={(e) => setScript(e.target.value)}
               className="flex-1 resize-none overflow-y-auto rounded-[10px] border p-[15px] text-[12.5px] leading-[1.75] outline-none"
               style={{
-                background: "#07070f",
-                borderColor: "rgba(255,255,255,.06)",
-                color: "#c4c4dc",
+                background: "var(--vf-bg)",
+                borderColor: "rgba(var(--vf-fg-rgb),.06)",
+                color: "var(--vf-text)",
                 fontFamily: "ui-monospace, monospace",
               }}
             />
@@ -733,7 +735,7 @@ export default function Idea2VideoPage() {
 
           <div className="flex w-[300px] flex-shrink-0 flex-col gap-4 overflow-y-auto px-6 py-7">
             <div>
-              <label className="mb-[7px] block text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+              <label className="mb-[7px] block text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
                 Título sugerido
               </label>
               <input
@@ -741,7 +743,7 @@ export default function Idea2VideoPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full rounded-lg border bg-transparent px-2.5 py-1.5 text-[15px] font-extrabold outline-none"
-                style={{ borderColor: "transparent", color: "#eeeef5" }}
+                style={{ borderColor: "transparent", color: "var(--vf-text)" }}
                 onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(124,106,255,.4)")}
                 onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
               />
@@ -753,18 +755,18 @@ export default function Idea2VideoPage() {
               <StatBox value={scenesInfo?.words ?? "—"} label="Palabras" wide />
             </div>
 
-            <div className="h-px" style={{ background: "rgba(255,255,255,.05)" }} />
+            <div className="h-px" style={{ background: "rgba(var(--vf-fg-rgb),.05)" }} />
 
             <div>
-              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
-                Voz narradora <span className="font-normal" style={{ fontSize: 10, color: "#2a2a40" }}>(opcional)</span>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
+                Voz narradora <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>(opcional)</span>
               </div>
               <select
                 value={voiceId}
                 onChange={(e) => setVoiceId(e.target.value)}
                 disabled={voicesLoading}
                 className="xi2v-vsel w-full cursor-pointer rounded-lg border px-2.5 py-[7px] text-xs outline-none"
-                style={{ background: "#0a0a14", borderColor: "rgba(255,255,255,.1)", color: "#c4c4dc" }}
+                style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-text)" }}
               >
                 {voicesLoading && <option>Cargando voces...</option>}
                 {!voicesLoading && voices.length === 0 && <option value="">Sin voces disponibles</option>}
@@ -781,8 +783,8 @@ export default function Idea2VideoPage() {
             </div>
 
             <div>
-              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
-                Imagen de referencia <span className="font-normal" style={{ fontSize: 10, color: "#2a2a40" }}>(opcional)</span>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
+                Imagen de referencia <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>(opcional)</span>
               </div>
               {!refImageFile ? (
                 <label
@@ -806,7 +808,7 @@ export default function Idea2VideoPage() {
                     type="button"
                     onClick={handleClearRefImage}
                     className="bg-transparent text-[11px]"
-                    style={{ color: "#5a5a75" }}
+                    style={{ color: "var(--vf-m)" }}
                   >
                     ✕ Quitar
                   </button>
@@ -815,7 +817,7 @@ export default function Idea2VideoPage() {
             </div>
 
             <div>
-              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+              <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
                 Modo de render
               </div>
               <div className="flex gap-2">
@@ -825,8 +827,8 @@ export default function Idea2VideoPage() {
                   className="rounded-lg border px-3.5 py-1.5 text-[11.5px] font-semibold transition-all"
                   style={
                     renderMode === "rapido"
-                      ? { background: "rgba(124,106,255,.2)", color: "#eeeef5", borderColor: "rgba(124,106,255,.5)" }
-                      : { background: "rgba(255,255,255,.04)", color: "#5a5a75", borderColor: "rgba(124,106,255,.25)" }
+                      ? { background: "rgba(124,106,255,.2)", color: "var(--vf-text)", borderColor: "rgba(124,106,255,.5)" }
+                      : { background: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m)", borderColor: "rgba(124,106,255,.25)" }
                   }
                 >
                   ⚡ Rápido
@@ -837,30 +839,30 @@ export default function Idea2VideoPage() {
                   className="rounded-lg border px-3.5 py-1.5 text-[11.5px] font-semibold transition-all"
                   style={
                     renderMode === "profesional"
-                      ? { background: "rgba(124,106,255,.2)", color: "#eeeef5", borderColor: "rgba(124,106,255,.5)" }
-                      : { background: "rgba(255,255,255,.04)", color: "#5a5a75", borderColor: "rgba(124,106,255,.25)" }
+                      ? { background: "rgba(124,106,255,.2)", color: "var(--vf-text)", borderColor: "rgba(124,106,255,.5)" }
+                      : { background: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m)", borderColor: "rgba(124,106,255,.25)" }
                   }
                 >
                   🎬 Profesional
                 </button>
               </div>
-              <div className="mt-[5px] text-[10px]" style={{ color: "#3a3a55" }}>
+              <div className="mt-[5px] text-[10px]" style={{ color: "var(--vf-m2)" }}>
                 {modeHint}
               </div>
             </div>
 
-            <div className="rounded-[10px] border px-4 py-3.5" style={{ background: "#0a0a14", borderColor: "rgba(255,255,255,.05)" }}>
-              <div className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "#3a3a55" }}>
+            <div className="rounded-[10px] border px-4 py-3.5" style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
+              <div className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
                 Flujo de producción
               </div>
               <PipelineStep icon="✎" label="Guión" active />
-              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
               <PipelineStep icon="▢" label="Imágenes" active={false} />
-              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
               <PipelineStep icon="♪" label="Voz" active={false} />
-              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
               <PipelineStep icon="▶" label="Video" active={false} />
-              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "#2a2a40" }}>↓</div>
+              <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
               <PipelineStep icon="★" label="Render" active={false} />
             </div>
 
@@ -877,7 +879,7 @@ export default function Idea2VideoPage() {
               type="button"
               onClick={() => setStep(1)}
               className="w-full rounded-[10px] border py-[9px] text-[12.5px] transition-all"
-              style={{ background: "transparent", borderColor: "rgba(255,255,255,.08)", color: "#5a5a75" }}
+              style={{ background: "transparent", borderColor: "rgba(var(--vf-fg-rgb),.08)", color: "var(--vf-m)" }}
             >
               ↺ Regenerar
             </button>
@@ -889,8 +891,8 @@ export default function Idea2VideoPage() {
       {step === 4 && (
         <div className="flex flex-1 overflow-hidden">
           <div className="flex flex-1 overflow-hidden">
-            <div className="w-[240px] flex-shrink-0 overflow-y-auto border-r px-3.5 py-[22px]" style={{ borderColor: "rgba(255,255,255,.05)", background: "rgba(0,0,0,.2)" }}>
-              <div className="mb-3.5 text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: "#2a2a40" }}>
+            <div className="w-[240px] flex-shrink-0 overflow-y-auto border-r px-3.5 py-[22px]" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)", background: "rgba(0,0,0,.2)" }}>
+              <div className="mb-3.5 text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: "var(--vf-m2)" }}>
                 Fases del pipeline
               </div>
               {PHASE_ORDER.map((p) => (
@@ -905,27 +907,27 @@ export default function Idea2VideoPage() {
               >
                 <div className="flex-shrink-0 text-xl">⚡</div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13.5px] font-bold" style={{ color: "#eeeef5" }}>
+                  <div className="text-[13.5px] font-bold" style={{ color: "var(--vf-text)" }}>
                     {title || "Autopilot"}
                   </div>
-                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]" style={{ color: "#5a5a75" }}>
+                  <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]" style={{ color: "var(--vf-m)" }}>
                     {status?.current_detail || "Procesando…"}
                   </div>
                 </div>
                 <div
                   className="flex-shrink-0 rounded-md px-2 py-1 text-[11px] font-bold"
-                  style={{ background: "rgba(255,255,255,.04)", color: "#5a5a75", fontVariantNumeric: "tabular-nums" }}
+                  style={{ background: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m)", fontVariantNumeric: "tabular-nums" }}
                 >
                   {status?.elapsed != null ? `${status.elapsed}s` : "0s"} · {progressPct}%
                 </div>
               </div>
 
-              <div className="flex-shrink-0 text-[11.5px] font-bold" style={{ color: "#5a5a75" }}>
+              <div className="flex-shrink-0 text-[11.5px] font-bold" style={{ color: "var(--vf-m)" }}>
                 Imágenes ({status?.images?.length || 0}/{scenesInfo?.scenes || 0})
               </div>
 
               {!status?.images?.length ? (
-                <div className="flex-shrink-0 py-3 text-[12.5px] italic" style={{ color: "#2a2a40" }}>
+                <div className="flex-shrink-0 py-3 text-[12.5px] italic" style={{ color: "var(--vf-m2)" }}>
                   Las imágenes aparecerán conforme se generen...
                 </div>
               ) : (
@@ -936,7 +938,7 @@ export default function Idea2VideoPage() {
                       src={src}
                       alt=""
                       className="w-full rounded-lg border object-cover"
-                      style={{ aspectRatio: "16/9", borderColor: "rgba(255,255,255,.06)" }}
+                      style={{ aspectRatio: "16/9", borderColor: "rgba(var(--vf-fg-rgb),.06)" }}
                     />
                   ))}
                 </div>
@@ -973,7 +975,7 @@ export default function Idea2VideoPage() {
                       type="button"
                       onClick={handleAbrirCarpeta}
                       className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
-                      style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", color: "#eeeef5" }}
+                      style={{ background: "rgba(var(--vf-fg-rgb),.06)", border: "1px solid rgba(var(--vf-fg-rgb),.12)", color: "var(--vf-text)" }}
                     >
                       📁 Abrir carpeta
                     </button>
@@ -981,7 +983,7 @@ export default function Idea2VideoPage() {
                       type="button"
                       onClick={handleRestart}
                       className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
-                      style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.12)", color: "#eeeef5" }}
+                      style={{ background: "rgba(var(--vf-fg-rgb),.06)", border: "1px solid rgba(var(--vf-fg-rgb),.12)", color: "var(--vf-text)" }}
                     >
                       + Nueva idea
                     </button>
@@ -996,13 +998,13 @@ export default function Idea2VideoPage() {
               )}
 
               {status && status.log?.length > 0 && (
-                <details className="flex-shrink-0 border-t pt-2.5" style={{ borderColor: "rgba(255,255,255,.05)" }}>
-                  <summary className="cursor-pointer text-[11px]" style={{ color: "#2a2a40" }}>
+                <details className="flex-shrink-0 border-t pt-2.5" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
+                  <summary className="cursor-pointer text-[11px]" style={{ color: "var(--vf-m2)" }}>
                     Registro de ejecución
                   </summary>
                   <div className="max-h-[100px] overflow-y-auto pt-1.5">
                     {status.log.map((l, i) => (
-                      <div key={i} className="py-[1.5px] text-[10.5px]" style={{ color: "#3a3a55", fontFamily: "ui-monospace, monospace" }}>
+                      <div key={i} className="py-[1.5px] text-[10.5px]" style={{ color: "var(--vf-m2)", fontFamily: "ui-monospace, monospace" }}>
                         {l}
                       </div>
                     ))}

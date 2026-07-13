@@ -398,7 +398,7 @@ export default function QuickRenderPanel() {
             <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
               {job.estado === "completado" ? "Video listo" : "Progreso del render"}
             </h3>
-            <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-white/5">
+            <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
               <div
                 className={`h-full rounded-full transition-all ${
                   job.estado === "error" ? "bg-[var(--vf-danger)]" : "bg-[var(--vf-accent)]"

@@ -82,7 +82,7 @@ function IconMenu() {
 function xiClass({ isActive }: { isActive: boolean }) {
   return (
     "flex w-full items-center gap-2.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors " +
-    (isActive ? "text-[#eeeef5]" : "text-[#5a5a75] hover:bg-white/[0.045] hover:text-[rgba(238,238,245,0.82)]")
+    (isActive ? "text-[var(--vf-text)]" : "text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),0.045)] hover:text-[rgba(var(--vf-fg-rgb),0.82)]")
   );
 }
 
@@ -95,14 +95,14 @@ export default function AppLayout() {
   const initial = (user || "?").charAt(0).toUpperCase();
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#06060c", color: "#eeeef5" }}>
+    <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
       <aside
         className={`fixed left-0 top-0 bottom-0 z-[920] flex flex-col overflow-y-auto transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[220px]"}`}
-        style={{ background: "#0a0a14", borderRight: "1px solid rgba(255,255,255,.06)" }}
+        style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
       >
         <div
           className="flex flex-shrink-0 items-center gap-[11px] px-[15px] pb-[15px] pt-[18px]"
-          style={{ borderBottom: "1px solid rgba(255,255,255,.05)" }}
+          style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
           <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={collapsed ? "Studio IVR" : undefined}>
             <div
@@ -122,8 +122,8 @@ export default function AppLayout() {
             </div>
             {!collapsed && (
               <div>
-                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[#eeeef5]">Studio IVR</b>
-                <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[#38384e]">
+                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
+                <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
                   AI Pipeline
                 </span>
               </div>
@@ -133,7 +133,7 @@ export default function AppLayout() {
             <button
               onClick={() => setCollapsed(true)}
               title="Colapsar menú"
-              className="ml-auto flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[#5a5a75] transition-colors hover:bg-white/[0.06] hover:text-[#eeeef5]"
+              className="ml-auto flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
             </button>
@@ -145,7 +145,7 @@ export default function AppLayout() {
             <button
               onClick={() => setCollapsed(false)}
               title="Expandir menú"
-              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[#5a5a75] transition-colors hover:bg-white/[0.06] hover:text-[#eeeef5]"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
             </button>
@@ -161,7 +161,7 @@ export default function AppLayout() {
           </NavLink>
 
           {!collapsed && (
-            <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[#38384e]">
+            <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
               General
             </span>
           )}
@@ -176,7 +176,7 @@ export default function AppLayout() {
           <button
             onClick={() => navigate("/app/idea2video")}
             title={collapsed ? "Idea → Video" : undefined}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex-shrink-0 opacity-35">
               <IconIdea />
@@ -187,7 +187,7 @@ export default function AppLayout() {
           <button
             onClick={() => navigate("/app/tareas")}
             title={collapsed ? "Tareas" : undefined}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex-shrink-0 opacity-35">
               <IconTasks />
@@ -225,7 +225,7 @@ export default function AppLayout() {
               </div>
               <span className="text-[13px] font-bold text-[#a78bfa]">Upgrade</span>
             </div>
-            <p className="mb-[9px] text-[11px] leading-[1.5] text-[#5a5a75]">
+            <p className="mb-[9px] text-[11px] leading-[1.5] text-[var(--vf-m)]">
               Más créditos, renders y funciones premium.
             </p>
             <button
@@ -245,7 +245,7 @@ export default function AppLayout() {
           <button
             onClick={() => navigate("/app/documentacion")}
             title={collapsed ? "Documentación" : undefined}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex-shrink-0 opacity-35">
               <IconDocs />
@@ -255,7 +255,7 @@ export default function AppLayout() {
           <button
             onClick={() => navigate("/app/ayuda")}
             title={collapsed ? "Centro de ayuda" : undefined}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex-shrink-0 opacity-35">
               <IconHelp />
@@ -268,8 +268,8 @@ export default function AppLayout() {
           <div
             onClick={() => setDropdownOpen((v) => !v)}
             title={collapsed ? user || undefined : undefined}
-            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-white/[0.04] ${collapsed ? "justify-center px-2" : "px-[13px]"}`}
-            style={{ borderTop: "1px solid rgba(255,255,255,.05)" }}
+            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${collapsed ? "justify-center px-2" : "px-[13px]"}`}
+            style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
           >
             <div
               className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] text-xs font-bold text-white"
@@ -280,8 +280,8 @@ export default function AppLayout() {
             {!collapsed && (
               <>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[12.5px] font-semibold text-[#eeeef5]">{user}</div>
-                  <div className="truncate text-[10.5px] text-[#5a5a75]">Studio IVR</div>
+                  <div className="truncate text-[12.5px] font-semibold text-[var(--vf-text)]">{user}</div>
+                  <div className="truncate text-[10.5px] text-[var(--vf-m)]">Studio IVR</div>
                 </div>
                 <svg
                   width="14"
@@ -304,14 +304,14 @@ export default function AppLayout() {
           {dropdownOpen && (
             <div
               className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${collapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
-              style={{ background: "#12121f", border: "1px solid rgba(255,255,255,.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
+              style={{ background: "var(--vf-p)", border: "1px solid rgba(var(--vf-fg-rgb),.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
             >
               <button
                 onClick={() => {
                   setDropdownOpen(false);
                   navigate("/app/ajustes");
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#c8c8d8] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-text)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
                 <IconSettings /> Configuración
               </button>
@@ -320,14 +320,14 @@ export default function AppLayout() {
                   setDropdownOpen(false);
                   navigate("/app/planes");
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#a78bfa] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#a78bfa] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
                 <IconUpgrade /> Upgrade
               </button>
-              <div style={{ borderTop: "1px solid rgba(255,255,255,.06)" }} />
+              <div style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.06)" }} />
               <button
                 onClick={logout}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#f47286] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-danger)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -343,7 +343,7 @@ export default function AppLayout() {
 
       <main
         className={`flex-1 overflow-y-auto p-8 transition-[margin] duration-200 ${collapsed ? "ml-[64px]" : "ml-[220px]"}`}
-        style={{ background: "#06060c" }}
+        style={{ background: "var(--vf-bg)" }}
       >
         <Outlet />
       </main>

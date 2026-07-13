@@ -12,7 +12,7 @@ function EyeToggle({ shown, onClick }: EyeToggleProps) {
     <button
       type="button"
       onClick={onClick}
-      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-white/30 transition-colors hover:text-white/60"
+      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-[rgba(var(--vf-fg-rgb),0.3)] transition-colors hover:text-[rgba(var(--vf-fg-rgb),0.6)]"
     >
       {shown ? "🙈" : "👁"}
     </button>
@@ -90,7 +90,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#06060d] text-[var(--vf-text)]">
+    <div className="relative min-h-screen overflow-hidden bg-[var(--vf-bg)] text-[var(--vf-text)]">
       {/* Decorative gradient orbs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
@@ -109,12 +109,12 @@ export default function RegisterPage() {
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-5 py-6">
         <div
-          className="w-full max-w-[440px] rounded-[28px] border border-white/[0.065] p-9 pb-8"
+          className="w-full max-w-[440px] rounded-[28px] border border-[rgba(var(--vf-fg-rgb),0.065)] p-9 pb-8"
           style={{
-            background: "rgba(11,11,24,.9)",
+            background: "var(--vf-s)",
             backdropFilter: "blur(32px)",
             boxShadow:
-              "0 0 0 1px rgba(124,106,255,.06), 0 40px 100px rgba(0,0,0,.75), 0 0 160px rgba(124,106,255,.04), inset 0 1px 0 rgba(255,255,255,.04)",
+              "0 0 0 1px rgba(124,106,255,.06), 0 40px 100px rgba(0,0,0,.75), 0 0 160px rgba(124,106,255,.04), inset 0 1px 0 rgba(var(--vf-fg-rgb),.04)",
           }}
         >
           {/* Logo */}
@@ -127,10 +127,10 @@ export default function RegisterPage() {
               }}
             >
               <svg viewBox="0 0 24 24" width="19" height="19" className="relative z-10">
-                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(255,255,255,.22)" />
-                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
-                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
-                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(255,255,255,.6)" />
+                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(var(--vf-fg-rgb),.22)" />
+                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
+                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
+                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
                 <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="white" />
               </svg>
             </div>
@@ -146,10 +146,10 @@ export default function RegisterPage() {
           </div>
 
           {/* Tabs */}
-          <div className="mb-6 flex gap-0.5 rounded-xl border border-white/5 bg-white/[0.04] p-[3px]">
+          <div className="mb-6 flex gap-0.5 rounded-xl border border-[rgba(var(--vf-fg-rgb),0.05)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-[3px]">
             <Link
               to="/login"
-              className="flex flex-1 items-center justify-center rounded-[9px] border border-transparent px-3 py-2.5 text-center text-[11px] font-medium tracking-[0.04em] text-white/40 transition-colors hover:bg-white/[0.04] hover:text-white/60"
+              className="flex flex-1 items-center justify-center rounded-[9px] border border-transparent px-3 py-2.5 text-center text-[11px] font-medium tracking-[0.04em] text-[rgba(var(--vf-fg-rgb),0.4)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.6)]"
               style={{ fontFamily: "var(--vf-mono)" }}
             >
               Iniciar sesión
@@ -175,7 +175,7 @@ export default function RegisterPage() {
 
             <div className="mb-3.5">
               <label
-                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
+                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(var(--vf-fg-rgb),0.4)]"
                 style={{ fontFamily: "var(--vf-mono)" }}
               >
                 <FieldIcon
@@ -202,13 +202,13 @@ export default function RegisterPage() {
                 title="3-20 caracteres: letras, números y guion bajo"
                 autoFocus
                 required
-                className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
               />
             </div>
 
             <div className="mb-3.5">
               <label
-                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
+                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(var(--vf-fg-rgb),0.4)]"
                 style={{ fontFamily: "var(--vf-mono)" }}
               >
                 <FieldIcon
@@ -228,13 +228,13 @@ export default function RegisterPage() {
                 placeholder="correo@ejemplo.com"
                 autoComplete="email"
                 required
-                className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
               />
             </div>
 
             <div className="mb-3.5">
               <label
-                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
+                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(var(--vf-fg-rgb),0.4)]"
                 style={{ fontFamily: "var(--vf-mono)" }}
               >
                 <FieldIcon
@@ -256,12 +256,12 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   minLength={8}
                   required
-                  className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                  className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
                 />
                 <EyeToggle shown={showPassword} onClick={() => setShowPassword((v) => !v)} />
               </div>
               <div className="mt-[7px] flex flex-col gap-[5px]">
-                <div className="h-[3px] overflow-hidden rounded-[2px] bg-white/[0.06]">
+                <div className="h-[3px] overflow-hidden rounded-[2px] bg-[rgba(var(--vf-fg-rgb),0.06)]">
                   <div
                     className="h-full rounded-[2px] transition-all duration-300"
                     style={{
@@ -275,7 +275,7 @@ export default function RegisterPage() {
                     className="text-[9px]"
                     style={{
                       fontFamily: "var(--vf-mono)",
-                      color: strength > 0 ? STRENGTH_COLOR[strength - 1] : "rgba(255,255,255,.28)",
+                      color: strength > 0 ? STRENGTH_COLOR[strength - 1] : "rgba(var(--vf-fg-rgb),.28)",
                     }}
                   >
                     {STRENGTH_LABEL[strength]}
@@ -286,7 +286,7 @@ export default function RegisterPage() {
 
             <div className="mb-3.5">
               <label
-                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/40"
+                className="mb-1.5 flex items-center gap-1.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(var(--vf-fg-rgb),0.4)]"
                 style={{ fontFamily: "var(--vf-mono)" }}
               >
                 <FieldIcon
@@ -307,7 +307,7 @@ export default function RegisterPage() {
                   placeholder="Repite la contraseña"
                   autoComplete="new-password"
                   required
-                  className="w-full rounded-xl border border-white/[0.07] bg-white/[0.035] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
+                  className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
                 />
                 <EyeToggle shown={showConfirmPassword} onClick={() => setShowConfirmPassword((v) => !v)} />
               </div>

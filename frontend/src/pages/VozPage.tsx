@@ -243,7 +243,7 @@ export default function VozPage() {
       </div>
 
       <div className="mb-9 max-w-2xl">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
           <span
             className="h-[5px] w-[5px] rounded-full"
             style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
@@ -438,7 +438,7 @@ export default function VozPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
               >
                 + Generar otro
               </button>
@@ -474,7 +474,7 @@ export default function VozPage() {
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Muestra de Audio (máx 10MB)
             </label>
-            <div className="relative mb-3 rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.015] p-5 text-center">
+            <div className="relative mb-3 rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-5 text-center">
               <input
                 type="file"
                 accept="audio/*"

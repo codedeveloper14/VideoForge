@@ -129,7 +129,7 @@ export default function PlansPage() {
         className="mb-2 text-[34px] font-extrabold"
         style={{
           letterSpacing: "-.8px",
-          background: "linear-gradient(90deg,#eef2ff 30%,rgba(167,139,250,.7))",
+          background: "linear-gradient(90deg,var(--vf-text) 30%,var(--vf-c2))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -139,7 +139,7 @@ export default function PlansPage() {
       </h1>
       <p
         className="mb-9 max-w-xl font-mono text-[11.5px]"
-        style={{ color: "rgba(255,255,255,.32)", letterSpacing: ".01em" }}
+        style={{ color: "rgba(var(--vf-fg-rgb),.32)", letterSpacing: ".01em" }}
       >
         Escala tu producción. Cancela cuando quieras.
       </p>
@@ -161,10 +161,10 @@ export default function PlansPage() {
                 isFree ? "opacity-75" : ""
               }`}
               style={{
-                background: "rgba(255,255,255,.038)",
+                background: "rgba(var(--vf-fg-rgb),.038)",
                 border: isCurrent
                   ? "1px solid rgba(34,211,160,.42)"
-                  : "1px solid rgba(255,255,255,.09)",
+                  : "1px solid rgba(var(--vf-fg-rgb),.09)",
                 boxShadow: isCurrent
                   ? "0 0 0 1px rgba(34,211,160,.14),0 8px 32px rgba(34,211,160,.07)"
                   : isHighlight
@@ -220,19 +220,19 @@ export default function PlansPage() {
                   <span className="text-[46px] font-extrabold" style={{ letterSpacing: "-2.5px", lineHeight: 0.88, color: theme.nameColor }}>
                     ${plan.price_usd}
                   </span>
-                  <span className="mb-[5px] text-xs" style={{ color: "rgba(255,255,255,.28)" }}>
+                  <span className="mb-[5px] text-xs" style={{ color: "rgba(var(--vf-fg-rgb),.28)" }}>
                     /mes
                   </span>
                 </div>
 
-                <div className="mb-5 h-px" style={{ background: "rgba(255,255,255,.07)" }} />
+                <div className="mb-5 h-px" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
 
                 <ul className="mb-6 flex flex-1 flex-col gap-[11px]" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {feats.map((f, i) => (
                     <li
                       key={i}
                       className="flex items-start gap-2.5 text-[12.5px]"
-                      style={{ color: "rgba(255,255,255,.68)", lineHeight: 1.4 }}
+                      style={{ color: "rgba(var(--vf-fg-rgb),.68)", lineHeight: 1.4 }}
                     >
                       <span
                         className="mt-[1px] flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
@@ -255,15 +255,15 @@ export default function PlansPage() {
                     letterSpacing: ".06em",
                     ...(isCurrent
                       ? {
-                          background: "rgba(255,255,255,.05)",
-                          border: "1.5px solid rgba(255,255,255,.1)",
-                          color: "rgba(255,255,255,.3)",
+                          background: "rgba(var(--vf-fg-rgb),.05)",
+                          border: "1.5px solid rgba(var(--vf-fg-rgb),.1)",
+                          color: "rgba(var(--vf-fg-rgb),.3)",
                         }
                       : isFree
                         ? {
-                            background: "rgba(255,255,255,.04)",
-                            border: "1px solid rgba(255,255,255,.07)",
-                            color: "rgba(255,255,255,.35)",
+                            background: "rgba(var(--vf-fg-rgb),.04)",
+                            border: "1px solid rgba(var(--vf-fg-rgb),.07)",
+                            color: "rgba(var(--vf-fg-rgb),.35)",
                           }
                         : theme.btnClass === "starter-btn"
                           ? {

@@ -67,6 +67,9 @@ def get_user_full(username: str) -> dict | None:
         )
         created = r.get("created_at") or r.get("registered_at") or r.get("reg_date") or r.get("date_created")
         subscription_date = r.get("subscription_date")
+        theme = r.get("theme") or "dark"
+        if theme not in ("light", "dark"):
+            theme = "dark"
 
         return {
             "id": r.get("id") or 0,
@@ -76,6 +79,7 @@ def get_user_full(username: str) -> dict | None:
             "plan_expires_at": str(expires) if expires else None,
             "created_at": str(created) if created else None,
             "subscription_date": subscription_date,
+            "theme": theme,
         }
     except Exception as exc:
         logger.error("get_user_full error: %s", exc)
@@ -156,6 +160,21 @@ def update_user_plan(username: str, new_plan: str) -> bool:
             cur.execute(
                 "UPDATE vf_users SET plan=%s, subscription_date=CURDATE() WHERE username=%s",
                 (new_plan, username),
+            )
+            updated = cur.rowcount > 0
+        conn.commit()
+        return updated
+    finally:
+        conn.close()
+
+
+def update_user_theme(username: str, theme: str) -> bool:
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE vf_users SET theme=%s WHERE username=%s",
+                (theme, username),
             )
             updated = cur.rowcount > 0
         conn.commit()

@@ -87,7 +87,7 @@ export default function HomePage() {
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-white/[0.03] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
+            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
             style={{ fontFamily: "var(--vf-mono)" }}
           >
             <span
@@ -148,7 +148,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setShowCreate(false)}
-            className="rounded-lg border border-[var(--vf-border)] px-4 py-2 text-sm hover:bg-white/[0.04]"
+            className="rounded-lg border border-[var(--vf-border)] px-4 py-2 text-sm hover:bg-[rgba(var(--vf-fg-rgb),0.04)]"
           >
             Cancelar
           </button>
@@ -161,7 +161,7 @@ export default function HomePage() {
         <p className="text-[var(--vf-muted)]">Cargando…</p>
       ) : projects.length === 0 ? (
         <div
-          className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[var(--vf-b2)] bg-white/[0.02] p-[60px_40px] text-center"
+          className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),0.02)] p-[60px_40px] text-center"
         >
           <div className="text-[40px] opacity-40">🎬</div>
           <div className="text-lg font-bold tracking-[-0.4px] text-[var(--vf-text)] opacity-60">Sin proyectos aún</div>
@@ -210,7 +210,7 @@ export default function HomePage() {
                       setOpenMenu(openMenu === p.nombre ? null : p.nombre);
                     }}
                     title="Opciones"
-                    className="rounded-[5px] border-none bg-transparent px-1.5 py-0.5 text-base text-[var(--vf-m)] transition-colors hover:bg-white/[0.06] hover:text-[var(--vf-text)]"
+                    className="rounded-[5px] border-none bg-transparent px-1.5 py-0.5 text-base text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
                   >
                     ⋯
                   </button>
