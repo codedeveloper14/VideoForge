@@ -1,7 +1,7 @@
 import re
 
 from apiflask import APIBlueprint
-from flask import Response, jsonify, request, send_file
+from flask import jsonify, request, send_file
 
 from src.domain.services import (
     editor_scene_analysis_service,
@@ -163,41 +163,6 @@ def transcribir(proj_name):
     except Exception as exc:
         logger.exception("editor_transcribir error")
         return jsonify({"error": str(exc)}), 500
-    resp = jsonify(result)
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    return resp
-
-
-@editor_bp.route("/renderizar", methods=["POST", "OPTIONS"])
-def renderizar():
-    """Dispara el render final desde el editor visual (delega en render_service,
-    el mismo worker/job registry que /api/render_inteligente). Sin limite de plan
-    por decision explicita -- asi se comportaba el original."""
-    if request.method == "OPTIONS":
-        resp = Response("", 204)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        return resp
-
-    data = request.get_json(force=True, silent=True) or {}
-    proj_name = re.sub(r"[^\w\-]", "_", (data.get("project") or "").strip())
-    if not proj_name:
-        return jsonify({"error": "proyecto requerido"}), 400
-
-    try:
-        result = editor_visual_service.start_render(
-            project=proj_name,
-            guion=data.get("guion", ""),
-            resolucion=data.get("resolucion", "1920x1080"),
-            transicion=data.get("transicion", "xfade"),
-            trans_dur=float(data.get("trans_dur", 0.6)),
-            movimiento=data.get("movimiento", "none"),
-            modelo=data.get("modelo", "base"),
-            render_mode=data.get("render_mode", "smart"),
-        )
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
     resp = jsonify(result)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     return resp

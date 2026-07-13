@@ -410,7 +410,15 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
                 Descargar video
               </a>
             )}
-            {job.estado === "error" && (
+            {job.estado === "error" && !!job.limit_reached && (
+              <div className="mt-2 rounded-lg border border-[var(--vf-c4)]/40 bg-[var(--vf-c4)]/10 p-4 text-sm">
+                <p className="mb-2 text-[var(--vf-c4)]">{job.error}</p>
+                <Link to="/app/planes" className="text-[var(--vf-accent)] hover:underline">
+                  Mejora tu plan →
+                </Link>
+              </div>
+            )}
+            {job.estado === "error" && !job.limit_reached && (
               <p className="mt-2 text-sm text-[var(--vf-danger)]">
                 {job.error || "Ocurrió un error durante el render."}
               </p>
