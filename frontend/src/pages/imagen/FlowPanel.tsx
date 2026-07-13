@@ -431,7 +431,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 </label>
                 <Select
                   value={aspect}
-                  onChange={(e) => setAspect(e.target.value)}
+                  onChange={(value) => setAspect(value)}
                   className="flow-select"
                 >
                   <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</SelectOption>
@@ -454,7 +454,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 </label>
                 <Select
                   value={maxRetries}
-                  onChange={(e) => setMaxRetries(Number(e.target.value))}
+                  onChange={(value) => setMaxRetries(Number(value))}
                   className="flow-select"
                 >
                   <SelectOption value={1}>1</SelectOption>

@@ -379,7 +379,7 @@ export default function EditorPage() {
         </span>
         <Select
           value={project}
-          onChange={(e) => handleSelectProject(e.target.value)}
+          onChange={(value) => handleSelectProject(value)}
           className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-white/[0.05] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
           <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
@@ -388,7 +388,7 @@ export default function EditorPage() {
               {p.nombre}
             </SelectOption>
           ))}
-        </select>
+        </Select>
         {loading && <span className="font-mono text-xs text-[var(--vf-m2)]">Cargando…</span>}
         <button
           onClick={handleTranscribir}
@@ -408,13 +408,13 @@ export default function EditorPage() {
           </label>
           <Select
             value={resolucion}
-            onChange={(e) => setResolucion(e.target.value)}
+            onChange={(value) => setResolucion(value)}
             className="w-[150px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
             {RESOLUCIONES.map((r) => (
-              <option key={r.value} value={r.value}>
+              <SelectOption key={r.value} value={r.value}>
                 {r.label}
-              </option>
+              </SelectOption>
             ))}
           </Select>
         </div>
@@ -424,7 +424,7 @@ export default function EditorPage() {
           </label>
           <Select
             value={transicion}
-            onChange={(e) => setTransicion(e.target.value)}
+            onChange={(value) => setTransicion(value)}
             className="w-[130px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
             {TRANSICIONES.map((t) => (

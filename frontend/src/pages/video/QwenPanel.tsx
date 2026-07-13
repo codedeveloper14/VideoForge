@@ -70,7 +70,7 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               </label>
               <Select
                 value={options.aspect_ratio as string}
-                onChange={(e) => setOption("aspect_ratio", e.target.value)}
+                onChange={(value) => setOption("aspect_ratio", value)}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {ASPECT_OPTIONS.map((o) => (
@@ -86,7 +86,7 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               </label>
               <Select
                 value={options.size as string}
-                onChange={(e) => setOption("size", e.target.value)}
+                onChange={(value) => setOption("size", value)}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {SIZE_OPTIONS.map((s) => (

@@ -516,12 +516,14 @@ function AppLayoutInner() {
 
         <div className="flex-1" />
 
-        <div
-          className="mx-2 mb-1.5 mt-3 flex-shrink-0 rounded-xl px-[13px] pb-[11px] pt-[13px]"
-          style={{ background: "rgba(124,106,255,.08)", border: "1px solid rgba(124,106,255,.18)" }}
-        >
-          <div className="mb-1.5 flex items-center gap-2.5">
-            <div className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-[7px]" style={{ background: "rgba(124,106,255,.2)" }}>
+        {collapsed ? (
+          <div className="mx-2 mb-1.5 mt-3 flex flex-shrink-0 justify-center">
+            <button
+              onClick={() => navigate("/app/planes")}
+              title="Upgrade — Ver planes"
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px]"
+              style={{ background: "rgba(124,106,255,.15)", border: "1px solid rgba(124,106,255,.25)" }}
+            >
               <IconUpgrade />
             </button>
           </div>

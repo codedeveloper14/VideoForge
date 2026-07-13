@@ -97,7 +97,7 @@ export default function MetaPanel({ project }: MetaPanelProps) {
               </label>
               <Select
                 value={options.mode as string}
-                onChange={(e) => setOption("mode", e.target.value)}
+                onChange={(value) => setOption("mode", value)}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {MODE_OPTIONS.map((o) => (
