@@ -576,7 +576,7 @@ export default function Idea2VideoPage() {
         <div className="flex flex-1 overflow-hidden">
           <HeroDecoration />
           <div className="flex-1 overflow-y-auto px-12 py-9">
-            <div className="mb-1 text-[21px] font-extrabold" style={{ color: "var(--vf-text)" }}>
+            <div className="mb-1 text-[21px] font-bold" style={{ color: "var(--vf-text)" }}>
               ¿Cuál es tu idea?
             </div>
             <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "var(--vf-m)" }}>

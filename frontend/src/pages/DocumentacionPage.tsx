@@ -109,7 +109,7 @@ export default function DocumentacionPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1
-        className="mb-2 text-3xl font-extrabold"
+        className="mb-2 text-3xl font-bold"
         style={{
           background: "linear-gradient(90deg, var(--vf-text) 30%, var(--vf-c2))",
           WebkitBackgroundClip: "text",

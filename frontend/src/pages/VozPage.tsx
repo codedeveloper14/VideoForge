@@ -251,7 +251,7 @@ export default function VozPage() {
           />
           Módulo 02 · Pipeline
         </div>
-        <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+        <h1 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
           Estudio de{" "}
           <span
             className="bg-clip-text text-transparent"

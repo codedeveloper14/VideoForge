@@ -47,7 +47,7 @@ export default function VideoPage() {
           />
           Módulo · Video Animator
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--vf-text)] md:text-4xl">
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--vf-text)] md:text-4xl">
           Video{" "}
           <span
             style={{

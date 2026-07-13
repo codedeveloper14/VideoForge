@@ -266,9 +266,9 @@ export default function PlansPage() {
         </div>
       )}
       <h1
-        className="mb-2 text-[34px] font-extrabold"
+        className="mb-2 text-[34px] font-bold"
         style={{
-          letterSpacing: "-.8px",
+          letterSpacing: "-.4px",
           background: "linear-gradient(90deg,var(--vf-text) 30%,var(--vf-c2))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",

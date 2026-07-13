@@ -155,7 +155,7 @@ export default function HomePage() {
             />
             IVR Pipeline
           </div>
-          <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-extrabold leading-[1.05] tracking-[-2px]">
+          <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-bold leading-[1.05] tracking-[-1px]">
             Mis{" "}
             <span
               className="bg-clip-text text-transparent"
