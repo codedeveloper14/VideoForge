@@ -21,6 +21,7 @@ import ProfilePage from "./pages/ProfilePage";
 import HelpPage from "./pages/HelpPage";
 import DocumentacionPage from "./pages/DocumentacionPage";
 import TareasPage from "./pages/TareasPage";
+import AdminDocsPage from "./pages/AdminDocsPage";
 
 export default function App() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
                   <Route path="ajustes" element={<ProfilePage />} />
                   <Route path="perfil" element={<Navigate to="/app/ajustes" replace />} />
                   <Route path="ayuda" element={<HelpPage />} />
+                  <Route path="admin/docs" element={<AdminDocsPage />} />
                 </Route>
               </Route>
 

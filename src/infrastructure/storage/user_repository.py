@@ -80,6 +80,7 @@ def get_user_full(username: str) -> dict | None:
             "created_at": str(created) if created else None,
             "subscription_date": subscription_date,
             "theme": theme,
+            "role": r.get("role") or "user",
         }
     except Exception as exc:
         logger.error("get_user_full error: %s", exc)

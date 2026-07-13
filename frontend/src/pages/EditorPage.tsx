@@ -24,6 +24,31 @@ const TRANSICIONES = [
   { value: "fade", label: "Fade a negro" },
 ];
 
+const TIPO_OPTIONS = [
+  "normal",
+  "intro_dinamica",
+  "texto_enfasis",
+  "lower_third",
+  "nombre_persona",
+  "texto_lateral",
+  "ref_persona",
+  "ref_lugar",
+  "ref_doble",
+  "google_fullscreen",
+  "broll",
+  "quote_animado",
+  "titulo_capitulo",
+];
+
+const OVERLAY_POS_OPTIONS = [
+  { value: "bottom_center", label: "Abajo centro" },
+  { value: "top_center", label: "Arriba centro" },
+  { value: "center", label: "Centro" },
+  { value: "bottom_left", label: "Abajo izquierda" },
+  { value: "top_left", label: "Arriba izquierda" },
+  { value: "right_center", label: "Derecha centro" },
+];
+
 export default function EditorPage() {
   const { proyecto: routeProject } = useParams<{ proyecto?: string }>();
   const [searchParams] = useSearchParams();
@@ -208,6 +233,10 @@ export default function EditorPage() {
     setEscenas((prev) =>
       prev.map((e, i) => (i === idx ? { ...e, habilitado: e.habilitado === false } : e)),
     );
+  }
+
+  function handleUpdateScene(idx: number, patch: Partial<EditorScene>) {
+    setEscenas((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
   }
 
   function handlePickImage(idx: number, { url, b64 }: ImageSearchPick) {
@@ -434,25 +463,143 @@ export default function EditorPage() {
                     className="aspect-video w-full rounded-lg object-cover"
                   />
                 )}
-                <div className="grid grid-cols-2 gap-2 font-mono text-[10px] text-[var(--vf-muted)]">
+                <div className="flex flex-col gap-2.5">
                   <div>
-                    <span className="text-[var(--vf-m2)]">Tipo: </span>
-                    {selectedScene.tipo || "normal"}
+                    <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                      Tipo
+                    </label>
+                    <Select
+                      value={selectedScene.tipo || "normal"}
+                      onChange={(v) => handleUpdateScene(selectedIdx, { tipo: v })}
+                      className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                    >
+                      {TIPO_OPTIONS.map((t) => (
+                        <SelectOption key={t} value={t}>
+                          {t.replace(/_/g, " ")}
+                        </SelectOption>
+                      ))}
+                    </Select>
                   </div>
+
+                  <div>
+                    <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                      Texto overlay
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedScene.texto_overlay || ""}
+                      onChange={(e) => handleUpdateScene(selectedIdx, { texto_overlay: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                    />
+                  </div>
+
                   {selectedScene.texto_overlay && (
                     <div>
-                      <span className="text-[var(--vf-m2)]">Overlay: </span>"
-                      {selectedScene.texto_overlay}"
+                      <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                        Posición overlay
+                      </label>
+                      <Select
+                        value={selectedScene.texto_overlay_pos || "bottom_center"}
+                        onChange={(v) => handleUpdateScene(selectedIdx, { texto_overlay_pos: v })}
+                        className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                      >
+                        {OVERLAY_POS_OPTIONS.map((o) => (
+                          <SelectOption key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectOption>
+                        ))}
+                      </Select>
                     </div>
                   )}
-                  {selectedScene.ref_label && (
-                    <div className="col-span-2">
-                      <span className="text-[var(--vf-m2)]">Ref: </span>
-                      {selectedScene.ref_label}
+
+                  <div>
+                    <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                      Texto secundario
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedScene.texto_secundario || ""}
+                      onChange={(e) => handleUpdateScene(selectedIdx, { texto_secundario: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                        Color acento
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={`#${(selectedScene.color_accent || "ffffff").replace(/^#/, "")}`}
+                          onChange={(e) =>
+                            handleUpdateScene(selectedIdx, { color_accent: e.target.value.replace(/^#/, "") })
+                          }
+                          className="h-[30px] w-[36px] flex-shrink-0 cursor-pointer rounded-md border border-[var(--vf-b2)] bg-transparent p-0.5"
+                        />
+                        <input
+                          type="text"
+                          value={selectedScene.color_accent || "ffffff"}
+                          onChange={(e) =>
+                            handleUpdateScene(selectedIdx, { color_accent: e.target.value.replace(/^#/, "") })
+                          }
+                          className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                        />
+                      </div>
                     </div>
-                  )}
+                    <div>
+                      <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                        N° capítulo
+                      </label>
+                      <input
+                        type="number"
+                        value={selectedScene.numero_capitulo ?? ""}
+                        onChange={(e) => handleUpdateScene(selectedIdx, { numero_capitulo: e.target.value })}
+                        className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                        Split label 1
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedScene.split_label_1 || ""}
+                        onChange={(e) => handleUpdateScene(selectedIdx, { split_label_1: e.target.value })}
+                        className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                        Split label 2
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedScene.split_label_2 || ""}
+                        onChange={(e) => handleUpdateScene(selectedIdx, { split_label_2: e.target.value })}
+                        className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
+                      Ref label
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedScene.ref_label || ""}
+                      onChange={(e) => handleUpdateScene(selectedIdx, { ref_label: e.target.value })}
+                      className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
+                    />
+                  </div>
+
                   {selectedScene.google_query && (
-                    <div className="col-span-2 truncate">
+                    <div className="truncate font-mono text-[10px] text-[var(--vf-muted)]">
                       <span className="text-[var(--vf-m2)]">Query: </span>
                       {selectedScene.google_query}
                     </div>
