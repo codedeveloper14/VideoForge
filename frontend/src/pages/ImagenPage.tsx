@@ -3,12 +3,10 @@ import { useSearchParams } from "react-router-dom";
 import { getProjectContent, listProjects } from "../api/projects";
 import type { Project } from "../types";
 import { Select, SelectOption } from "../components/Select";
-import WhiskPanel from "./imagen/WhiskPanel";
 import FlowPanel from "./imagen/FlowPanel";
 import GentubePanel from "./imagen/GentubePanel";
 
 const TABS = [
-  { id: "whisk", label: "Whisk" },
   { id: "flow", label: "Flow" },
   { id: "gentube", label: "Gentube" },
 ];
@@ -18,7 +16,7 @@ export default function ImagenPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
   const [error, setError] = useState("");
-  const [tab, setTab] = useState(searchParams.get("tab") || "whisk");
+  const [tab, setTab] = useState(searchParams.get("tab") || "flow");
 
   useEffect(() => {
     listProjects()
@@ -95,9 +93,6 @@ export default function ImagenPage() {
       </div>
 
       <div className="mt-4">
-        {tab === "whisk" && (
-          <WhiskPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
-        )}
         {tab === "flow" && (
           <FlowPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
         )}
