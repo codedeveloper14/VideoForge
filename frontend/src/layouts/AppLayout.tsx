@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getProjectFromLocation, useTabs } from "../context/TabsContext";
 
 function IconHome() {
   return (
@@ -89,10 +90,18 @@ function xiClass({ isActive }: { isActive: boolean }) {
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { openTab } = useTabs();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   const initial = (user || "?").charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const project = getProjectFromLocation(location.pathname, location.search);
+    if (project) openTab(project);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search]);
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>

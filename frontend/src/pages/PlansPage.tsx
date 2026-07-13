@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { listPlans } from "../api/plans";
-import { startCheckout } from "../api/stripe";
+import { pollSession, startCheckout } from "../api/stripe";
 import { getProfile } from "../api/user";
 import type { Plan } from "../types";
 
@@ -136,22 +137,76 @@ function planFeatures(plan: Plan): string[] {
   return feats;
 }
 
+type ConfirmState = "idle" | "confirming" | "success" | "timeout";
+
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [confirmState, setConfirmState] = useState<ConfirmState>("idle");
+  const [confirmedPlanName, setConfirmedPlanName] = useState("");
+
+  function loadData() {
+    return Promise.all([listPlans(), getProfile()]).then(([plansData, profile]) => {
+      setPlans(plansData);
+      setCurrentPlan(profile.plan);
+      return plansData;
+    });
+  }
 
   useEffect(() => {
-    Promise.all([listPlans(), getProfile()])
-      .then(([plansData, profile]) => {
-        setPlans(plansData);
-        setCurrentPlan(profile.plan);
-      })
+    loadData()
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (!sessionId) return;
+    const planParam = searchParams.get("plan") || undefined;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    setConfirmState("confirming");
+
+    async function tick() {
+      if (cancelled) return;
+      attempts++;
+      try {
+        const result = await pollSession(sessionId!, planParam);
+        if (cancelled) return;
+        if (result.paid) {
+          const planKey = result.plan || planParam || "";
+          const freshPlans = await loadData();
+          const planInfo = freshPlans.find((p) => p.id === planKey);
+          setConfirmedPlanName(planInfo?.name || planKey);
+          setConfirmState("success");
+          setSearchParams({}, { replace: true });
+          return;
+        }
+      } catch {
+        // sigue reintentando hasta agotar los intentos
+      }
+      if (cancelled) return;
+      if (attempts >= maxAttempts) {
+        setConfirmState("timeout");
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      setTimeout(tick, 2000);
+    }
+
+    tick();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function handleSubscribe(planId: string) {
     setCheckingOut(planId);
@@ -174,6 +229,42 @@ export default function PlansPage() {
 
   return (
     <div>
+      {confirmState === "confirming" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(124,106,255,.3)", background: "rgba(124,106,255,.08)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2"
+            style={{ borderColor: "rgba(124,106,255,.35)", borderTopColor: "#7c6aff" }}
+          />
+          Confirmando tu pago con Stripe…
+        </div>
+      )}
+      {confirmState === "success" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(34,211,160,.3)", background: "rgba(34,211,160,.1)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
+            style={{ background: "rgba(34,211,160,.2)", color: "#22d3a0" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          ¡Listo! Tu plan ahora es <strong>{confirmedPlanName}</strong>.
+        </div>
+      )}
+      {confirmState === "timeout" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)", color: "var(--vf-text)" }}
+        >
+          Recibimos tu pago pero aún no lo confirmamos. Si tu plan no cambia en unos minutos, contáctanos.
+        </div>
+      )}
       <h1
         className="mb-2 text-[34px] font-extrabold"
         style={{
