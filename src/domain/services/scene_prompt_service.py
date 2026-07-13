@@ -9,7 +9,7 @@ import requests
 
 from src.core.config import config
 from src.domain.services import scene_prompt_templates as tpl
-from src.infrastructure.ai_providers.whisk_client import mk_https_session
+from src.utils.http import mk_https_session
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)

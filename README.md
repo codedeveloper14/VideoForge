@@ -41,7 +41,7 @@ Cada persona que vaya a programar en el repo necesita además copiar `.env.examp
 
 ## Requisitos de hardware recomendados
 
-Cada usuario inicia sesión con sus **propias** cuentas de Grok/Qwen/Meta/Whisk/Gentube/Flow — todo corre localmente en su máquina, sin servidor compartido. Quien quiera usar varias cuentas en paralelo (hasta 20-25 perfiles de Chrome/Chromium simultáneos entre los distintos proveedores) necesita una máquina con memoria suficiente para sostenerlos.
+Cada usuario inicia sesión con sus **propias** cuentas de Grok/Qwen/Meta/Gentube/Flow — todo corre localmente en su máquina, sin servidor compartido. Quien quiera usar varias cuentas en paralelo (hasta 20-25 perfiles de Chrome/Chromium simultáneos entre los distintos proveedores) necesita una máquina con memoria suficiente para sostenerlos.
 
 Medido de forma real en esta máquina de desarrollo (perfiles Chromium persistentes en blanco, sin generar contenido todavía): **~250 MB de RAM por perfil en reposo**. Bajo uso real (páginas cargadas, generando imágenes/video) el consumo por perfil sube — hay que contar con margen.
 

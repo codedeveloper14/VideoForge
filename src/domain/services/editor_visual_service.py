@@ -1,6 +1,6 @@
 import json
 
-from src.domain.services import render_service, scene_timestamp_service
+from src.domain.services import scene_timestamp_service
 from src.domain.services.project_service import scene_sort_key
 from src.infrastructure.ai_providers import whisper_client
 from src.infrastructure.media import ffmpeg_utils
@@ -171,35 +171,3 @@ def transcribe_project(project_name: str) -> dict:
         for i, t in enumerate(ts_records)
     ]
     return {"segments": segs_out, "total": len(segs_out), "source": source}
-
-
-def start_render(
-    *,
-    project: str,
-    guion: str = "",
-    resolucion: str = "1920x1080",
-    transicion: str = "xfade",
-    trans_dur: float = 0.6,
-    movimiento: str = "none",
-    modelo: str = "base",
-    render_mode: str = "smart",
-) -> dict:
-    """Dispara el render final desde el editor visual. Delega en
-    render_service.start_render (el mismo worker/job registry que /api/render_inteligente)
-    en vez de reimplementar la busqueda de audio/imagenes/videos. Por decision explicita
-    del usuario, esta puerta de entrada NO aplica limite de plan (a diferencia de
-    /api/render_inteligente) -- asi se comportaba el original."""
-    return render_service.start_render(
-        project_name=project,
-        render_mode=render_mode,
-        guion=guion,
-        resolucion=resolucion,
-        modelo=modelo,
-        whisper_backend="whisperx",
-        transicion=transicion,
-        trans_dur=trans_dur,
-        movimiento=movimiento,
-        shake=False,
-        audio_upload=None,
-        username=None,
-    )

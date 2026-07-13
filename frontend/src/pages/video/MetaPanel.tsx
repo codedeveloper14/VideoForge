@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as metaApi from "../../api/meta";
 import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
@@ -34,11 +34,28 @@ const MODE_OPTIONS = [
 
 function AdvancedActions() {
   const [msg, setMsg] = useState("");
+  const [accounts, setAccounts] = useState<metaApi.MetaAccount[]>([]);
+  const [account, setAccount] = useState("");
+
+  useEffect(() => {
+    metaApi
+      .metaSesiones()
+      .then((data) => {
+        const list = data.accounts || [];
+        setAccounts(list);
+        if (list.length > 0) setAccount(list[0].name);
+      })
+      .catch(() => {});
+  }, []);
 
   async function launchChrome() {
+    if (!account) {
+      setMsg("Sin cuentas disponibles.");
+      return;
+    }
     setMsg("Abriendo Chrome...");
     try {
-      const d = await metaApi.metaLaunchChrome({ account: "cuenta1", slots: 3 });
+      const d = await metaApi.metaLaunchChrome({ account, slots: 3 });
       setMsg(d.message || "Chrome lanzado.");
     } catch (err) {
       setMsg(`Error: ${(err as Error).message}`);
@@ -46,9 +63,13 @@ function AdvancedActions() {
   }
 
   async function openDevmode() {
+    if (!account) {
+      setMsg("Sin cuentas disponibles.");
+      return;
+    }
     setMsg("Abriendo página de extensiones...");
     try {
-      const d = await metaApi.metaOpenDevmode({ account: "cuenta1" });
+      const d = await metaApi.metaOpenDevmode({ account });
       setMsg(d.message || "Página de dev-mode abierta.");
     } catch (err) {
       setMsg(`Error: ${(err as Error).message}`);
@@ -60,7 +81,22 @@ function AdvancedActions() {
       <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
         Avanzado (modo worker permanente)
       </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={account}
+          onChange={setAccount}
+          className="min-w-[140px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+        >
+          {accounts.length === 0 ? (
+            <SelectOption value="">Sin cuentas</SelectOption>
+          ) : (
+            accounts.map((a) => (
+              <SelectOption key={a.name} value={a.name}>
+                {a.name}
+              </SelectOption>
+            ))
+          )}
+        </Select>
         <GhostButton onClick={launchChrome}>🌐 Lanzar Chrome</GhostButton>
         <GhostButton onClick={openDevmode}>🧩 Abrir dev-mode</GhostButton>
       </div>

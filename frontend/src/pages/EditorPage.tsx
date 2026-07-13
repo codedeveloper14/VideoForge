@@ -674,16 +674,44 @@ export default function EditorPage() {
                   </div>
                 </div>
 
+                {/* Texto secundario / N° capítulo */}
+                <div className="mb-4 grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
+                      Texto secundario
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedScene.texto_secundario || ""}
+                      onChange={(e) => updateScene(selectedIdx, { texto_secundario: e.target.value })}
+                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
+                      N.º capítulo
+                    </label>
+                    <input
+                      type="number"
+                      value={selectedScene.numero_capitulo ?? ""}
+                      onChange={(e) => updateScene(selectedIdx, { numero_capitulo: e.target.value })}
+                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                    />
+                  </div>
+                </div>
+
                 {/* Imagen de referencia */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
                     Imagen de referencia
-                    {selectedScene.ref_label && (
-                      <span className="ml-1.5 font-mono text-[9px] font-normal normal-case text-[var(--vf-m2)] opacity-70">
-                        {selectedScene.ref_label}
-                      </span>
-                    )}
                   </label>
+                  <input
+                    type="text"
+                    value={selectedScene.ref_label || ""}
+                    onChange={(e) => updateScene(selectedIdx, { ref_label: e.target.value })}
+                    placeholder="Etiqueta de referencia…"
+                    className="mb-2 w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[11.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                  />
                   <div className="relative flex h-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-[var(--vf-b)] bg-white/[0.04]">
                     {selectedScene.imagen_url ? (
                       <img
@@ -758,6 +786,22 @@ export default function EditorPage() {
                         >
                           Derecha →
                         </button>
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        <input
+                          type="text"
+                          value={selectedScene.split_label_1 || ""}
+                          onChange={(e) => updateScene(selectedIdx, { split_label_1: e.target.value })}
+                          placeholder="Etiqueta lado 1"
+                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                        />
+                        <input
+                          type="text"
+                          value={selectedScene.split_label_2 || ""}
+                          onChange={(e) => updateScene(selectedIdx, { split_label_2: e.target.value })}
+                          placeholder="Etiqueta lado 2"
+                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                        />
                       </div>
                     </div>
                   )}

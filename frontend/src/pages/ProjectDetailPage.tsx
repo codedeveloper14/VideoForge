@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { listFinalVideos } from "../api/projects";
+import { abrirVideoFinal, listFinalVideos } from "../api/projects";
 import TopTabBar from "../components/TopTabBar";
 
 export default function ProjectDetailPage() {
@@ -8,6 +8,7 @@ export default function ProjectDetailPage() {
   const [videos, setVideos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [folderMsg, setFolderMsg] = useState("");
 
   useEffect(() => {
     listFinalVideos(nombre)
@@ -15,6 +16,16 @@ export default function ProjectDetailPage() {
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, [nombre]);
+
+  async function handleAbrirCarpeta() {
+    setFolderMsg("Abriendo carpeta…");
+    try {
+      const data = await abrirVideoFinal(nombre);
+      setFolderMsg(data.ok ? "" : data.error || "No se pudo abrir la carpeta.");
+    } catch (err) {
+      setFolderMsg((err as Error).message);
+    }
+  }
 
   return (
     <div>
@@ -64,7 +75,18 @@ export default function ProjectDetailPage() {
         </Link>
       </div>
 
-      <h2 className="mb-3 text-lg font-semibold">Videos finales</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Videos finales</h2>
+        <div className="flex items-center gap-2">
+          {folderMsg && <span className="text-xs text-[var(--vf-muted)]">{folderMsg}</span>}
+          <button
+            onClick={handleAbrirCarpeta}
+            className="rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-1.5 text-sm hover:bg-[var(--vf-surface-2)]"
+          >
+            📁 Abrir carpeta
+          </button>
+        </div>
+      </div>
       {loading ? (
         <p className="text-[var(--vf-muted)]">Cargando…</p>
       ) : error ? (

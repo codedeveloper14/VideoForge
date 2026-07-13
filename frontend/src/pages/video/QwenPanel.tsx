@@ -32,14 +32,16 @@ const api: ProviderApi = {
   abrirCarpeta: qwenApi.qwenAbrirCarpeta,
 };
 
-const ASPECT_OPTIONS = [
-  { value: "16:9", label: "16:9 — Horizontal" },
-  { value: "9:16", label: "9:16 — Reels" },
-  { value: "1:1", label: "1:1 — Cuadrado" },
-  { value: "4:3", label: "4:3" },
-  { value: "3:2", label: "3:2" },
+// El aspect ratio real lo determina "size" (asi lo interpreta la API de Qwen
+// via QWEN_SIZE_MAP en el backend) -- se muestra aqui solo para que la
+// etiqueta sea honesta, no como un selector independiente que no hiciera nada.
+const SIZE_OPTIONS = [
+  { value: "1280x720", label: "1280x720 · 16:9 Horizontal", aspect: "16:9" },
+  { value: "1920x1080", label: "1920x1080 · 16:9 Horizontal HD", aspect: "16:9" },
+  { value: "960x960", label: "960x960 · 1:1 Cuadrado", aspect: "1:1" },
+  { value: "720x1280", label: "720x1280 · 9:16 Vertical", aspect: "9:16" },
+  { value: "1080x1920", label: "1080x1920 · 9:16 Vertical HD", aspect: "9:16" },
 ];
-const SIZE_OPTIONS = ["1280x720", "1920x1080", "720x1280", "1080x1920"];
 
 export interface QwenPanelProps {
   project: string;
@@ -63,35 +65,23 @@ export default function QwenPanel({ project }: QwenPanelProps) {
           <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
             Parámetros de video
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                Aspect Ratio
-              </label>
-              <Select
-                value={options.aspect_ratio as string}
-                onChange={(value) => setOption("aspect_ratio", value)}
-                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
-              >
-                {ASPECT_OPTIONS.map((o) => (
-                  <SelectOption key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectOption>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                Tamaño
+                Tamaño / Aspect Ratio
               </label>
               <Select
                 value={options.size as string}
-                onChange={(value) => setOption("size", value)}
+                onChange={(value) => {
+                  setOption("size", value);
+                  const match = SIZE_OPTIONS.find((s) => s.value === value);
+                  if (match) setOption("aspect_ratio", match.aspect);
+                }}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {SIZE_OPTIONS.map((s) => (
-                  <SelectOption key={s} value={s}>
-                    {s}
+                  <SelectOption key={s.value} value={s.value}>
+                    {s.label}
                   </SelectOption>
                 ))}
               </Select>

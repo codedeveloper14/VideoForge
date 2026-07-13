@@ -10,6 +10,12 @@ export interface EditorScene {
   tipo?: string;
   habilitado?: boolean;
   texto_overlay?: string;
+  texto_overlay_pos?: string;
+  texto_secundario?: string;
+  color_accent?: string;
+  split_label_1?: string;
+  split_label_2?: string;
+  numero_capitulo?: number | string;
   ref_label?: string;
   google_query?: string;
   [key: string]: unknown;

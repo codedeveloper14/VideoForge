@@ -26,14 +26,6 @@ def get_jobs_dir() -> Path:
     return _ensure(config.app_data_dir / "jobs")
 
 
-def get_cookies_dir() -> Path:
-    return _ensure(config.app_data_dir / "cookies")
-
-
-def get_whisk_downloads_dir() -> Path:
-    return _ensure(config.app_data_dir / "whisk_downloads")
-
-
 def get_grok_accounts_dir() -> Path:
     return _ensure(config.app_data_dir / "grok_accounts")
 
@@ -50,10 +42,6 @@ def get_meta_accounts_dir() -> Path:
     return _ensure(config.app_data_dir / "meta_accounts")
 
 
-def get_whisk_profiles_dir() -> Path:
-    return _ensure(config.app_data_dir / "whisk_profiles")
-
-
 def get_gentube_cookies_dir() -> Path:
     return _ensure(config.app_data_dir / "gentube_cookies")
 
@@ -63,9 +51,6 @@ def get_gentube_profiles_dir() -> Path:
 
 
 def get_flow_cookies_dir() -> Path:
-    # Carpeta propia -- el original compartia "cookies/account_N.txt" con Whisk
-    # (mismo directorio, mismo patron de nombre), un choque real de datos entre
-    # dos features independientes. get_cookies_dir() ya es de Whisk.
     return _ensure(config.app_data_dir / "flow_cookies")
 
 

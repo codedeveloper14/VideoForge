@@ -29,7 +29,6 @@ from src.presentation.routes.stripe import stripe_bp, stripe_pages_bp
 from src.presentation.routes.usage import usage_bp
 from src.presentation.routes.user import user_bp
 from src.presentation.routes.voice import voice_bp
-from src.presentation.routes.whisk import whisk_bp
 
 _DOCS_PATHS = ("/docs", "/openapi.json", "/redoc")
 
@@ -77,7 +76,6 @@ def create_app() -> APIFlask:
     app.register_blueprint(stripe_pages_bp)
     app.register_blueprint(usage_bp)
     app.register_blueprint(voice_bp)
-    app.register_blueprint(whisk_bp)
     app.register_blueprint(docs_bp)
     app.register_blueprint(admin_docs_bp)
     app.register_blueprint(gentube_bp)

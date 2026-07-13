@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getProjectContent } from "../api/projects";
 import { PipelineStepper } from "../components/PipelineStepper";
-import WhiskPanel from "./imagen/WhiskPanel";
 import FlowPanel from "./imagen/FlowPanel";
 import GentubePanel from "./imagen/GentubePanel";
 
@@ -12,11 +11,6 @@ const TABS = [
     id: "gentube",
     label: "GenTube",
     badge: { text: "Chromium", color: "#22c55e", bg: "rgba(34,197,94,.15)", border: "rgba(34,197,94,.3)" },
-  },
-  {
-    id: "whisk",
-    label: "Whisk",
-    badge: { text: "Google", color: "#cbd5e1", bg: "rgba(148,163,184,.12)", border: "rgba(148,163,184,.25)" },
   },
 ];
 
@@ -97,9 +91,6 @@ export default function ImagenPage() {
       </div>
 
       <div className="mt-4">
-        {tab === "whisk" && (
-          <WhiskPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
-        )}
         {tab === "flow" && (
           <FlowPanel project={project} outputDir={resolvedOutputDir} resolvingDir={resolvingDir} />
         )}

@@ -214,10 +214,14 @@ class GrokAccountClient:
         return None, None
 
     def _build_payload(self, fid, aurl):
+        flags = (
+            f"--mode=custom --aspect-ratio={self.aspect_ratio}"
+            f" --video-length={self.video_length} --resolution={self.resolution}"
+        )
         return {
             "temporary": True,
             "modelName": "grok-3",
-            "message": f"{aurl} {self.prompt} --mode=custom",
+            "message": f"{aurl} {self.prompt} {flags}",
             "fileAttachments": [fid],
             "toolOverrides": {"videoGen": True},
             "enableSideBySide": False,

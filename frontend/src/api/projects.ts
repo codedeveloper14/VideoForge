@@ -61,3 +61,9 @@ export function listFinalVideos(project: string) {
     })
     .then((r) => r.data);
 }
+
+export function abrirVideoFinal(project: string) {
+  return api
+    .post<{ ok: boolean; path?: string; error?: string }>("/proyectos/abrir_video_final", { project })
+    .then((r) => r.data);
+}

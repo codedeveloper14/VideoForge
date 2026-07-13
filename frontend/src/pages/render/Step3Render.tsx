@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { formatDur } from "./wizardShared";
 
 export interface RenderJobState {
@@ -211,7 +212,15 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
         </div>
       )}
 
-      {isError && (
+      {isError && !!job?.limit_reached && (
+        <div className="mx-auto mt-2 max-w-[560px] rounded-lg border border-[var(--vf-c4)]/40 bg-[var(--vf-c4)]/10 p-4 text-sm">
+          <p className="mb-2 text-[var(--vf-c4)]">{job?.error}</p>
+          <Link to="/app/planes" className="text-[var(--vf-accent)] hover:underline">
+            Mejora tu plan →
+          </Link>
+        </div>
+      )}
+      {isError && !job?.limit_reached && (
         <p className="mx-auto max-w-[560px] text-sm text-[var(--vf-danger)]">
           {job?.error || "Ocurrió un error durante el render."}
         </p>

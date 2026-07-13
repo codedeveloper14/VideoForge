@@ -170,7 +170,7 @@ export default function GuionPage() {
       setRefAnalyzing(true);
       try {
         const analysis = await analyzeImage(base64, mime);
-        const desc = typeof analysis.descripcion === "string" ? analysis.descripcion : "";
+        const desc = typeof analysis.descripcion_completa === "string" ? analysis.descripcion_completa : "";
         setRefDescription(desc);
       } catch {
         setRefDescription("");

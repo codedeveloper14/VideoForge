@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from src.infrastructure.ai_providers.whisk_client import mk_https_session
+from src.utils.http import mk_https_session
 
 MODAL_URL = "https://davidestebanbermudez14--motor-video-cpa-renderizar.modal.run"
 
