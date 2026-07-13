@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Select, SelectOption } from "../components/Select";
 
 type TaskStatus = "todo" | "progress" | "done";
 type TaskPriority = "low" | "normal" | "high";
@@ -32,7 +33,7 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
   high: "bg-[rgba(239,68,68,.12)] text-[rgba(239,68,68,.8)] border border-[rgba(239,68,68,.2)]",
   normal: "bg-[var(--vf-c1)]/10 text-[#b4a0ff] border border-[var(--vf-c1)]/20",
-  low: "bg-white/5 text-white/35 border border-white/10",
+  low: "bg-[rgba(var(--vf-fg-rgb),0.05)] text-[rgba(var(--vf-fg-rgb),0.35)] border border-[rgba(var(--vf-fg-rgb),0.1)]",
 };
 
 const PRIORITY_LABELS: Record<TaskPriority, string> = {
@@ -95,7 +96,7 @@ function NewTaskModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-[480px] rounded-2xl border border-white/10 bg-[var(--vf-s)] p-7 shadow-[0_24px_64px_rgba(0,0,0,.5)]"
+        className="w-full max-w-[480px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[var(--vf-s)] p-7 shadow-[0_24px_64px_rgba(0,0,0,.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 text-base font-bold text-[var(--vf-text)]">Nueva tarea</div>
@@ -110,7 +111,7 @@ function NewTaskModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Título de la tarea..."
-            className="w-full rounded-[9px] border border-white/[0.09] bg-white/[0.04] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
+            className="w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.09)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           />
         </div>
 
@@ -123,7 +124,7 @@ function NewTaskModal({
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Detalles..."
             style={{ minHeight: 60 }}
-            className="w-full resize-y rounded-[9px] border border-white/[0.09] bg-white/[0.04] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
+            className="w-full resize-y rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.09)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           />
         </div>
 
@@ -131,17 +132,17 @@ function NewTaskModal({
           <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
             Prioridad
           </label>
-          <select
+          <Select
             value={priority}
-            onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="w-full cursor-pointer appearance-none rounded-[9px] border border-white/[0.09] bg-white/[0.04] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
+            onChange={(v) => setPriority(v as TaskPriority)}
+            className="w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           >
             {PRIORITY_OPTIONS.map((p) => (
-              <option key={p.value} value={p.value}>
+              <SelectOption key={p.value} value={p.value}>
                 {p.label}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -153,7 +154,7 @@ function NewTaskModal({
           </button>
           <button
             onClick={onClose}
-            className="flex-1 rounded-[9px] border border-white/10 bg-transparent py-2.5 text-[13px] text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)] hover:border-white/25"
+            className="flex-1 rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.1)] bg-transparent py-2.5 text-[13px] text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)] hover:border-[rgba(var(--vf-fg-rgb),0.25)]"
           >
             Cancelar
           </button>
@@ -214,19 +215,19 @@ export default function TareasPage() {
   const shown = tasks.filter((t) => filter === "all" || t.status === filter);
 
   return (
-    <div className="max-w-[860px]">
-      <h1 className="mb-7 text-[34px] font-extrabold tracking-tight bg-gradient-to-r from-[#eef2ff] to-[var(--vf-c2)] bg-clip-text text-transparent">
+    <div className="mx-auto max-w-5xl">
+      <h1 className="mb-7 text-[34px] font-extrabold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
         Tareas
       </h1>
 
       <div className="mb-7 flex items-center justify-between">
-        <div className="flex w-fit gap-1 rounded-[14px] border border-white/[0.06] bg-white/[0.03] p-1">
+        <div className="flex w-fit gap-1 rounded-[14px] border border-[rgba(var(--vf-fg-rgb),0.06)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setFilter(t.id)}
               className={`whitespace-nowrap rounded-[10px] px-4.5 py-2 text-xs font-semibold transition-colors ${
-                filter === t.id ? "bg-white/[0.08] text-[var(--vf-text)]" : "text-white/40 hover:text-white/70"
+                filter === t.id ? "bg-[rgba(var(--vf-fg-rgb),0.08)] text-[var(--vf-text)]" : "text-[rgba(var(--vf-fg-rgb),0.4)] hover:text-[rgba(var(--vf-fg-rgb),0.7)]"
               }`}
             >
               {t.label}
@@ -237,7 +238,7 @@ export default function TareasPage() {
 
         <button
           onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--vf-c1)]/35 bg-[var(--vf-c1)]/[0.18] px-5 py-2.5 text-[13px] font-semibold text-[#c4b8ff] transition-colors hover:bg-[var(--vf-c1)]/[0.28] hover:border-[var(--vf-c1)]/60"
+          className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--vf-c1)]/40 bg-[var(--vf-c1)]/[0.14] px-5 py-2.5 text-[13px] font-semibold text-[var(--vf-c1)] transition-colors hover:bg-[var(--vf-c1)]/[0.24] hover:border-[var(--vf-c1)]/65"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -249,8 +250,8 @@ export default function TareasPage() {
 
       <div className="flex flex-col gap-2.5">
         {shown.length === 0 ? (
-          <div className="py-15 text-center text-white/25">
-            <div className="mb-3 text-[32px] opacity-35">&#10003;</div>
+          <div className="py-15 text-center text-[rgba(var(--vf-fg-rgb),0.4)]">
+            <div className="mb-3 text-[32px] opacity-50">&#10003;</div>
             <div className="text-sm">
               {tasks.length === 0 ? "¡Sin tareas! Crea la primera." : "Sin tareas en esta categoría."}
             </div>
@@ -261,7 +262,7 @@ export default function TareasPage() {
             return (
               <div
                 key={t.id}
-                className={`flex items-start gap-3.5 rounded-xl border border-white/[0.07] bg-white/[0.03] px-5 py-4 transition-colors hover:border-white/[0.12] ${
+                className={`flex items-start gap-3.5 rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-5 py-4 transition-colors hover:border-[rgba(var(--vf-fg-rgb),0.12)] ${
                   isDone ? "opacity-50" : ""
                 }`}
               >
@@ -274,7 +275,7 @@ export default function TareasPage() {
                       ? "border-[var(--vf-c1)]/90 bg-[var(--vf-c1)]/70"
                       : t.status === "progress"
                         ? "border-[var(--vf-c2)]/70 bg-[var(--vf-c2)]/20"
-                        : "border-white/20 hover:border-[var(--vf-c1)]/60"
+                        : "border-[rgba(var(--vf-fg-rgb),0.2)] hover:border-[var(--vf-c1)]/60"
                   }`}
                 >
                   {isDone && (
@@ -290,13 +291,13 @@ export default function TareasPage() {
                 <div className="min-w-0 flex-1">
                   <div
                     className={`mb-1 text-sm font-semibold ${
-                      isDone ? "text-white/40 line-through" : "text-[var(--vf-text)]"
+                      isDone ? "text-[rgba(var(--vf-fg-rgb),0.4)] line-through" : "text-[var(--vf-text)]"
                     }`}
                   >
                     {t.title}
                   </div>
                   {t.description && (
-                    <div className="mb-2 text-[12.5px] leading-relaxed text-white/40">{t.description}</div>
+                    <div className="mb-2 text-[12.5px] leading-relaxed text-[rgba(var(--vf-fg-rgb),0.4)]">{t.description}</div>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
                     <span
@@ -310,7 +311,7 @@ export default function TareasPage() {
                       </span>
                     )}
                     {formatDate(t.createdAt) && (
-                      <span className="text-[10.5px] text-white/25">{formatDate(t.createdAt)}</span>
+                      <span className="text-[10.5px] text-[rgba(var(--vf-fg-rgb),0.25)]">{formatDate(t.createdAt)}</span>
                     )}
                   </div>
                 </div>
@@ -319,7 +320,7 @@ export default function TareasPage() {
                   type="button"
                   title="Eliminar"
                   onClick={() => handleDelete(t.id)}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-white/20 transition-colors hover:bg-[var(--vf-danger)]/[0.08] hover:text-[var(--vf-danger)]/70"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[rgba(var(--vf-fg-rgb),0.2)] transition-colors hover:bg-[var(--vf-danger)]/[0.08] hover:text-[var(--vf-danger)]/70"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="3 6 5 6 21 6" />

@@ -7,7 +7,7 @@ function EyeToggle({ shown, onClick }: { shown: boolean; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="absolute right-[11px] top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-white/25 transition-colors hover:text-white/60"
+      className="absolute right-[11px] top-1/2 -translate-y-1/2 p-1 text-[13px] leading-none text-[rgba(var(--vf-fg-rgb),0.25)] transition-colors hover:text-[rgba(var(--vf-fg-rgb),0.6)]"
     >
       {shown ? "🙈" : "👁"}
     </button>
@@ -106,7 +106,7 @@ export default function LoginPage() {
   return (
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden p-5"
-      style={{ background: "#08080f", color: "#ebebf5", fontFamily: "'Syne',sans-serif" }}
+      style={{ background: "var(--vf-bg)", color: "var(--vf-text)", fontFamily: "'Syne',sans-serif" }}
     >
       <div
         className="pointer-events-none fixed inset-0 z-0"
@@ -120,17 +120,17 @@ export default function LoginPage() {
       />
 
       <div
-        className="relative z-10 flex w-full overflow-hidden rounded-[18px] border border-white/[0.09]"
+        className="relative z-10 flex w-full overflow-hidden rounded-[18px] border border-[rgba(var(--vf-fg-rgb),0.09)]"
         style={{
           width: "min(1080px, 96vw)",
           height: "min(660px, 88vh)",
-          boxShadow: "0 40px 120px rgba(0,0,0,.8), 0 0 80px rgba(99,80,255,.08)",
+          boxShadow: "0 40px 120px rgba(88,70,230,.5), 0 0 90px rgba(124,106,255,.25)",
         }}
       >
         {/* LEFT PANEL */}
         <div
           className="relative flex flex-1 flex-col overflow-hidden p-10 max-md:hidden"
-          style={{ background: "rgba(12,12,24,.82)" }}
+          style={{ background: "var(--vf-s)" }}
         >
           <div
             className="pointer-events-none absolute inset-0"
@@ -166,14 +166,14 @@ export default function LoginPage() {
 
           <div className="relative z-10 flex flex-1 flex-col justify-center">
             <h1
-              className="mb-4 font-extrabold leading-[1.06] tracking-[-1.8px] text-[#eeeef8]"
+              className="mb-4 font-extrabold leading-[1.06] tracking-[-1.8px] text-[var(--vf-text)]"
               style={{ fontSize: "clamp(32px,3.5vw,50px)" }}
             >
               Crea. Automatiza.
               <br />
               <span style={{ color: "var(--vf-c1)" }}>Produce.</span>
             </h1>
-            <p className="max-w-[360px] text-[13px] leading-[1.7] text-white/38" style={{ fontFamily: "var(--vf-mono)" }}>
+            <p className="max-w-[360px] text-[13px] leading-[1.7] text-[rgba(var(--vf-fg-rgb),0.38)]" style={{ fontFamily: "var(--vf-mono)" }}>
               La plataforma completa para producción audiovisual con IA. Guión, voz, video y renderizado en un solo
               flujo.
             </p>
@@ -191,8 +191,8 @@ export default function LoginPage() {
                   </svg>
                 </div>
                 <div>
-                  <div className="mb-0.5 text-[13px] font-bold text-white/80">{f.title}</div>
-                  <div className="text-[11.5px] leading-[1.4] text-white/30" style={{ fontFamily: "var(--vf-mono)" }}>
+                  <div className="mb-0.5 text-[13px] font-bold text-[rgba(var(--vf-fg-rgb),0.8)]">{f.title}</div>
+                  <div className="text-[11.5px] leading-[1.4] text-[rgba(var(--vf-fg-rgb),0.3)]" style={{ fontFamily: "var(--vf-mono)" }}>
                     {f.desc}
                   </div>
                 </div>
@@ -200,7 +200,7 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <div className="relative z-10 mt-6 text-[8.5px] text-white/18" style={{ fontFamily: "var(--vf-mono)" }}>
+          <div className="relative z-10 mt-6 text-[8.5px] text-[rgba(var(--vf-fg-rgb),0.18)]" style={{ fontFamily: "var(--vf-mono)" }}>
             © 2026 Studio IVR. Todos los derechos reservados.
           </div>
         </div>
@@ -208,7 +208,7 @@ export default function LoginPage() {
         {/* RIGHT PANEL */}
         <div
           className="flex w-full flex-shrink-0 items-center justify-center p-11 md:w-[400px]"
-          style={{ background: "rgba(14,14,28,.90)", borderLeft: "1px solid rgba(255,255,255,.06)" }}
+          style={{ background: "var(--vf-s)", borderLeft: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
         >
           <div className="w-full max-w-[320px]">
             {!mustChange ? (
@@ -216,7 +216,7 @@ export default function LoginPage() {
                 <div className="mb-1.5 whitespace-nowrap text-xl font-extrabold tracking-[-0.4px]">
                   Bienvenido de nuevo
                 </div>
-                <div className="mb-6 text-[12.5px] leading-[1.55] text-white/38">
+                <div className="mb-6 text-[12.5px] leading-[1.55] text-[rgba(var(--vf-fg-rgb),0.38)]">
                   Inicia sesión para continuar con tus proyectos.
                 </div>
 
@@ -231,10 +231,10 @@ export default function LoginPage() {
 
                 <div className="mb-3">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white/62">Correo electrónico o usuario</span>
+                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Correo electrónico o usuario</span>
                   </div>
                   <div className="relative">
-                    <svg className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[rgba(var(--vf-fg-rgb),0.22)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
@@ -248,20 +248,20 @@ export default function LoginPage() {
                       spellCheck="false"
                       autoFocus
                       className="w-full rounded-[10px] py-3 pl-[38px] pr-[40px] text-[13.5px] font-medium text-[var(--vf-text)] outline-none transition-colors"
-                      style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)" }}
+                      style={{ background: "rgba(var(--vf-fg-rgb),.035)", border: "1px solid rgba(var(--vf-fg-rgb),.08)" }}
                     />
                   </div>
                 </div>
 
                 <div className="mb-3">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-white/62">Contraseña</span>
+                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Contraseña</span>
                     <span className="pointer-events-none text-[11px] opacity-38" style={{ fontFamily: "var(--vf-mono)", color: "var(--vf-c1)" }}>
                       ¿Olvidaste tu contraseña?
                     </span>
                   </div>
                   <div className="relative">
-                    <svg className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[rgba(var(--vf-fg-rgb),0.22)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
@@ -272,14 +272,14 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       autoComplete="current-password"
                       className="w-full rounded-[10px] py-3 pl-[38px] pr-[40px] text-[13.5px] font-medium text-[var(--vf-text)] outline-none transition-colors"
-                      style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)" }}
+                      style={{ background: "rgba(var(--vf-fg-rgb),.035)", border: "1px solid rgba(var(--vf-fg-rgb),.08)" }}
                     />
                     <EyeToggle shown={showPassword} onClick={() => setShowPassword((v) => !v)} />
                   </div>
                 </div>
 
                 <div className="mb-[18px] mt-3 flex items-center justify-between">
-                  <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-white/45">
+                  <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-[rgba(var(--vf-fg-rgb),0.45)]">
                     <input
                       type="checkbox"
                       checked={remember}
@@ -289,8 +289,8 @@ export default function LoginPage() {
                     <span
                       className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded-[4px] transition-colors"
                       style={{
-                        border: `1.5px solid ${remember ? "var(--vf-c1)" : "rgba(255,255,255,.18)"}`,
-                        background: remember ? "var(--vf-c1)" : "rgba(255,255,255,.03)",
+                        border: `1.5px solid ${remember ? "var(--vf-c1)" : "rgba(var(--vf-fg-rgb),.18)"}`,
+                        background: remember ? "var(--vf-c1)" : "rgba(var(--vf-fg-rgb),.03)",
                       }}
                     >
                       {remember && (
@@ -317,19 +317,19 @@ export default function LoginPage() {
 
                 <div
                   className="mb-3.5 flex items-center gap-2.5 text-[11px]"
-                  style={{ fontFamily: "var(--vf-mono)", color: "rgba(255,255,255,.18)" }}
+                  style={{ fontFamily: "var(--vf-mono)", color: "rgba(var(--vf-fg-rgb),.18)" }}
                 >
-                  <span className="h-px flex-1" style={{ background: "rgba(255,255,255,.07)" }} />
+                  <span className="h-px flex-1" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
                   O continúa con
-                  <span className="h-px flex-1" style={{ background: "rgba(255,255,255,.07)" }} />
+                  <span className="h-px flex-1" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
                 </div>
 
                 <div className="mb-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => alert("Próximamente.")}
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-white/65 transition-colors hover:bg-white/[0.055] hover:text-white"
-                    style={{ border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.03)" }}
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
+                    style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -342,8 +342,8 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => alert("Próximamente.")}
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-white/65 transition-colors hover:bg-white/[0.055] hover:text-white"
-                    style={{ border: "1px solid rgba(255,255,255,.09)", background: "rgba(255,255,255,.03)" }}
+                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
+                    style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
                     <svg width="12" height="14" viewBox="0 0 814 1000" fill="currentColor">
                       <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-36.8-162.8-106.3C180.9 742.2 139 649 139 603c0-188.1 130.9-314.3 260.2-314.3 73.9 0 135.4 48.4 179.9 48.4 42.6 0 113.5-50.7 196.7-50.7z" />
@@ -353,7 +353,7 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                <div className="text-center text-xs" style={{ fontFamily: "var(--vf-mono)", color: "rgba(255,255,255,.28)" }}>
+                <div className="text-center text-xs" style={{ fontFamily: "var(--vf-mono)", color: "rgba(var(--vf-fg-rgb),.28)" }}>
                   ¿No tienes cuenta?
                   <Link to="/register" className="ml-1 font-bold" style={{ color: "var(--vf-c2)" }}>
                     Registrarse
@@ -369,7 +369,7 @@ export default function LoginPage() {
                   🔐
                 </div>
                 <div className="mb-1 text-lg font-extrabold tracking-[-0.35px]">Cambia tu contraseña</div>
-                <p className="mb-4.5 text-[10px] leading-[1.6] text-white/28" style={{ fontFamily: "var(--vf-mono)" }}>
+                <p className="mb-4.5 text-[10px] leading-[1.6] text-[rgba(var(--vf-fg-rgb),0.28)]" style={{ fontFamily: "var(--vf-mono)" }}>
                   Es tu primer acceso. Por seguridad
                   <br />
                   debes establecer una nueva contraseña.
@@ -386,7 +386,7 @@ export default function LoginPage() {
 
                 <div
                   className="mb-3 flex flex-col gap-1.5 rounded-[9px] p-2.5 text-left"
-                  style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)" }}
+                  style={{ background: "rgba(var(--vf-fg-rgb),.02)", border: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
                 >
                   {[
                     { ok: reqLen, label: "Mínimo 8 caracteres" },
@@ -396,7 +396,7 @@ export default function LoginPage() {
                     <div
                       key={r.label}
                       className="flex items-center gap-1.5 text-[9.5px] transition-colors"
-                      style={{ fontFamily: "var(--vf-mono)", color: r.ok ? "var(--vf-c5)" : "rgba(255,255,255,.26)" }}
+                      style={{ fontFamily: "var(--vf-mono)", color: r.ok ? "var(--vf-c5)" : "rgba(var(--vf-fg-rgb),.26)" }}
                     >
                       <span className="w-3 text-center text-[10px]">{r.ok ? "✓" : "○"}</span>
                       {r.label}
@@ -405,7 +405,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mb-3 text-left">
-                  <div className="mb-1.5 text-xs font-semibold text-white/62">Nueva contraseña</div>
+                  <div className="mb-1.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Nueva contraseña</div>
                   <div className="relative">
                     <input
                       type={showNewPassword ? "text" : "password"}
@@ -415,7 +415,7 @@ export default function LoginPage() {
                       autoComplete="new-password"
                       autoFocus
                       className="w-full rounded-[10px] py-3 pl-[14px] pr-[40px] text-[13.5px] font-medium text-[var(--vf-text)] outline-none"
-                      style={{ background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.08)" }}
+                      style={{ background: "rgba(var(--vf-fg-rgb),.035)", border: "1px solid rgba(var(--vf-fg-rgb),.08)" }}
                     />
                     <EyeToggle shown={showNewPassword} onClick={() => setShowNewPassword((v) => !v)} />
                   </div>

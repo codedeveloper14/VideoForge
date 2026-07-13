@@ -32,6 +32,10 @@ def ensure_tables() -> None:
                 cur.execute("ALTER TABLE vf_users ADD COLUMN subscription_date DATE DEFAULT NULL")
             except Exception:
                 pass  # ya existe
+            try:
+                cur.execute("ALTER TABLE vf_users ADD COLUMN theme VARCHAR(10) DEFAULT 'dark'")
+            except Exception:
+                pass  # ya existe
         conn.commit()
         conn.close()
         logger.info("Tabla vf_usage OK.")

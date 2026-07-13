@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { Select, SelectOption } from "../../components/Select";
 import {
   flowAbrirCarpeta,
   flowAccounts,
@@ -428,15 +429,15 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   Aspect ratio
                 </label>
-                <select
+                <Select
                   value={aspect}
                   onChange={(e) => setAspect(e.target.value)}
                   className="flow-select"
                 >
-                  <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</option>
-                  <option value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</option>
-                  <option value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</option>
-                </select>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</SelectOption>
+                </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
@@ -451,15 +452,15 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   Reintentos
                 </label>
-                <select
+                <Select
                   value={maxRetries}
                   onChange={(e) => setMaxRetries(Number(e.target.value))}
                   className="flow-select"
                 >
-                  <option value={1}>1</option>
-                  <option value={2}>2 · equilibrado</option>
-                  <option value={3}>3 · máx. tolerancia</option>
-                </select>
+                  <SelectOption value={1}>1</SelectOption>
+                  <SelectOption value={2}>2 · equilibrado</SelectOption>
+                  <SelectOption value={3}>3 · máx. tolerancia</SelectOption>
+                </Select>
               </div>
             </div>
           </section>

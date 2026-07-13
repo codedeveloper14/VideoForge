@@ -43,7 +43,7 @@ interface StatBoxProps {
 
 export function StatBox({ value, label, color }: StatBoxProps) {
   return (
-    <div className="rounded-lg border border-[var(--vf-border)] bg-white/[0.03] p-2 text-center">
+    <div className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-2 text-center">
       <div
         className="font-mono text-lg font-bold"
         style={{ color: color || "var(--vf-text)" }}
@@ -63,7 +63,7 @@ interface ProgressBarProps {
 
 export function ProgressBar({ pct }: ProgressBarProps) {
   return (
-    <div className="mb-1.5 h-[3px] overflow-hidden rounded-full bg-white/5">
+    <div className="mb-1.5 h-[3px] overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
       <div
         className="h-full rounded-full transition-all"
         style={{

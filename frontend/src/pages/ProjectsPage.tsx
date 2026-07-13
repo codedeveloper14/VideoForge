@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { createProject, deleteProject, listProjects } from "../api/projects";
+import TopTabBar from "../components/TopTabBar";
 import type { Project } from "../types";
 
 export default function ProjectsPage() {
@@ -48,7 +49,8 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-5xl">
+      <TopTabBar />
       <h1 className="mb-6 text-2xl font-semibold">Proyectos</h1>
 
       <form onSubmit={handleCreate} className="mb-6 flex gap-2">

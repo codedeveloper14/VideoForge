@@ -46,7 +46,7 @@ export interface ProgressBarProps {
 
 export function ProgressBar({ pct }: ProgressBarProps) {
   return (
-    <div className="mb-1.5 h-[4px] overflow-hidden rounded-full bg-white/5">
+    <div className="mb-1.5 h-[4px] overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
       <div
         className="h-full rounded-full transition-all"
         style={{

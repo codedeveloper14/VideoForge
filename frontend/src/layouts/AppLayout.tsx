@@ -96,10 +96,20 @@ function IconPlus() {
   );
 }
 
+function IconMenu() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 function xiClass({ isActive }: { isActive: boolean }) {
   return (
     "flex w-full items-center gap-2.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition-colors " +
-    (isActive ? "text-[#eeeef5]" : "text-[#5a5a75] hover:bg-white/[0.045] hover:text-[rgba(238,238,245,0.82)]")
+    (isActive ? "text-[var(--vf-text)]" : "text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),0.045)] hover:text-[rgba(var(--vf-fg-rgb),0.82)]")
   );
 }
 
@@ -356,6 +366,7 @@ function AppLayoutInner() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   const initial = (user || "?").charAt(0).toUpperCase();
 
@@ -364,83 +375,111 @@ function AppLayoutInner() {
   const showPipeline = !!activeProject && !!currentPage;
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#06060c", color: "#eeeef5" }}>
+    <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
       <aside
-        className="fixed left-0 top-0 bottom-0 z-[920] flex w-[220px] flex-col overflow-y-auto"
-        style={{ background: "#0a0a14", borderRight: "1px solid rgba(255,255,255,.06)" }}
+        className={`fixed left-0 top-0 bottom-0 z-[920] flex flex-col overflow-y-auto transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[220px]"}`}
+        style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
       >
-        <NavLink
-          to="/app/home"
+        <div
           className="flex flex-shrink-0 items-center gap-[11px] px-[15px] pb-[15px] pt-[18px]"
-          style={{ borderBottom: "1px solid rgba(255,255,255,.05)" }}
+          style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
-          <div
-            className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
-            style={{
-              background: "linear-gradient(145deg,#6c56ff 0%,#a855f7 55%,#c084fc 100%)",
-              boxShadow: "0 0 0 1px rgba(168,85,247,.18), 0 4px 14px rgba(124,106,255,.42)",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="3" width="5" height="18" rx="1" fill="rgba(255,255,255,.22)" />
-              <rect x="2.8" y="5.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-              <rect x="2.8" y="11" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-              <rect x="2.8" y="16.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-              <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
-            </svg>
+          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={collapsed ? "Studio IVR" : undefined}>
+            <div
+              className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+              style={{
+                background: "linear-gradient(145deg,#6c56ff 0%,#a855f7 55%,#c084fc 100%)",
+                boxShadow: "0 0 0 1px rgba(168,85,247,.18), 0 4px 14px rgba(124,106,255,.42)",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="5" height="18" rx="1" fill="rgba(255,255,255,.22)" />
+                <rect x="2.8" y="5.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
+                <rect x="2.8" y="11" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
+                <rect x="2.8" y="16.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
+                <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
+              </svg>
+            </div>
+            {!collapsed && (
+              <div>
+                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
+                <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
+                  AI Pipeline
+                </span>
+              </div>
+            )}
+          </NavLink>
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Colapsar menú"
+              className="ml-auto flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
+            >
+              <IconMenu />
+            </button>
+          )}
+        </div>
+
+        {collapsed && (
+          <div className="flex flex-shrink-0 justify-center px-2 pt-2">
+            <button
+              onClick={() => setCollapsed(false)}
+              title="Expandir menú"
+              className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
+            >
+              <IconMenu />
+            </button>
           </div>
-          <div>
-            <b className="block text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[#eeeef5]">Studio IVR</b>
-            <span className="mt-px block text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[#38384e]">
-              AI Pipeline
-            </span>
-          </div>
-        </NavLink>
+        )}
 
         <nav className="flex flex-shrink-0 flex-col gap-px px-2 pt-2.5">
           <NavLink to="/app/home" end className={xiClass}>
             <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
-            Inicio
+            {!collapsed && "Inicio"}
           </NavLink>
 
-          <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[#38384e]">
-            General
-          </span>
+          {!collapsed && (
+            <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
+              General
+            </span>
+          )}
 
-          <NavLink to="/app/home" className={xiClass}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+          <NavLink to="/app/home" className={xiClass} title={collapsed ? "Proyectos" : undefined}>
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
-            Proyectos
+            {!collapsed && "Proyectos"}
           </NavLink>
 
           <button
             onClick={() => navigate("/app/idea2video")}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            title={collapsed ? "Idea → Video" : undefined}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
-            Idea &rarr; Video
+            {!collapsed && <>Idea &rarr; Video</>}
           </button>
 
           <button
             onClick={() => navigate("/app/tareas")}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            title={collapsed ? "Tareas" : undefined}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
-            Tareas
+            {!collapsed && "Tareas"}
           </button>
 
-          <NavLink to="/app/ajustes" className={xiClass}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+          <NavLink to="/app/ajustes" className={xiClass} title={collapsed ? "Ajustes" : undefined}>
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
-            Ajustes
+            {!collapsed && "Ajustes"}
           </NavLink>
         </nav>
 
@@ -484,50 +523,64 @@ function AppLayoutInner() {
           <div className="mb-1.5 flex items-center gap-2.5">
             <div className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-[7px]" style={{ background: "rgba(124,106,255,.2)" }}>
               <IconUpgrade />
-            </div>
-            <span className="text-[13px] font-bold text-[#a78bfa]">Upgrade</span>
+            </button>
           </div>
-          <p className="mb-[9px] text-[11px] leading-[1.5] text-[#5a5a75]">
-            Más créditos, renders y funciones premium.
-          </p>
-          <button
-            onClick={() => navigate("/app/planes")}
-            className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#a78bfa]"
-            style={{ color: "#7c6aff" }}
+        ) : (
+          <div
+            className="mx-2 mb-1.5 mt-3 flex-shrink-0 rounded-xl px-[13px] pb-[11px] pt-[13px]"
+            style={{ background: "rgba(124,106,255,.08)", border: "1px solid rgba(124,106,255,.18)" }}
           >
-            Ver planes
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        </div>
+            <div className="mb-1.5 flex items-center gap-2.5">
+              <div className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-[7px]" style={{ background: "rgba(124,106,255,.2)" }}>
+                <IconUpgrade />
+              </div>
+              <span className="text-[13px] font-bold text-[#a78bfa]">Upgrade</span>
+            </div>
+            <p className="mb-[9px] text-[11px] leading-[1.5] text-[var(--vf-m)]">
+              Más créditos, renders y funciones premium.
+            </p>
+            <button
+              onClick={() => navigate("/app/planes")}
+              className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#a78bfa]"
+              style={{ color: "#7c6aff" }}
+            >
+              Ver planes
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-shrink-0 flex-col gap-px px-2 pb-1 pt-[5px]">
           <button
             onClick={() => navigate("/app/documentacion")}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            title={collapsed ? "Documentación" : undefined}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
-            Documentación
+            {!collapsed && "Documentación"}
           </button>
           <button
             onClick={() => navigate("/app/ayuda")}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[#5a5a75] transition-colors hover:bg-white/[0.04] hover:text-[rgba(238,238,245,0.72)]"
+            title={collapsed ? "Centro de ayuda" : undefined}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
-            <span className="flex-shrink-0 opacity-35">
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
-            Centro de ayuda
+            {!collapsed && "Centro de ayuda"}
           </button>
         </div>
 
         <div className="relative flex-shrink-0">
           <div
             onClick={() => setDropdownOpen((v) => !v)}
-            className="flex cursor-pointer items-center gap-2.5 px-[13px] py-3 transition-colors hover:bg-white/[0.04]"
-            style={{ borderTop: "1px solid rgba(255,255,255,.05)" }}
+            title={collapsed ? user || undefined : undefined}
+            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${collapsed ? "justify-center px-2" : "px-[13px]"}`}
+            style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
           >
             <div
               className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] text-xs font-bold text-white"
@@ -535,59 +588,71 @@ function AppLayoutInner() {
             >
               {initial}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[12.5px] font-semibold text-[#eeeef5]">{user}</div>
-              <div className="truncate text-[10.5px] text-[#5a5a75]">Studio IVR</div>
-            </div>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="flex-shrink-0 opacity-25"
-              style={{ transform: dropdownOpen ? "rotate(180deg)" : undefined }}
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            {!collapsed && (
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[12.5px] font-semibold text-[var(--vf-text)]">{user}</div>
+                  <div className="truncate text-[10.5px] text-[var(--vf-m)]">Studio IVR</div>
+                </div>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="flex-shrink-0 opacity-25"
+                  style={{ transform: dropdownOpen ? "rotate(180deg)" : undefined }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </>
+            )}
           </div>
 
           {dropdownOpen && (
             <div
-              className="absolute bottom-[64px] left-2 right-2 z-10 overflow-hidden rounded-xl"
-              style={{ background: "#12121f", border: "1px solid rgba(255,255,255,.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
+              className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${collapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
+              style={{ background: "var(--vf-p)", border: "1px solid rgba(var(--vf-fg-rgb),.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
             >
               <button
                 onClick={() => {
                   setDropdownOpen(false);
                   navigate("/app/ajustes");
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#c8c8d8] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-text)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <IconSettings /> Configuración
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <IconSettings />
+                </span>
+                Configuración
               </button>
               <button
                 onClick={() => {
                   setDropdownOpen(false);
                   navigate("/app/planes");
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#a78bfa] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#a78bfa] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <IconUpgrade /> Upgrade
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <IconUpgrade />
+                </span>
+                Upgrade
               </button>
-              <div style={{ borderTop: "1px solid rgba(255,255,255,.06)" }} />
+              <div style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.06)" }} />
               <button
                 onClick={logout}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[#f47286] hover:bg-white/[0.05]"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] text-[var(--vf-danger)] hover:bg-[rgba(var(--vf-fg-rgb),0.05)]"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
                 Cerrar sesión
               </button>
             </div>

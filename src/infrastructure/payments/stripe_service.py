@@ -163,10 +163,9 @@ def create_checkout_session(username: str, plan_key: str, user_email: str | None
             line_items=[line_item],
             mode="subscription",
             success_url=(
-                f"{config.public_base_url}/stripe-success"
-                "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan_key
+                f"{config.public_base_url}/app/planes" "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan_key
             ),
-            cancel_url=f"{config.public_base_url}/",
+            cancel_url=f"{config.public_base_url}/app/planes",
             customer_email=user_email or None,
             metadata={"username": username, "plan": plan_key},
         )

@@ -247,7 +247,7 @@ export default function WhiskPanel({ outputDir, resolvingDir }: WhiskPanelProps)
           <SectionCard title="// Imagen sujeto (opcional)">
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="relative cursor-pointer rounded-lg border-2 border-dashed border-[var(--vf-b2)] bg-white/[0.02] p-3 text-center"
+              className="relative cursor-pointer rounded-lg border-2 border-dashed border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),0.02)] p-3 text-center"
             >
               <input
                 ref={fileInputRef}
@@ -323,7 +323,7 @@ export default function WhiskPanel({ outputDir, resolvingDir }: WhiskPanelProps)
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
               placeholder={"Un prompt por línea.\nEjemplo:\nA cinematic portrait of a woman in golden hour light"}
-              className="min-h-[140px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-2.5 font-mono text-[11px] leading-relaxed text-[var(--vf-text)] outline-none"
+              className="min-h-[140px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-2.5 font-mono text-[11px] leading-relaxed text-[var(--vf-text)] outline-none"
             />
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
@@ -336,7 +336,7 @@ export default function WhiskPanel({ outputDir, resolvingDir }: WhiskPanelProps)
                   max={20}
                   value={repeat}
                   onChange={(e) => setRepeat(e.target.value)}
-                  className="w-full rounded-md border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 />
               </div>
               <div>

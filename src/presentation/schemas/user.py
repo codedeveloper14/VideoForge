@@ -8,6 +8,7 @@ class UserProfileOutSchema(Schema):
     plan = String()
     plan_name = String()
     subscription_date = String(allow_none=True)
+    theme = String()
     usage = Dict()
     limits = Dict()
     payment = Dict()
@@ -18,3 +19,7 @@ class PaymentOutSchema(Schema):
     amount_usd = Float()
     paid_at = String()
     session_id = String(allow_none=True)
+
+
+class UserThemeInSchema(Schema):
+    theme = String(required=True)

@@ -92,11 +92,29 @@ def stripe_success():
         if is_success
         else (error_msg or "Contacta soporte si el plan no se activa.")
     )
+    icon = "&#10003;" if is_success else "&#8505;"
     return (
         (
-            f"<!DOCTYPE html><html lang='es'><meta charset='utf-8'>"
+            "<!DOCTYPE html><html lang='es'><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
             f"<title>Pago completado — Studio IVR</title>"
-            f"<body><h1>{title}</h1><p>{message}</p></body></html>"
+            "<style>"
+            "*{box-sizing:border-box;margin:0;padding:0}"
+            "body{min-height:100vh;display:flex;align-items:center;justify-content:center;"
+            "background:#06060c;color:#eeeef5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px}"
+            ".card{max-width:420px;text-align:center;background:rgba(255,255,255,.03);"
+            "border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:40px 32px}"
+            ".icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;"
+            "margin:0 auto 20px;font-size:26px;background:rgba(34,211,160,.12);color:#22d3a0}"
+            "h1{font-size:20px;margin-bottom:10px}"
+            "p{font-size:14px;color:rgba(255,255,255,.55);line-height:1.5;margin-bottom:28px}"
+            "a.btn{display:inline-block;padding:12px 28px;border-radius:12px;color:#fff;text-decoration:none;"
+            "font-weight:700;font-size:13px;background:linear-gradient(135deg,#6c56ff,#a855f7)}"
+            "</style></head>"
+            f"<body><div class='card'><div class='icon'>{icon}</div>"
+            f"<h1>{title}</h1><p>{message}</p>"
+            "<a class='btn' href='/app/planes'>Volver a la app</a>"
+            "</div></body></html>"
         ),
         200,
         {"Content-Type": "text/html; charset=utf-8"},

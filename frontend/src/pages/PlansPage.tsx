@@ -1,8 +1,58 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { listPlans } from "../api/plans";
-import { startCheckout } from "../api/stripe";
+import { pollSession, startCheckout } from "../api/stripe";
 import { getProfile } from "../api/user";
 import type { Plan } from "../types";
+
+function IconFree() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="7.5" />
+    </svg>
+  );
+}
+function IconSprout() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20V11" />
+      <path d="M12 11c0-3.5-2.5-6-6.5-6C5.5 9 8 11.5 12 11.5" />
+      <path d="M12 11c0-3 2-5.5 5.5-5.5C17.8 9 15.5 11 12 11" />
+    </svg>
+  );
+}
+function IconGrowthBars() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="12" y1="20" x2="12" y2="9" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+    </svg>
+  );
+}
+function IconGem() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12l3 5-9 13L3 8z" />
+      <path d="M3 8h18M9 3l3 5 3-5M12 8l-3 13M12 8l3 13" />
+    </svg>
+  );
+}
+function IconInfinity() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z" />
+    </svg>
+  );
+}
+
+const PLAN_ICONS = {
+  free: IconFree,
+  basico: IconSprout,
+  pro: IconGrowthBars,
+  ultra: IconGem,
+  unlimited: IconInfinity,
+} as Record<string, () => React.ReactElement>;
 
 type PlanTheme = {
   accent: string;
@@ -87,22 +137,76 @@ function planFeatures(plan: Plan): string[] {
   return feats;
 }
 
+type ConfirmState = "idle" | "confirming" | "success" | "timeout";
+
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [confirmState, setConfirmState] = useState<ConfirmState>("idle");
+  const [confirmedPlanName, setConfirmedPlanName] = useState("");
+
+  function loadData() {
+    return Promise.all([listPlans(), getProfile()]).then(([plansData, profile]) => {
+      setPlans(plansData);
+      setCurrentPlan(profile.plan);
+      return plansData;
+    });
+  }
 
   useEffect(() => {
-    Promise.all([listPlans(), getProfile()])
-      .then(([plansData, profile]) => {
-        setPlans(plansData);
-        setCurrentPlan(profile.plan);
-      })
+    loadData()
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (!sessionId) return;
+    const planParam = searchParams.get("plan") || undefined;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    setConfirmState("confirming");
+
+    async function tick() {
+      if (cancelled) return;
+      attempts++;
+      try {
+        const result = await pollSession(sessionId!, planParam);
+        if (cancelled) return;
+        if (result.paid) {
+          const planKey = result.plan || planParam || "";
+          const freshPlans = await loadData();
+          const planInfo = freshPlans.find((p) => p.id === planKey);
+          setConfirmedPlanName(planInfo?.name || planKey);
+          setConfirmState("success");
+          setSearchParams({}, { replace: true });
+          return;
+        }
+      } catch {
+        // sigue reintentando hasta agotar los intentos
+      }
+      if (cancelled) return;
+      if (attempts >= maxAttempts) {
+        setConfirmState("timeout");
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      setTimeout(tick, 2000);
+    }
+
+    tick();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function handleSubscribe(planId: string) {
     setCheckingOut(planId);
@@ -125,11 +229,47 @@ export default function PlansPage() {
 
   return (
     <div>
+      {confirmState === "confirming" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(124,106,255,.3)", background: "rgba(124,106,255,.08)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2"
+            style={{ borderColor: "rgba(124,106,255,.35)", borderTopColor: "#7c6aff" }}
+          />
+          Confirmando tu pago con Stripe…
+        </div>
+      )}
+      {confirmState === "success" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(34,211,160,.3)", background: "rgba(34,211,160,.1)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
+            style={{ background: "rgba(34,211,160,.2)", color: "#22d3a0" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          ¡Listo! Tu plan ahora es <strong>{confirmedPlanName}</strong>.
+        </div>
+      )}
+      {confirmState === "timeout" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)", color: "var(--vf-text)" }}
+        >
+          Recibimos tu pago pero aún no lo confirmamos. Si tu plan no cambia en unos minutos, contáctanos.
+        </div>
+      )}
       <h1
         className="mb-2 text-[34px] font-extrabold"
         style={{
           letterSpacing: "-.8px",
-          background: "linear-gradient(90deg,#eef2ff 30%,rgba(167,139,250,.7))",
+          background: "linear-gradient(90deg,var(--vf-text) 30%,var(--vf-c2))",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           backgroundClip: "text",
@@ -139,7 +279,7 @@ export default function PlansPage() {
       </h1>
       <p
         className="mb-9 max-w-xl font-mono text-[11.5px]"
-        style={{ color: "rgba(255,255,255,.32)", letterSpacing: ".01em" }}
+        style={{ color: "rgba(var(--vf-fg-rgb),.32)", letterSpacing: ".01em" }}
       >
         Escala tu producción. Cancela cuando quieras.
       </p>
@@ -161,10 +301,10 @@ export default function PlansPage() {
                 isFree ? "opacity-75" : ""
               }`}
               style={{
-                background: "rgba(255,255,255,.038)",
+                background: "rgba(var(--vf-fg-rgb),.038)",
                 border: isCurrent
                   ? "1px solid rgba(34,211,160,.42)"
-                  : "1px solid rgba(255,255,255,.09)",
+                  : "1px solid rgba(var(--vf-fg-rgb),.09)",
                 boxShadow: isCurrent
                   ? "0 0 0 1px rgba(34,211,160,.14),0 8px 32px rgba(34,211,160,.07)"
                   : isHighlight
@@ -206,10 +346,10 @@ export default function PlansPage() {
 
                 <div className="mb-1 flex items-center gap-3">
                   <span
-                    className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[13px] text-lg"
+                    className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[13px]"
                     style={{ background: theme.iconBg, color: theme.iconColor, border: theme.iconBorder }}
                   >
-                    {plan.emoji}
+                    {(PLAN_ICONS[plan.id] ?? IconFree)()}
                   </span>
                   <span className="text-[22px] font-extrabold" style={{ letterSpacing: "-.5px", color: theme.nameColor }}>
                     {plan.name}
@@ -220,19 +360,19 @@ export default function PlansPage() {
                   <span className="text-[46px] font-extrabold" style={{ letterSpacing: "-2.5px", lineHeight: 0.88, color: theme.nameColor }}>
                     ${plan.price_usd}
                   </span>
-                  <span className="mb-[5px] text-xs" style={{ color: "rgba(255,255,255,.28)" }}>
+                  <span className="mb-[5px] text-xs" style={{ color: "rgba(var(--vf-fg-rgb),.28)" }}>
                     /mes
                   </span>
                 </div>
 
-                <div className="mb-5 h-px" style={{ background: "rgba(255,255,255,.07)" }} />
+                <div className="mb-5 h-px" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
 
                 <ul className="mb-6 flex flex-1 flex-col gap-[11px]" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {feats.map((f, i) => (
                     <li
                       key={i}
                       className="flex items-start gap-2.5 text-[12.5px]"
-                      style={{ color: "rgba(255,255,255,.68)", lineHeight: 1.4 }}
+                      style={{ color: "rgba(var(--vf-fg-rgb),.68)", lineHeight: 1.4 }}
                     >
                       <span
                         className="mt-[1px] flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
@@ -255,15 +395,15 @@ export default function PlansPage() {
                     letterSpacing: ".06em",
                     ...(isCurrent
                       ? {
-                          background: "rgba(255,255,255,.05)",
-                          border: "1.5px solid rgba(255,255,255,.1)",
-                          color: "rgba(255,255,255,.3)",
+                          background: "rgba(var(--vf-fg-rgb),.05)",
+                          border: "1.5px solid rgba(var(--vf-fg-rgb),.1)",
+                          color: "rgba(var(--vf-fg-rgb),.3)",
                         }
                       : isFree
                         ? {
-                            background: "rgba(255,255,255,.04)",
-                            border: "1px solid rgba(255,255,255,.07)",
-                            color: "rgba(255,255,255,.35)",
+                            background: "rgba(var(--vf-fg-rgb),.04)",
+                            border: "1px solid rgba(var(--vf-fg-rgb),.07)",
+                            color: "rgba(var(--vf-fg-rgb),.35)",
                           }
                         : theme.btnClass === "starter-btn"
                           ? {

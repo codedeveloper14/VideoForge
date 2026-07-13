@@ -11,7 +11,7 @@ const ESTADO_COLORS: Record<string, string> = {
 function estadoClass(estado?: string) {
   return (
     (estado && ESTADO_COLORS[estado]) ||
-    "text-[var(--vf-muted)] border-[var(--vf-border)] bg-white/5"
+    "text-[var(--vf-muted)] border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)]"
   );
 }
 
@@ -89,7 +89,7 @@ export default function JobsPanel() {
                   {job.estado || "?"}
                 </span>
               </div>
-              <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div className="mb-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
                 <div
                   className="h-full rounded-full bg-[var(--vf-accent)] transition-all"
                   style={{ width: `${Math.min(100, Math.max(0, job.progreso || 0))}%` }}

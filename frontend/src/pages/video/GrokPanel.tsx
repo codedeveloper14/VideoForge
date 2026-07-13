@@ -1,4 +1,5 @@
 import * as grokApi from "../../api/grok";
+import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
 import type { ProviderApi, ProviderIniciarParams, ProviderRegenerarParams } from "./ProviderPanel";
 
@@ -63,49 +64,49 @@ export default function GrokPanel({ project }: GrokPanelProps) {
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Aspect Ratio
               </label>
-              <select
+              <Select
                 value={options.aspect_ratio as string}
                 onChange={(e) => setOption("aspect_ratio", e.target.value)}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {ASPECT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
+                  <SelectOption key={o.value} value={o.value}>
                     {o.label}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Duración
               </label>
-              <select
+              <Select
                 value={options.video_length as number}
                 onChange={(e) => setOption("video_length", Number(e.target.value))}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {DURATION_OPTIONS.map((d) => (
-                  <option key={d} value={d}>
+                  <SelectOption key={d} value={d}>
                     {d} seg
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Resolución
               </label>
-              <select
+              <Select
                 value={options.resolution as string}
                 onChange={(e) => setOption("resolution", e.target.value)}
                 className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {RES_OPTIONS.map((r) => (
-                  <option key={r} value={r}>
+                  <SelectOption key={r} value={r}>
                     {r}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </div>

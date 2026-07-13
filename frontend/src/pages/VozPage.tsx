@@ -5,6 +5,7 @@ import WaveSurfer from "wavesurfer.js";
 import { audioFileUrl, loadAudio, loadScript } from "../api/script";
 import type { LoadAudioResult } from "../api/script";
 import { cloneVoice, generateVoice, listVoices, mergeAudio } from "../api/voice";
+import { Select, SelectOption } from "../components/Select";
 import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
@@ -599,7 +600,7 @@ export default function VozPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+                className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
               >
                 + Generar otro
               </button>
@@ -657,7 +658,7 @@ export default function VozPage() {
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Muestra de Audio (máx 10MB)
             </label>
-            <div className="relative mb-3 rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.015] p-5 text-center">
+            <div className="relative mb-3 rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-5 text-center">
               <input
                 type="file"
                 accept="audio/*"
@@ -674,18 +675,18 @@ export default function VozPage() {
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Idioma
             </label>
-            <select
+            <Select
               value={cloneLang}
-              onChange={(e) => setCloneLang(e.target.value)}
+              onChange={(v) => setCloneLang(v)}
               className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
             >
-              <option value="AUTO">Detección Automática</option>
-              <option value="ES_ES">Español</option>
-              <option value="EN_US">Inglés</option>
-              <option value="PT_BR">Portugués</option>
-              <option value="FR_FR">Francés</option>
-              <option value="DE_DE">Alemán</option>
-            </select>
+              <SelectOption value="AUTO">Detección Automática</SelectOption>
+              <SelectOption value="ES_ES">Español</SelectOption>
+              <SelectOption value="EN_US">Inglés</SelectOption>
+              <SelectOption value="PT_BR">Portugués</SelectOption>
+              <SelectOption value="FR_FR">Francés</SelectOption>
+              <SelectOption value="DE_DE">Alemán</SelectOption>
+            </Select>
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
               Transcripción

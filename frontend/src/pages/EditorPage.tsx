@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
+import { Select, SelectOption } from "../components/Select";
 import {
   analizarEscenas,
   cargarPlan,
@@ -376,16 +377,16 @@ export default function EditorPage() {
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-m2)]">
           Proyecto
         </span>
-        <select
+        <Select
           value={project}
           onChange={(e) => handleSelectProject(e.target.value)}
           className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-white/[0.05] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
-          <option value="">— Sin proyecto seleccionado —</option>
+          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
+            <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
-            </option>
+            </SelectOption>
           ))}
         </select>
         {loading && <span className="font-mono text-xs text-[var(--vf-m2)]">Cargando…</span>}
@@ -405,7 +406,7 @@ export default function EditorPage() {
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
             Resolución
           </label>
-          <select
+          <Select
             value={resolucion}
             onChange={(e) => setResolucion(e.target.value)}
             className="w-[150px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
@@ -415,23 +416,23 @@ export default function EditorPage() {
                 {r.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
             Transición
           </label>
-          <select
+          <Select
             value={transicion}
             onChange={(e) => setTransicion(e.target.value)}
             className="w-[130px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
             {TRANSICIONES.map((t) => (
-              <option key={t.value} value={t.value}>
+              <SelectOption key={t.value} value={t.value}>
                 {t.label}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
