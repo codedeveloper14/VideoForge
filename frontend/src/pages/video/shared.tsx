@@ -10,23 +10,32 @@ export interface SectionCardProps {
   className?: string;
 }
 
+// Mirrors the legacy `.gk-card` treatment: 16px radius, subtle border,
+// a 1px gradient hairline along the top edge, and an uppercase mono title.
 export function SectionCard({ title, right, children, className = "" }: SectionCardProps) {
   return (
     <div
       className={
-        "overflow-hidden rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] " +
+        "overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] transition-colors focus-within:border-[color-mix(in_srgb,var(--vf-c1)_35%,transparent)] " +
         className
       }
     >
+      <div
+        className="h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(124,106,255,.2), transparent)",
+        }}
+      />
       {(title || right) && (
-        <div className="flex items-center justify-between border-b border-[var(--vf-border)] px-3 py-2">
-          <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
+        <div className="flex items-center justify-between px-[18px] pb-2.5 pt-3.5">
+          <span className="font-mono text-[10px] font-medium uppercase tracking-[.14em] text-[var(--vf-muted)]">
             {title}
           </span>
           {right}
         </div>
       )}
-      <div className="p-3">{children}</div>
+      <div className="px-[18px] pb-4 pt-1">{children}</div>
     </div>
   );
 }
@@ -53,27 +62,30 @@ export interface LogConsoleProps {
   lines: string[];
 }
 
+// Green-on-black terminal text, mirroring the legacy `#gk-log` palette
+// (log-info #a0e8b0 / log-warn #fbbf24 / log-error #ff5566 / log-done #22d3a0).
 export function LogConsole({ lines }: LogConsoleProps) {
   return (
-    <div className="h-[260px] overflow-y-auto rounded-lg bg-black/30 p-3 font-mono text-[11px] leading-relaxed text-[var(--vf-muted)]">
+    <div className="max-h-[320px] min-h-[160px] overflow-y-auto px-4 py-3.5 font-mono text-[11px] leading-[1.7] break-all whitespace-pre-wrap text-[#a0e8b0]">
       {lines.length === 0 ? (
-        <span className="text-[var(--vf-m2)]">Esperando inicio...</span>
+        <span className="text-[rgba(255,255,255,.25)]">Esperando inicio...</span>
       ) : (
         lines.map((l, i) => {
           const isErr = /❌|\[ERROR\]/.test(l);
           const isWarn = /\[WARNING\]/.test(l);
-          const isOk = /✅|✓/.test(l);
+          const isOk = /✅|✓|completado/i.test(l);
           return (
             <div
               key={i}
               style={{
                 color: isErr
-                  ? "var(--vf-danger)"
+                  ? "#ff5566"
                   : isWarn
-                    ? "var(--vf-c4)"
+                    ? "#fbbf24"
                     : isOk
-                      ? "var(--vf-success)"
+                      ? "var(--vf-c5)"
                       : undefined,
+                fontWeight: isOk ? 700 : undefined,
               }}
             >
               {l}
@@ -81,6 +93,46 @@ export function LogConsole({ lines }: LogConsoleProps) {
           );
         })
       )}
+    </div>
+  );
+}
+
+// Terminal card: black background, gradient hairline, traffic-light dots
+// header with a centered title and a "limpiar" clear button — mirrors
+// `.gk-terminal` / `.gk-term-header` from the legacy reference.
+export interface TerminalCardProps {
+  title: string;
+  onClear?: () => void;
+  children?: ReactNode;
+}
+
+export function TerminalCard({ title, onClear, children }: TerminalCardProps) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] bg-[#0a0a0f]">
+      <div
+        className="h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(124,106,255,.3), transparent)",
+        }}
+      />
+      <div className="flex items-center gap-2 border-b border-white/[0.04] px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+        <span className="ml-1 flex-1 text-center font-mono text-[10px] tracking-[.08em] text-white/30">
+          {title}
+        </span>
+        {onClear && (
+          <button
+            onClick={onClear}
+            className="rounded px-1.5 py-0.5 font-mono text-[9px] text-white/25 hover:text-white/50"
+          >
+            limpiar
+          </button>
+        )}
+      </div>
+      {children}
     </div>
   );
 }
@@ -176,7 +228,9 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
 
   return (
     <div>
-      <label className="block cursor-pointer rounded-lg border border-dashed border-[var(--vf-b2)] p-5 text-center transition-colors hover:border-[var(--vf-c1)]">
+      <label
+        className="relative block cursor-pointer rounded-xl border-[1.5px] border-dashed border-[var(--vf-b2)] bg-white/[0.015] p-7 text-center transition-all hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--vf-c1)_5%,transparent)]"
+      >
         <input
           type="file"
           multiple
@@ -187,7 +241,7 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
             e.target.value = "";
           }}
         />
-        <div className="mb-1 text-2xl">🖼️</div>
+        <div className="mb-1.5 text-[28px]">🖼️</div>
         <div className="font-mono text-xs text-[var(--vf-text)]">
           <strong>Clic o arrastra</strong> las imágenes
         </div>
@@ -198,11 +252,11 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
 
       {files.length > 0 && (
         <>
-          <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+          <div className="mt-2.5 flex flex-wrap gap-1.5">
             {files.map((f, i) => (
               <div
                 key={i}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--vf-border)] bg-black/40"
+                className="group relative h-[52px] w-[52px] flex-shrink-0 overflow-hidden rounded-[7px] border border-[var(--vf-border)]"
               >
                 <img
                   src={URL.createObjectURL(f)}
@@ -223,7 +277,7 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
             ))}
           </div>
           <div className="mt-2 flex items-center gap-3">
-            <span className="font-mono text-[10px] text-[var(--vf-success)]">
+            <span className="font-mono text-[10px] text-[var(--vf-c5)]">
               ✓ {files.length} imagen{files.length !== 1 ? "es" : ""} cargada
               {files.length !== 1 ? "s" : ""}
             </span>
@@ -336,17 +390,17 @@ export interface SlotPickerProps {
 
 export function SlotPicker({ value, onChange, max = 12 }: SlotPickerProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="mt-1 flex flex-wrap gap-1.5">
       {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
         <button
           key={n}
           type="button"
           onClick={() => onChange(n)}
           className={
-            "h-7 w-7 rounded-md border font-mono text-[11px] transition-colors " +
+            "flex h-9 w-9 items-center justify-center rounded-lg border font-mono text-xs transition-all " +
             (n === value
-              ? "border-[var(--vf-c1)] bg-[var(--vf-c1)] text-white"
-              : "border-[var(--vf-b2)] text-[var(--vf-muted)] hover:border-[var(--vf-c1)]")
+              ? "border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] bg-[color-mix(in_srgb,var(--vf-c1)_15%,transparent)] text-[var(--vf-c2)] shadow-[0_0_10px_rgba(124,106,255,.2)]"
+              : "border-[var(--vf-b2)] text-[var(--vf-muted)] hover:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)] hover:text-[var(--vf-text)]")
           }
         >
           {n}
@@ -377,36 +431,35 @@ export function VideoGallery({ videos, project, videoUrl, onRegenerate }: VideoG
       {videos.map((v) => (
         <div
           key={v}
-          className="overflow-hidden rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] transition-transform hover:-translate-y-0.5"
+          className="overflow-hidden rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] transition-all hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--vf-c1)_30%,transparent)]"
         >
           <video
             src={videoUrl(project, v)}
-            className="h-[110px] w-full object-cover"
+            className="block aspect-[2/3] w-full bg-[#111] object-cover"
             muted
             loop
             playsInline
             controls
             preload="metadata"
           />
-          <div
-            className="truncate px-2 py-1.5 font-mono text-[9px] text-[var(--vf-muted)]"
-            title={v}
-          >
-            {v}
-          </div>
-          <div className="flex gap-1.5 px-2 pb-2">
+          <div className="px-2.5 py-2">
+            <div
+              className="truncate font-mono text-[9px] text-[var(--vf-muted)]"
+              title={v}
+            >
+              {v}
+            </div>
             <a
               href={videoUrl(project, v, 1)}
               download={v}
-              className="flex-1 rounded-md px-2 py-1 text-center font-mono text-[9px] text-white"
-              style={{ background: "linear-gradient(135deg, var(--vf-c1), var(--vf-c2))" }}
+              className="mt-1.5 block rounded-[5px] bg-[rgba(124,106,255,.08)] py-1 text-center font-mono text-[9.5px] text-[var(--vf-c2)] transition-colors hover:bg-[rgba(124,106,255,.18)]"
             >
               ⬇ Descargar
             </a>
             {onRegenerate && (
               <button
                 onClick={() => onRegenerate(v)}
-                className="rounded-md border px-2 py-1 font-mono text-[9px]"
+                className="mt-1.5 block w-full rounded-[5px] border py-1 text-center font-mono text-[9.5px]"
                 style={{
                   background: "rgba(251,191,36,.1)",
                   borderColor: "rgba(251,191,36,.2)",

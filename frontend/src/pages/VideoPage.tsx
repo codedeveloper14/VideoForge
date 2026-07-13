@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { listProjects } from "../api/projects";
-import type { Project } from "../types";
+import { PipelineStepper } from "../components/PipelineStepper";
+import { HeaderArt } from "../components/HeaderArt";
 import GrokPanel from "./video/GrokPanel";
 import QwenPanel from "./video/QwenPanel";
 import MetaPanel from "./video/MetaPanel";
@@ -14,16 +14,8 @@ const TABS = [
 
 export default function VideoPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
-  const [error, setError] = useState("");
   const [tab, setTab] = useState(searchParams.get("tab") || "grok");
-
-  useEffect(() => {
-    listProjects()
-      .then(setProjects)
-      .catch((err) => setError((err as Error).message));
-  }, []);
 
   useEffect(() => {
     setSearchParams((prev) => {
@@ -36,52 +28,50 @@ export default function VideoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, tab]);
 
+  // The project is now selected exclusively via the workspace tabs/sidebar in
+  // AppLayout, which navigate with a new ?project= value — keep local state
+  // in sync when that happens.
+  useEffect(() => {
+    const fromUrl = searchParams.get("project") || "";
+    setProject((prev) => (fromUrl && fromUrl !== prev ? fromUrl : prev));
+  }, [searchParams]);
+
   return (
     <div>
-      <div className="mb-5">
-        <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-m2)]">
-          <span
-            className="h-[5px] w-[5px] rounded-full"
-            style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-          />
-          Módulo · Video Animator
-        </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-[var(--vf-text)] md:text-4xl">
-          Video{" "}
-          <span
-            style={{
-              background:
-                "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            Animator
-          </span>
-        </h1>
-        <p className="mt-2 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-          Sube tus imágenes y anímalas en clips de video usando Grok, Qwen o Meta.
-        </p>
-      </div>
+      {project && <PipelineStepper project={project} current="video" />}
 
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-3">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Proyecto
-        </span>
-        <select
-          value={project}
-          onChange={(e) => setProject(e.target.value)}
-          className="min-w-[200px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
-        >
-          <option value="">— Sin proyecto seleccionado —</option>
-          {projects.map((p) => (
-            <option key={p.nombre} value={p.nombre}>
-              {p.nombre}
-            </option>
-          ))}
-        </select>
-        {error && <span className="text-xs text-[var(--vf-danger)]">{error}</span>}
+      <div
+        className="relative mb-9 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
+        style={{ background: "linear-gradient(165deg,rgba(18,22,34,.9),rgba(10,14,24,.95))" }}
+      >
+        <div className="flex items-center gap-5">
+          <div className="min-w-0 max-w-2xl flex-1">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+              <span
+                className="h-[5px] w-[5px] rounded-full"
+                style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
+              />
+              Módulo 05 · Video Animator
+            </div>
+            <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Video{" "}
+              <span
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
+                }}
+              >
+                Animator
+              </span>
+            </h1>
+            <p className="font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
+              Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok,
+              Qwen o Meta AI.
+            </p>
+          </div>
+          <HeaderArt />
+        </div>
       </div>
 
       <div className="mb-4 inline-flex rounded-full border border-[var(--vf-border)] bg-[var(--vf-surface)] p-1 font-mono text-xs">

@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { WorkspaceProvider, useWorkspace, type PipelinePage } from "../context/WorkspaceContext";
+import { createProject, listProjects } from "../api/projects";
+import type { Project } from "../types";
 
 function IconHome() {
   return (
@@ -68,6 +71,30 @@ function IconUpgrade() {
     </svg>
   );
 }
+function IconSearch() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+function IconBell() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+function IconPlus() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
 
 function xiClass({ isActive }: { isActive: boolean }) {
   return (
@@ -76,12 +103,265 @@ function xiClass({ isActive }: { isActive: boolean }) {
   );
 }
 
-export default function AppLayout() {
+const PIPELINE_STEPS: { page: PipelinePage; label: string }[] = [
+  { page: "guion", label: "Guión escrito" },
+  { page: "imagen", label: "Generación de imágenes" },
+  { page: "voz", label: "Generación de voz" },
+  { page: "video", label: "Generación de video" },
+  { page: "render", label: "Renderizado" },
+];
+
+function CreateProjectModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (name: string) => void;
+}) {
+  const [nombre, setNombre] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    setCreating(true);
+    setError("");
+    try {
+      await createProject(nombre.trim());
+      onCreated(nombre.trim());
+    } catch (err) {
+      setError((err as Error).message);
+      setCreating(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[380px] rounded-2xl border border-[rgba(255,255,255,.08)] bg-[#0f0f1e] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
+      >
+        <h2 className="mb-3 text-lg font-bold text-[#eeeef5]">Nuevo Proyecto</h2>
+        <input
+          autoFocus
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder="Nombre del proyecto"
+          className="mb-3 w-full rounded-lg border border-[rgba(255,255,255,.1)] bg-white/[0.04] px-3 py-2 text-sm text-[#eeeef5] outline-none focus:border-[#7c6aff]"
+        />
+        {error && <p className="mb-3 text-xs text-[#ff5566]">{error}</p>}
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-[rgba(255,255,255,.1)] px-4 py-2 text-sm text-[#a0a0b8] hover:bg-white/[0.04]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
+          >
+            {creating ? "Creando…" : "Crear proyecto →"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name: string) => void }) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    listProjects().then(setProjects).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  const filtered = projects.filter((p) => p.nombre.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-0 top-[52px] z-[960] w-[300px] rounded-xl border border-[rgba(255,255,255,.1)] bg-[#0d0d1c] p-2 shadow-[0_16px_44px_rgba(0,0,0,.6)]"
+    >
+      <input
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar proyectos…"
+        className="mb-1.5 w-full rounded-lg border border-[rgba(255,255,255,.08)] bg-white/[0.04] px-3 py-2 text-sm text-[#eeeef5] outline-none"
+      />
+      <div className="max-h-[260px] overflow-y-auto">
+        {filtered.length === 0 && (
+          <p className="px-2 py-3 text-center text-xs text-[#5a5a75]">Sin proyectos</p>
+        )}
+        {filtered.map((p) => (
+          <button
+            key={p.nombre}
+            onClick={() => onPick(p.nombre)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-[#c8c8d8] hover:bg-white/[0.06]"
+          >
+            {p.nombre}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TopBar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { tabs, openProject, closeTab } = useWorkspace();
+  const [showCreate, setShowCreate] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  const activeProject = searchParams.get("project") || "";
+  const onHome = location.pathname === "/app/home" || location.pathname === "/app";
+
+  return (
+    <header
+      className="fixed left-[220px] right-0 top-0 z-[910] flex h-12 items-center gap-2.5 border-b border-[rgba(255,255,255,.06)] bg-[rgba(6,6,12,.92)] px-4 backdrop-blur-[16px]"
+    >
+      <button
+        onClick={() => navigate("/app/home")}
+        title="Inicio"
+        className={
+          "flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-lg border transition-colors " +
+          (onHome
+            ? "border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.15)] text-[#a78bfa]"
+            : "border-[rgba(255,255,255,.1)] bg-white/[0.06] text-[#7a7a96] hover:border-[rgba(124,106,255,.35)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]")
+        }
+      >
+        <IconHome />
+      </button>
+
+      <div className="flex items-end gap-[3px]">
+        {tabs.map((name) => {
+          const isActive = name === activeProject;
+          return (
+            <button
+              key={name}
+              onClick={() => openProject(name)}
+              title={name}
+              className={
+                "flex h-9 min-w-[80px] max-w-[180px] items-center gap-1.5 overflow-hidden rounded-t-lg border border-b-0 px-2.5 text-[12px] font-medium transition-colors " +
+                (isActive
+                  ? "border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.15)] text-[#eeeef5]"
+                  : "border-[rgba(255,255,255,.09)] bg-white/[0.04] text-[#5a5a75] hover:bg-white/[0.08] hover:text-[#eeeef5]")
+              }
+              style={isActive ? { borderTopColor: "#7c6aff", borderTopWidth: 2 } : undefined}
+            >
+              <span className="truncate">{name}</span>
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(name);
+                  if (isActive) navigate("/app/home");
+                }}
+                className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded text-[9.5px] text-white/25 hover:bg-white/10 hover:text-[#eeeef5]"
+              >
+                ✕
+              </span>
+            </button>
+          );
+        })}
+        <button
+          onClick={() => setShowCreate(true)}
+          title="Nueva pestaña"
+          className="mb-[3px] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-[rgba(255,255,255,.22)] bg-white/[0.05] text-[#7a7a96] hover:border-[rgba(124,106,255,.55)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]"
+        >
+          +
+        </button>
+      </div>
+
+      <div className="flex-1" />
+
+      <div className="relative">
+        <button
+          onClick={() => setShowSearch((v) => !v)}
+          className="flex min-w-[200px] items-center gap-2 rounded-lg border border-[rgba(255,255,255,.08)] bg-white/[0.05] px-3 py-1.5 text-[#5a5a75] hover:border-[rgba(124,106,255,.25)] hover:bg-white/[0.08]"
+        >
+          <IconSearch />
+          <span className="flex-1 text-left text-[11.5px]">Buscar proyectos...</span>
+          <kbd className="rounded border border-[rgba(255,255,255,.08)] bg-white/[0.06] px-1 py-0.5 text-[9px] text-[#38384e]">⌘K</kbd>
+        </button>
+        {showSearch && (
+          <ProjectSearch
+            onClose={() => setShowSearch(false)}
+            onPick={(name) => {
+              setShowSearch(false);
+              openProject(name);
+            }}
+          />
+        )}
+      </div>
+
+      <button
+        onClick={() => setShowCreate(true)}
+        className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-[15px] py-1.5 text-[12.5px] font-semibold text-white shadow-[0_4px_14px_rgba(124,106,255,.38)] transition-all hover:-translate-y-px hover:opacity-90"
+        style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
+      >
+        <IconPlus /> Nuevo Proyecto
+      </button>
+
+      <button
+        onClick={() => navigate("/app/tareas")}
+        className="flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-[#5a5a75] hover:bg-white/[0.06] hover:text-[#eeeef5]"
+      >
+        <IconTasks /> Tareas
+      </button>
+
+      <button
+        className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[#5a5a75] hover:bg-white/[0.07] hover:text-[#eeeef5]"
+        title="Notificaciones"
+      >
+        <IconBell />
+      </button>
+
+      {showCreate && (
+        <CreateProjectModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(name) => {
+            setShowCreate(false);
+            openProject(name);
+          }}
+        />
+      )}
+    </header>
+  );
+}
+
+function AppLayoutInner() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const initial = (user || "?").charAt(0).toUpperCase();
+
+  const activeProject = searchParams.get("project") || "";
+  const currentPage = PIPELINE_STEPS.find((s) => location.pathname === `/app/${s.page}`)?.page;
+  const showPipeline = !!activeProject && !!currentPage;
 
   return (
     <div className="flex min-h-screen" style={{ background: "#06060c", color: "#eeeef5" }}>
@@ -117,7 +397,7 @@ export default function AppLayout() {
           </div>
         </NavLink>
 
-        <nav className="flex flex-1 flex-col gap-px px-2 pt-2.5">
+        <nav className="flex flex-shrink-0 flex-col gap-px px-2 pt-2.5">
           <NavLink to="/app/home" end className={xiClass}>
             <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
@@ -163,6 +443,39 @@ export default function AppLayout() {
             Ajustes
           </NavLink>
         </nav>
+
+        {showPipeline && (
+          <div className="mt-1 flex-shrink-0 border-t border-[rgba(255,255,255,.06)] px-2.5 pb-2 pt-3">
+            <span className="mb-2 block px-px text-[9.5px] font-bold uppercase tracking-[0.12em] text-[#4a4a63]">
+              Pipeline
+            </span>
+            {PIPELINE_STEPS.map((step, i) => {
+              const isOn = step.page === currentPage;
+              return (
+                <button
+                  key={step.page}
+                  onClick={() => navigate(`/app/${step.page}?project=${encodeURIComponent(activeProject)}`)}
+                  className={
+                    "flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-left text-[13px] font-medium transition-colors " +
+                    (isOn ? "bg-gradient-to-r from-[rgba(124,106,255,.18)] to-[rgba(124,106,255,.06)] text-[#eeeef5]" : "text-[#5a5a7a] hover:bg-white/[0.05] hover:text-[#eeeef5]")
+                  }
+                >
+                  <span
+                    className={
+                      "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-[6px] border text-[11px] font-bold " +
+                      (isOn ? "border-[rgba(124,106,255,.4)] bg-[rgba(124,106,255,.3)] text-[#a78bfa]" : "border-[rgba(255,255,255,.08)] bg-white/[0.07] text-[#5a5a7a]")
+                    }
+                  >
+                    {i + 1}
+                  </span>
+                  {step.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex-1" />
 
         <div
           className="mx-2 mb-1.5 mt-3 flex-shrink-0 rounded-xl px-[13px] pb-[11px] pt-[13px]"
@@ -282,9 +595,19 @@ export default function AppLayout() {
         </div>
       </aside>
 
-      <main className="ml-[220px] flex-1 overflow-y-auto p-8" style={{ background: "#06060c" }}>
+      <TopBar />
+
+      <main className="ml-[220px] mt-12 flex-1 overflow-y-auto p-8" style={{ background: "#06060c" }}>
         <Outlet />
       </main>
     </div>
+  );
+}
+
+export default function AppLayout() {
+  return (
+    <WorkspaceProvider>
+      <AppLayoutInner />
+    </WorkspaceProvider>
   );
 }

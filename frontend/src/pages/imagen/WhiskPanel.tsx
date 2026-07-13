@@ -191,8 +191,27 @@ export default function WhiskPanel({ outputDir, resolvingDir }: WhiskPanelProps)
 
   return (
     <div>
-      <p className="mb-4 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-        Genera imágenes con Google Whisk y guárdalas en la carpeta del proyecto.
+      <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+        <span
+          className="h-[5px] w-[5px] rounded-full"
+          style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
+        />
+        Módulo 03 · Whisk AI
+      </div>
+      <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+        Generación de{" "}
+        <span
+          className="bg-clip-text text-transparent"
+          style={{
+            backgroundImage:
+              "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
+          }}
+        >
+          Imágenes
+        </span>
+      </h1>
+      <p className="mb-6 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
+        Genera imágenes con Google Whisk y guárdalas directamente en la carpeta del proyecto.
       </p>
 
       <div className="mb-4 grid grid-cols-[260px_1fr] gap-4 max-lg:grid-cols-1">

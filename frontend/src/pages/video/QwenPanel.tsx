@@ -64,13 +64,13 @@ export default function QwenPanel({ project }: QwenPanelProps) {
           </label>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Aspect Ratio
               </label>
               <select
                 value={options.aspect_ratio as string}
                 onChange={(e) => setOption("aspect_ratio", e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {ASPECT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -80,13 +80,13 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Tamaño
               </label>
               <select
                 value={options.size as string}
                 onChange={(e) => setOption("size", e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {SIZE_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -96,14 +96,14 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Timeout (s)
               </label>
               <input
                 type="number"
                 value={options.timeout as number}
                 onChange={(e) => setOption("timeout", Number(e.target.value))}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               />
             </div>
           </div>

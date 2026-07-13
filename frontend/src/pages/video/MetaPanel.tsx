@@ -91,13 +91,13 @@ export default function MetaPanel({ project }: MetaPanelProps) {
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Modo
               </label>
               <select
                 value={options.mode as string}
                 onChange={(e) => setOption("mode", e.target.value)}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {MODE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -107,14 +107,14 @@ export default function MetaPanel({ project }: MetaPanelProps) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 Timeout (s)
               </label>
               <input
                 type="number"
                 value={options.timeout as number}
                 onChange={(e) => setOption("timeout", Number(e.target.value))}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               />
             </div>
           </div>

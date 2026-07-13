@@ -15,18 +15,9 @@ import {
   flowStop,
 } from "../../api/flow";
 import type { FlowAccount, FlowChromiumProfile } from "../../api/flow";
-import {
-  ErrorText,
-  GhostButton,
-  ImageGallery,
-  LogConsole,
-  PrimaryButton,
-  ProgressBar,
-  SectionCard,
-  StopButton,
-  countPrompts,
-} from "./shared";
+import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
+import { HeaderArt } from "../../components/HeaderArt";
 
 const POLL_MS = 2000;
 
@@ -244,13 +235,66 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div>
-      <p className="mb-4 max-w-2xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-        Generación por lotes con Google Flow (Labs). Las imágenes se guardan en la carpeta de
-        imágenes del proyecto activo.
-      </p>
+    <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-2">
+      <div
+        className="relative mb-0.5 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
+        style={{ background: "linear-gradient(165deg,rgba(18,22,34,.9),rgba(10,14,24,.95))" }}
+      >
+        <div className="flex flex-shrink-0 gap-1.5 sm:absolute sm:right-5 sm:top-5">
+          <span className="rounded-md border border-[rgba(124,106,255,.22)] bg-[rgba(124,106,255,.1)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[#a78bfa]">
+            Módulo 03
+          </span>
+          <span className="rounded-md border border-[rgba(255,255,255,.08)] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold tracking-[0.06em] text-[#4a4a63]">
+            Labs
+          </span>
+        </div>
+        <div className="flex items-center gap-5">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2.5 flex items-center gap-3.5">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] border border-[rgba(124,106,255,.3)]" style={{ background: "linear-gradient(135deg,rgba(124,106,255,.22),rgba(192,38,211,.12))" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-[1px]">
+                <div className="text-[10px] font-bold tracking-[0.18em] text-[rgba(124,106,255,.6)]">Módulo 03 · Producción IA</div>
+                <h1 className="m-0 text-[26px] font-bold leading-[1.1] tracking-[-0.025em] text-[var(--vf-text)]">
+                  Imágenes con{" "}
+                  <span
+                    className="bg-clip-text text-transparent"
+                    style={{ backgroundImage: "linear-gradient(90deg,#a78bfa,#f472b6)" }}
+                  >
+                    Google Flow
+                  </span>
+                </h1>
+              </div>
+            </div>
+            <p className="mb-3.5 max-w-[560px] text-[13.5px] leading-[1.55] text-[#6a6a90]">
+              Generación por lotes con Google Labs. Las imágenes se guardan en la carpeta de imágenes
+              del proyecto activo. Ajusta slots, ratio y modelo a la derecha.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {["📦 Lotes", "👥 Multi-cuenta", "🖼 Referencia visual", "🧪 Google Labs"].map((chip, i) => (
+                <span
+                  key={chip}
+                  className={
+                    i === 0
+                      ? "rounded-[7px] border border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.16)] px-[11px] py-1 text-[11px] text-[#c0bef5]"
+                      : "rounded-[7px] border border-[rgba(124,106,255,.16)] bg-[rgba(124,106,255,.05)] px-[11px] py-1 text-[11px] text-[#6060a0]"
+                  }
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          </div>
+          <HeaderArt />
+        </div>
+      </div>
 
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2">
+      <div className="flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2">
         <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
           Destino:
         </span>
@@ -261,25 +305,40 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         </span>
       </div>
 
-      <div className="mb-4 grid grid-cols-[1.35fr_460px] gap-4 max-[1040px]:grid-cols-1">
-        <div className="flex flex-col gap-3.5">
-          <SectionCard
-            title={`Prompts · ${countPrompts(prompts)}`}
-            right={
-              <button onClick={() => setPrompts("")} className="font-mono text-[10px] text-[var(--vf-muted)]">
-                ✕ Vaciar
-              </button>
-            }
-          >
+      <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(320px,460px)] items-start gap-x-6 gap-y-4 max-[1040px]:grid-cols-1">
+        <div className="flex w-full flex-col gap-3.5">
+          <section className="flow-card">
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
+                Prompts · {countPrompts(prompts)}
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrompts("")}
+                  className="flow-btn flow-btn--ghost"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
             <textarea
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
-              placeholder={"Un prompt por línea. Ejemplo:\nCinematic wide shot, golden hour, anamorphic flare"}
-              className="min-h-[176px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-3 font-mono text-xs leading-relaxed text-[var(--vf-text)] outline-none"
+              placeholder={"Un prompt por línea. Ejemplo:\nCinematic wide shot, golden hour, anamorphic flare\nMinimal product still life, soft gradient backdrop"}
+              className="flow-textarea"
             />
-          </SectionCard>
+          </section>
 
-          <SectionCard title="Referencia visual" right={<span className="font-mono text-[9px] text-[var(--vf-muted)]">Opcional · guía de estilo</span>}>
+          <section className="flow-card">
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
+                Referencia visual
+              </span>
+              <span className="font-mono text-[9px] text-[var(--vf-muted)] opacity-75">
+                Opcional · guía de estilo
+              </span>
+            </div>
             <input
               ref={refInputRef}
               type="file"
@@ -287,51 +346,74 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               className="hidden"
               onChange={handleRefFileChange}
             />
-            {referenceImage ? (
-              <div className="flex items-center gap-3 rounded-lg border border-[var(--vf-border)] bg-white/[0.04] p-2.5">
-                <img src={referenceImage} alt="" className="h-16 w-16 rounded-md object-cover" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-[10px] text-[var(--vf-text)]">{referenceImageName}</p>
-                  <button
-                    onClick={() => refInputRef.current?.click()}
-                    className="font-mono text-[10px] text-[var(--vf-c2)] underline"
-                  >
-                    Reemplazar
-                  </button>
+            <div
+              onClick={() => refInputRef.current?.click()}
+              className={"flow-ref-zone" + (referenceImage ? " flow-ref-zone--has" : "")}
+            >
+              {referenceImage ? (
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex min-w-0 flex-col gap-1 text-left">
+                    <div className="font-mono text-xs font-semibold tracking-wide text-[var(--vf-text)]">
+                      Imagen adjunta
+                    </div>
+                    <div className="font-mono text-[9px] leading-relaxed text-[var(--vf-m2)] opacity-90">
+                      Clic o arrastra para reemplazar
+                    </div>
+                  </div>
+                  <div className="relative flex min-h-[104px] min-w-[112px] items-center justify-center p-1.5">
+                    <img
+                      src={referenceImage}
+                      alt={referenceImageName}
+                      className="mx-auto block max-h-[104px] max-w-[min(200px,42vw)] rounded-xl border border-white/10 object-contain shadow-[0_10px_28px_rgba(0,0,0,.4)]"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReferenceImage("");
+                        setReferenceImageName("");
+                        if (refInputRef.current) refInputRef.current.value = "";
+                      }}
+                      type="button"
+                      className="flow-ref-x"
+                      aria-label="Quitar"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setReferenceImage("");
-                    setReferenceImageName("");
-                    if (refInputRef.current) refInputRef.current.value = "";
-                  }}
-                  className="rounded-full px-2 py-1 font-mono text-xs text-[var(--vf-danger)]"
-                  aria-label="Quitar"
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => refInputRef.current?.click()}
-                className="flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-[var(--vf-border)] bg-white/[0.02] px-3 py-5 text-center transition-colors hover:border-[var(--vf-c2)]"
-              >
-                <span className="font-mono text-[11px] text-[var(--vf-text)]">Adjuntar imagen</span>
-                <span className="font-mono text-[9px] text-[var(--vf-muted)]">
-                  Haz clic para elegir · JPG, PNG, WebP
-                </span>
-              </button>
-            )}
-          </SectionCard>
+              ) : (
+                <div className="flex flex-wrap items-center justify-center gap-3.5">
+                  <div className="flex min-w-0 max-w-full items-center gap-3.5">
+                    <span className="flow-ref-ico" aria-hidden="true" />
+                    <div>
+                      <div className="mb-1 font-mono text-[11px] font-semibold tracking-wide text-[var(--vf-text)]">
+                        Adjuntar imagen
+                      </div>
+                      <span className="block font-mono text-[10px] leading-relaxed text-[var(--vf-m2)]">
+                        Arrastra aquí o haz clic · JPG, PNG, WebP
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         <div className="flex flex-col gap-3.5">
-          <SectionCard title="Parámetros">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
-                  Slots paralelos · <span className="text-[var(--vf-c2)]">{slots}</span>
+          <section className="flow-card" style={{ padding: "14px 16px" }}>
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
+                Parámetros
+              </span>
+              <span className="font-mono text-[9px] text-[var(--vf-muted)] opacity-75">
+                Slots · ratio · modelo
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1">
+              <div className="col-span-2 flex flex-col gap-2 max-[400px]:col-span-1">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
+                  Slots paralelos · <span className="font-semibold text-[var(--vf-c2)]">{slots}</span>
                 </label>
                 <input
                   type="range"
@@ -339,44 +421,40 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   max={10}
                   value={slots}
                   onChange={(e) => setSlots(Number(e.target.value))}
-                  className="w-full accent-[var(--vf-c2)]"
+                  className="w-full accent-[#a78bfa]"
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   Aspect ratio
                 </label>
                 <select
                   value={aspect}
                   onChange={(e) => setAspect(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="flow-select"
                 >
                   <option value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</option>
                   <option value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</option>
                   <option value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</option>
                 </select>
               </div>
-              <div>
-                <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   Modelo
                 </label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
-                >
+                <select value={model} onChange={(e) => setModel(e.target.value)} className="flow-select">
                   <option value="NANO_BANANA_2">Nano Banana 2 · calidad</option>
                   <option value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</option>
                 </select>
               </div>
-              <div>
-                <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   Reintentos
                 </label>
                 <select
                   value={maxRetries}
                   onChange={(e) => setMaxRetries(Number(e.target.value))}
-                  className="w-full rounded-lg border border-[var(--vf-border)] bg-white/[0.04] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+                  className="flow-select"
                 >
                   <option value={1}>1</option>
                   <option value={2}>2 · equilibrado</option>
@@ -384,27 +462,40 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 </select>
               </div>
             </div>
-          </SectionCard>
+          </section>
 
-          <SectionCard>
+          <section className="flow-card" style={{ padding: "14px 16px" }}>
             <div className="mb-2.5 flex items-center justify-between">
-              <span className="font-mono text-[11px] text-[var(--vf-muted)]">{progress.label}</span>
+              <span className="font-mono text-[11px] text-[var(--vf-m)]">{progress.label}</span>
               <span className="font-mono text-[11px] font-semibold text-[var(--vf-c2)]">{pct}%</span>
             </div>
-            <ProgressBar pct={pct} />
-            <div className="mt-3 flex gap-3">
-              <PrimaryButton onClick={handleStart} disabled={running}>
+            <div className="flow-progress-track mb-3.5">
+              <div className="flow-progress-fill" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleStart}
+                disabled={running}
+                className="flow-btn flow-btn--primary"
+              >
                 ⚡ Iniciar generación
-              </PrimaryButton>
-              <StopButton onClick={handleStop} disabled={!running}>
+              </button>
+              <button
+                type="button"
+                onClick={handleStop}
+                disabled={!running}
+                className="flow-btn flow-btn--danger"
+              >
                 ⏹ Detener
-              </StopButton>
+              </button>
             </div>
             <ErrorText message={error} />
 
-            <details className="mt-3 overflow-hidden rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)]">
-              <summary className="cursor-pointer px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Cuentas / Perfiles Chromium
+            <details className="mt-2.5 overflow-hidden rounded-[10px] border border-[var(--vf-border)] bg-[var(--vf-s)]">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
+                <span>// Perfiles Chromium</span>
+                <span className="text-[8px] text-[var(--vf-m2)]">Cada perfil = cuota independiente</span>
               </summary>
               <div className="flex flex-col gap-1.5 px-2.5 pb-2.5">
                 {accounts.length === 0 && chromiumProfiles.length === 0 ? (
@@ -442,51 +533,77 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     ))}
                   </>
                 )}
+                <p className="px-0.5 font-mono text-[9px] text-[var(--vf-m2)]">
+                  Abre un perfil con la extensión activa. Inicia sesión en Google.
+                </p>
                 <div className="mt-1 flex gap-2">
-                  <GhostButton onClick={() => flowOpenAll().catch(() => {})} className="flex-1">
+                  <button
+                    type="button"
+                    onClick={() => flowOpenAll().catch(() => {})}
+                    className="flow-btn flow-btn--ghost flow-btn--xs flex-1"
+                  >
                     Abrir todos
-                  </GhostButton>
-                  <GhostButton onClick={handleResetChromium} className="flex-1">
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetChromium}
+                    className="flow-btn flow-btn--ghost flow-btn--xs flex-1"
+                  >
                     Reset
-                  </GhostButton>
+                  </button>
                 </div>
               </div>
             </details>
-          </SectionCard>
+          </section>
         </div>
       </div>
 
-      <SectionCard
-        title="Galería"
-        right={
+      <section className="flow-card pb-4">
+        <div className="mb-3 flex items-center justify-between gap-2.5">
+          <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
+            Galería
+          </span>
           <div className="flex gap-2">
-            <GhostButton onClick={refreshImages}>↺ Actualizar</GhostButton>
-            <GhostButton onClick={() => flowAbrirCarpeta().catch(() => {})}>📁</GhostButton>
+            <button
+              type="button"
+              onClick={refreshImages}
+              className="flow-btn flow-btn--ghost flow-btn--xs"
+            >
+              ↺ Actualizar
+            </button>
+            <button
+              type="button"
+              onClick={() => flowAbrirCarpeta().catch(() => {})}
+              className="flow-btn flow-btn--ghost flow-btn--xs"
+            >
+              📁
+            </button>
           </div>
-        }
-        className="mb-4"
-      >
-        <ImageGallery
-          images={images}
-          renderOverlay={(img) => (
-            <>
-              <button
-                onClick={() => handleRetry(img, images.indexOf(img))}
-                className="rounded bg-[var(--vf-c1)]/90 px-2 py-1 text-[11px] font-bold text-white"
-              >
-                ↺
-              </button>
-              <a
-                href={img.src}
-                download={img.name}
-                className="rounded bg-[var(--vf-c1)]/90 px-2 py-1 text-[11px] font-bold text-white"
-              >
-                ⬇
-              </a>
-            </>
-          )}
-        />
-      </SectionCard>
+        </div>
+        {images.length === 0 ? (
+          <div className="flow-gallery-empty">Sin imágenes todavía</div>
+        ) : (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2.5">
+            {images.map((img, i) => (
+              <div key={img.key || i} className="flow-img-wrap aspect-square">
+                <img src={img.src} alt={img.name || ""} loading="lazy" />
+                <div className="flow-img-overlay">
+                  <button
+                    onClick={() => handleRetry(img, i)}
+                    className="flow-retry-btn"
+                    title="Reintentar"
+                  >
+                    ↺
+                  </button>
+                  <a href={img.src} download={img.name} className="flow-dl-btn">
+                    ⬇
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <details>
         <summary className="cursor-pointer font-mono text-[10px] text-[var(--vf-muted)]">
