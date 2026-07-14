@@ -119,21 +119,7 @@ export default function RegisterPage() {
         >
           {/* Logo */}
           <div className="mb-7 flex items-center justify-center gap-3.5">
-            <div
-              className="relative flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl"
-              style={{
-                background: "linear-gradient(145deg,#4f35d6 0%,#7c6aff 45%,#a855f7 100%)",
-                boxShadow: "0 0 0 1px rgba(168,85,247,.2), 0 8px 28px rgba(124,106,255,.55), 0 0 60px rgba(124,106,255,.12)",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="19" height="19" className="relative z-10">
-                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(var(--vf-fg-rgb),.22)" />
-                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="white" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="" className="h-[46px] w-[46px] flex-shrink-0 object-contain" />
             <div className="flex flex-col gap-0.5">
               <span className="text-[21px] font-extrabold leading-none tracking-[-0.6px]">Studio IVR</span>
               <span

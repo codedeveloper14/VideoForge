@@ -185,21 +185,7 @@ export default function AppLayout() {
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
           <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
-            <div
-              className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
-              style={{
-                background: "linear-gradient(145deg,#6c56ff 0%,#a855f7 55%,#c084fc 100%)",
-                boxShadow: "0 0 0 1px rgba(168,85,247,.18), 0 4px 14px rgba(124,106,255,.42)",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="3" width="5" height="18" rx="1" fill="rgba(255,255,255,.22)" />
-                <rect x="2.8" y="5.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <rect x="2.8" y="11" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <rect x="2.8" y="16.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="" className="h-[38px] w-[38px] flex-shrink-0 object-contain" />
             {!effectiveCollapsed && (
               <div>
                 <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>

@@ -6,10 +6,7 @@
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Studio IVR"
 #define MyAppExeName "StudioIVR.exe"
-; Icono de PRUEBA -- el mismo diseno que se ve hoy en el puerto 8080 (favicon.svg),
-; recreado como .ico porque Windows no acepta SVG para iconos de exe/instalador.
-; Cambiar a assets\icon.ico (el oficial) cuando se confirme como se ve este primero.
-#define MyAppIcon "assets\icon_test_8080.ico"
+#define MyAppIcon "assets\icon.ico"
 
 [Setup]
 AppId={{B4B6B6D2-9C1E-4A3D-8F2E-VIDEOFORGE01}
@@ -20,7 +17,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=installer_output
-OutputBaseFilename=StudioIVR-Setup-{#MyAppVersion}
+OutputBaseFilename=StudioIVR {#MyAppVersion}
 SetupIconFile={#MyAppIcon}
 Compression=lzma2
 SolidCompression=yes

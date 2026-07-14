@@ -147,21 +147,11 @@ export default function LoginPage() {
           />
 
           <div className="relative z-10 flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px]"
-              style={{
-                background: "linear-gradient(135deg,#6f5eff 0%,#9b68ff 100%)",
-                boxShadow: "0 0 22px rgba(124,106,255,.38)",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="#fff" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="" className="h-10 w-10 flex-shrink-0 object-contain" />
             <div className="flex flex-col gap-0.5">
-              <span className="text-[15px] font-extrabold tracking-[-0.3px]">Studio IVR</span>
+              <span className="text-[17px] font-extrabold tracking-[-0.3px]">Studio IVR</span>
               <span
-                className="text-[7.5px] uppercase tracking-[0.2em]"
+                className="text-[9.5px] uppercase tracking-[0.2em]"
                 style={{ fontFamily: "var(--vf-mono)", color: "rgba(167,139,250,.5)" }}
               >
                 AI Pipeline
