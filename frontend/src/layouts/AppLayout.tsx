@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -111,8 +112,11 @@ export default function AppLayout() {
   const location = useLocation();
   const { openTab } = useTabs();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<{ bottom: number; left: number } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const accountTriggerRef = useRef<HTMLDivElement>(null);
+  const accountPopupRef = useRef<HTMLDivElement>(null);
 
   const initial = (user || "?").charAt(0).toUpperCase();
   const hideSidebar = NO_SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
@@ -128,6 +132,27 @@ export default function AppLayout() {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!dropdownOpen || !accountTriggerRef.current) return;
+    const r = accountTriggerRef.current.getBoundingClientRect();
+    setDropdownRect({
+      bottom: window.innerHeight - r.top + 6,
+      left: effectiveCollapsed ? r.right + 8 : r.left + 8,
+    });
+  }, [dropdownOpen, effectiveCollapsed]);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (accountTriggerRef.current?.contains(target)) return;
+      if (accountPopupRef.current?.contains(target)) return;
+      setDropdownOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [dropdownOpen]);
 
   return (
     <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
@@ -148,13 +173,15 @@ export default function AppLayout() {
         />
       )}
       <aside
-        className={`fixed left-0 top-0 bottom-0 z-[920] flex w-[220px] flex-col overflow-y-auto transition-transform duration-200 md:transition-[width] ${
+        className={`fixed left-0 top-0 bottom-0 z-[920] flex w-[220px] flex-col overflow-y-auto overflow-x-hidden transition-transform duration-200 md:transition-[width] ${
           mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${collapsed ? "md:w-[64px]" : "md:w-[220px]"}`}
         style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
       >
         <div
-          className="flex flex-shrink-0 items-center gap-[11px] px-[15px] pb-[15px] pt-[18px]"
+          className={`flex flex-shrink-0 items-center gap-[11px] pb-[15px] pt-[18px] ${
+            effectiveCollapsed ? "justify-center px-2" : "px-[15px]"
+          }`}
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
           <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
@@ -319,6 +346,7 @@ export default function AppLayout() {
 
         <div className="relative flex-shrink-0">
           <div
+            ref={accountTriggerRef}
             onClick={() => setDropdownOpen((v) => !v)}
             title={effectiveCollapsed ? user || undefined : undefined}
             className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${effectiveCollapsed ? "justify-center px-2" : "px-[13px]"}`}
@@ -354,11 +382,20 @@ export default function AppLayout() {
             )}
           </div>
 
-          {dropdownOpen && (
-            <div
-              className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${effectiveCollapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
-              style={{ background: "var(--vf-p)", border: "1px solid rgba(var(--vf-fg-rgb),.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
-            >
+          {dropdownOpen &&
+            dropdownRect &&
+            createPortal(
+              <div
+                ref={accountPopupRef}
+                className="fixed z-[930] w-[200px] overflow-hidden rounded-xl"
+                style={{
+                  bottom: dropdownRect.bottom,
+                  left: dropdownRect.left,
+                  background: "var(--vf-p)",
+                  border: "1px solid rgba(var(--vf-fg-rgb),.08)",
+                  boxShadow: "0 12px 36px rgba(0,0,0,.6)",
+                }}
+              >
               <button
                 onClick={() => {
                   setDropdownOpen(false);
@@ -397,8 +434,9 @@ export default function AppLayout() {
                 </span>
                 Cerrar sesión
               </button>
-            </div>
-          )}
+              </div>,
+              document.body,
+            )}
         </div>
       </aside>
       </>
