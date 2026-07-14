@@ -6,9 +6,15 @@ from src.utils.platform_utils import is_frozen, no_window_kwargs
 
 
 def _project_root() -> Path:
-    if is_frozen():
-        # PyInstaller extrae los datos empaquetados (incl. scripts/) bajo sys._MEIPASS.
+    # PyInstaller extrae los datos empaquetados (incl. scripts/) bajo sys._MEIPASS;
+    # Nuitka standalone en cambio los deja junto al ejecutable, sin sys._MEIPASS --
+    # ver la misma distincion en paths.get_frontend_dist_dir().
+    if hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS)  # type: ignore[attr-defined]
+    if "__compiled__" in globals():
+        return Path(sys.executable).resolve().parent
+    if is_frozen():
+        return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[3]
 
 

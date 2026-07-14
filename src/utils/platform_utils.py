@@ -11,8 +11,11 @@ APP_NAME = "VideoForge"
 
 
 def is_frozen() -> bool:
-    """True cuando corre como ejecutable compilado (PyInstaller), en Windows o Mac."""
-    return getattr(sys, "frozen", False)
+    """True cuando corre como ejecutable compilado (PyInstaller o Nuitka), en Windows
+    o Mac. PyInstaller marca sys.frozen; Nuitka en cambio inyecta la global
+    __compiled__ en cada modulo que compila -- ninguna de las dos herramientas usa la
+    marca de la otra, hay que chequear ambas."""
+    return getattr(sys, "frozen", False) or "__compiled__" in globals()
 
 
 def no_window_kwargs() -> dict:
