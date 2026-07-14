@@ -8,6 +8,8 @@ dist/
 dist_final/
 dist_ofuscado/
 build/
+installer_output/
+*.exe
 *.app
 *.dmg
 
