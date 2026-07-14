@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { getProjectFromLocation, useTabs } from "../context/TabsContext";
 import TopTabBar from "../components/TopTabBar";
+import UpdateNotice from "../components/UpdateNotice";
 
 const NO_SIDEBAR_ROUTES = [
   "/app/idea2video",
@@ -436,6 +437,7 @@ export default function AppLayout() {
         }`}
         style={{ background: "var(--vf-bg)" }}
       >
+        <UpdateNotice />
         <TopTabBar />
         {hideSidebar && (
           <button

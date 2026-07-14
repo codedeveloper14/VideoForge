@@ -479,6 +479,11 @@
     "tasks": "Tareas",
     "tasksInProgress": "Tareas en curso"
   },
+  "updateNotice": {
+    "message": "Hay una nueva version disponible ({{version}}).",
+    "viewRelease": "Ver version",
+    "dismiss": "Descartar"
+  },
   "jobsPanel": {
     "recentActivity": "Actividad reciente",
     "taskCount_one": "{{count}} tarea",

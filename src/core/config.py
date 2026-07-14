@@ -11,7 +11,7 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Config:
-    app_name: str = "VideoForge"
+    app_name: str = "Studio IVR"
     # Version del paquete instalable (instalador/actualizaciones), NO del refactor en
     # si -- reinicia en 1.0.0 porque este relanzamiento es el primer release real de
     # produccion de la app (ver decision de versionado). Bump manual antes de cada

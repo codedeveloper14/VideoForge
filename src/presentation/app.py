@@ -26,6 +26,7 @@ from src.presentation.routes.qwen import qwen_bp
 from src.presentation.routes.render import render_bp
 from src.presentation.routes.script import audio_bp, guion_bp
 from src.presentation.routes.stripe import stripe_bp, stripe_pages_bp
+from src.presentation.routes.updates import updates_bp
 from src.presentation.routes.usage import usage_bp
 from src.presentation.routes.user import user_bp
 from src.presentation.routes.voice import voice_bp
@@ -60,6 +61,7 @@ def create_app() -> APIFlask:
     register_task_tracker(app)
 
     app.register_blueprint(health_bp)
+    app.register_blueprint(updates_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(plans_bp)

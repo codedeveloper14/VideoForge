@@ -430,6 +430,11 @@
     "tasks": "Tasks",
     "tasksInProgress": "Tasks in progress"
   },
+  "updateNotice": {
+    "message": "A new version is available ({{version}}).",
+    "viewRelease": "View release",
+    "dismiss": "Dismiss"
+  },
   "jobsPanel": {
     "recentActivity": "Recent activity",
     "taskCount_one": "{{count}} task",
