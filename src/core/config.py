@@ -12,6 +12,12 @@ load_dotenv()
 @dataclass(frozen=True)
 class Config:
     app_name: str = "VideoForge"
+    # Version del paquete instalable (instalador/actualizaciones), NO del refactor en
+    # si -- reinicia en 1.0.0 porque este relanzamiento es el primer release real de
+    # produccion de la app (ver decision de versionado). Bump manual antes de cada
+    # release nueva; el chequeo de actualizaciones compara esto contra el ultimo tag
+    # de GitHub Releases.
+    app_version: str = "1.0.0"
     flask_host: str = "0.0.0.0"
     flask_port: int = 8080
     docs_port: int = 8081
