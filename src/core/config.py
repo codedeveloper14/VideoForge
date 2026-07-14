@@ -8,6 +8,19 @@ from src.utils.platform_utils import get_app_data_dir
 
 load_dotenv()
 
+# Fallback para builds compilados: en un instalador real no hay .env (no se le
+# puede pedir a un cliente final que cree uno) -- _local_secrets.py (gitignored,
+# ofuscado por PyArmor junto con el resto de src/) llena los huecos que .env no
+# cubrio. setdefault() nunca pisa una variable ya seteada por .env/el sistema,
+# asi que en dev con .env presente esto no cambia nada.
+try:
+    from src.core._local_secrets import SECRETS as _LOCAL_SECRETS
+except ImportError:
+    _LOCAL_SECRETS = {}
+
+for _key, _value in _LOCAL_SECRETS.items():
+    os.environ.setdefault(_key, _value)
+
 
 @dataclass(frozen=True)
 class Config:

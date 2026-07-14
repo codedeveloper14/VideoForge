@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Credenciales de produccion embebidas en el build compilado (PyArmor las
+# ofusca al empaquetar) -- mismo nivel de secreto que .env, JAMAS subir.
+src/core/_local_secrets.py
+
 venv/
 dist/
 dist_final/
