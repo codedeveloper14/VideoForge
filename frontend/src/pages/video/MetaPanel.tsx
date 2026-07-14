@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as metaApi from "../../api/meta";
 import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
@@ -28,11 +29,12 @@ const api: ProviderApi = {
 };
 
 const MODE_OPTIONS = [
-  { value: "ext", label: "ext — Extensión Chrome" },
-  { value: "http", label: "http — Modo HTTP directo" },
+  { value: "ext", labelKey: "metaPanel.modeExt" },
+  { value: "http", labelKey: "metaPanel.modeHttp" },
 ];
 
 function AdvancedActions() {
+  const { t } = useTranslation();
   const [msg, setMsg] = useState("");
   const [accounts, setAccounts] = useState<metaApi.MetaAccount[]>([]);
   const [account, setAccount] = useState("");
@@ -50,36 +52,36 @@ function AdvancedActions() {
 
   async function launchChrome() {
     if (!account) {
-      setMsg("Sin cuentas disponibles.");
+      setMsg(t("metaPanel.noAccountsAvailable"));
       return;
     }
-    setMsg("Abriendo Chrome...");
+    setMsg(t("metaPanel.openingChrome"));
     try {
       const d = await metaApi.metaLaunchChrome({ account, slots: 3 });
-      setMsg(d.message || "Chrome lanzado.");
+      setMsg(d.message || t("metaPanel.chromeLaunched"));
     } catch (err) {
-      setMsg(`Error: ${(err as Error).message}`);
+      setMsg(t("providerPanel.errorPrefix", { message: (err as Error).message }));
     }
   }
 
   async function openDevmode() {
     if (!account) {
-      setMsg("Sin cuentas disponibles.");
+      setMsg(t("metaPanel.noAccountsAvailable"));
       return;
     }
-    setMsg("Abriendo página de extensiones...");
+    setMsg(t("metaPanel.openingExtensionsPage"));
     try {
       const d = await metaApi.metaOpenDevmode({ account });
-      setMsg(d.message || "Página de dev-mode abierta.");
+      setMsg(d.message || t("metaPanel.devmodePageOpened"));
     } catch (err) {
-      setMsg(`Error: ${(err as Error).message}`);
+      setMsg(t("providerPanel.errorPrefix", { message: (err as Error).message }));
     }
   }
 
   return (
     <div>
       <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-        Avanzado (modo worker permanente)
+        {t("metaPanel.advancedWorkerMode")}
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <Select
@@ -88,7 +90,7 @@ function AdvancedActions() {
           className="min-w-[140px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
         >
           {accounts.length === 0 ? (
-            <SelectOption value="">Sin cuentas</SelectOption>
+            <SelectOption value="">{t("metaPanel.noAccounts")}</SelectOption>
           ) : (
             accounts.map((a) => (
               <SelectOption key={a.name} value={a.name}>
@@ -97,8 +99,8 @@ function AdvancedActions() {
             ))
           )}
         </Select>
-        <GhostButton onClick={launchChrome}>🌐 Lanzar Chrome</GhostButton>
-        <GhostButton onClick={openDevmode}>🧩 Abrir dev-mode</GhostButton>
+        <GhostButton onClick={launchChrome}>{t("metaPanel.launchChrome")}</GhostButton>
+        <GhostButton onClick={openDevmode}>{t("metaPanel.openDevmode")}</GhostButton>
       </div>
       {msg && <div className="mt-1.5 font-mono text-[10px] text-[var(--vf-m2)]">{msg}</div>}
     </div>
@@ -110,6 +112,7 @@ export interface MetaPanelProps {
 }
 
 export default function MetaPanel({ project }: MetaPanelProps) {
+  const { t } = useTranslation();
   return (
     <ProviderPanel
       project={project}
@@ -124,12 +127,12 @@ export default function MetaPanel({ project }: MetaPanelProps) {
       extraOptions={({ options, setOption }) => (
         <div>
           <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Parámetros de video
+            {t("providerPanel.videoParams")}
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
-                Modo
+                {t("metaPanel.modeLabel")}
               </label>
               <Select
                 value={options.mode as string}
@@ -138,14 +141,14 @@ export default function MetaPanel({ project }: MetaPanelProps) {
               >
                 {MODE_OPTIONS.map((o) => (
                   <SelectOption key={o.value} value={o.value}>
-                    {o.label}
+                    {t(o.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
               <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
-                Timeout (s)
+                {t("providerPanel.timeoutLabel")}
               </label>
               <input
                 type="number"

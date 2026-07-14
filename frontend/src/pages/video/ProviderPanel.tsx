@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   SectionCard,
   ProgressBar,
@@ -109,6 +110,7 @@ export default function ProviderPanel({
   extraActions,
   supportsRegenerate = false,
 }: ProviderPanelProps) {
+  const { t } = useTranslation();
   const [images, setImages] = useState<File[]>([]);
   const [prompt, setPrompt] = useState("Cinematic slow zoom");
   const [slots, setSlots] = useState(defaultSlots);
@@ -158,23 +160,19 @@ export default function ProviderPanel({
   function handleLogin(account: string) {
     api
       .loginCuenta(account)
-      .then(() =>
-        appendLog(
-          `Chrome abierto para ${account} — inicia sesión y cierra la ventana.`,
-        ),
-      )
-      .catch((err) => appendLog(`Error: ${(err as Error).message}`));
+      .then(() => appendLog(t("providerPanel.chromeOpenedFor", { account })))
+      .catch((err) => appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message })));
   }
 
   function handleDeleteSession(account: string) {
-    if (!window.confirm(`Borrar sesión de ${account}?`)) return;
+    if (!window.confirm(t("providerPanel.confirmDeleteSession", { account }))) return;
     api
       .borrarSesion(account)
       .then(() => {
         loadSesiones();
-        appendLog(`Sesión de ${account} eliminada.`);
+        appendLog(t("providerPanel.sessionDeleted", { account }));
       })
-      .catch((err) => appendLog(`Error: ${(err as Error).message}`));
+      .catch((err) => appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message })));
   }
 
   // ── Load videos when project changes ─────────────────────────
@@ -233,7 +231,7 @@ export default function ProviderPanel({
           setRunning(false);
           stopPolling();
           pollGallery();
-          appendLog("Proceso completado.");
+          appendLog(t("providerPanel.processCompleted"));
         }
       })
       .catch(() => {});
@@ -251,9 +249,9 @@ export default function ProviderPanel({
     if (running) {
       try {
         await api.detener();
-        appendLog("Detenido por el usuario.");
+        appendLog(t("providerPanel.stoppedByUser"));
       } catch (err) {
-        appendLog(`Error: ${(err as Error).message}`);
+        appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message }));
       }
       setRunning(false);
       stopPolling();
@@ -262,18 +260,18 @@ export default function ProviderPanel({
 
     setError("");
     if (!project) {
-      setError("Selecciona un proyecto en la barra superior antes de animar.");
+      setError(t("providerPanel.selectProjectFirst"));
       return;
     }
     if (images.length === 0) {
-      setError("Sube al menos una imagen.");
+      setError(t("providerPanel.uploadAtLeastOneImage"));
       return;
     }
 
     totalImagesRef.current = images.length;
     clearLog();
     setProgress({ done: 0, total: images.length });
-    appendLog(`Subiendo ${images.length} imágenes al proyecto: ${project}`);
+    appendLog(t("providerPanel.uploadingImagesToProject", { count: images.length, project }));
 
     try {
       const d = await api.iniciar({
@@ -285,18 +283,18 @@ export default function ProviderPanel({
       });
       setProjectDir(d.project_dir || "");
       setRunning(true);
-      appendLog(`Iniciado — proyecto: ${d.project_name || project} · pid: ${d.pid ?? "?"}`);
+      appendLog(t("providerPanel.startedProjectPid", { project: d.project_name || project, pid: d.pid ?? "?" }));
       logOffsetRef.current = 0;
       startPolling();
     } catch (err) {
       setError((err as Error).message);
-      appendLog(`Error: ${(err as Error).message}`);
+      appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message }));
     }
   }
 
   async function handleRegenerate(videoName: string) {
     if (!supportsRegenerate || !api.regenerar) return;
-    appendLog(`Regenerando: ${videoName}`);
+    appendLog(t("providerPanel.regenerating", { name: videoName }));
     try {
       const d = await api.regenerar({
         video_name: videoName,
@@ -305,7 +303,7 @@ export default function ProviderPanel({
         ...options,
       });
       if (d.ok) {
-        appendLog(`Regenerando ${videoName} en background...`);
+        appendLog(t("providerPanel.regeneratingInBackground", { name: videoName }));
         if (!galleryTimerRef.current) {
           galleryTimerRef.current = setInterval(pollGallery, GALLERY_POLL_MS);
         }
@@ -313,10 +311,10 @@ export default function ProviderPanel({
           logTimerRef.current = setInterval(pollLog, LOG_POLL_MS);
         }
       } else {
-        appendLog(`Error: ${d.error || "desconocido"}`);
+        appendLog(t("providerPanel.errorPrefix", { message: d.error || t("providerPanel.unknownError") }));
       }
     } catch (err) {
-      appendLog(`Error: ${(err as Error).message}`);
+      appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message }));
     }
   }
 
@@ -343,35 +341,35 @@ export default function ProviderPanel({
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title="// Imágenes">
+        <SectionCard title={t("providerPanel.images")}>
           <ImageSlots files={images} onChange={setImages} />
         </SectionCard>
 
-        <SectionCard title="// Configuración">
+        <SectionCard title={t("providerPanel.configuration")}>
           <div className="mb-3">
             <label className="mb-1 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Proyecto activo
+              {t("providerPanel.activeProject")}
             </label>
             <div className="font-mono text-xs font-semibold text-[var(--vf-c2)]">
-              {project || "— selecciona en la barra superior —"}
+              {project || t("providerPanel.selectInTopbar")}
             </div>
           </div>
 
           <label className="mb-1 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Prompt de animación
+            {t("providerPanel.animationPrompt")}
           </label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
-            placeholder="Cinematic slow zoom with natural motion..."
+            placeholder={t("providerPanel.animationPromptPlaceholder") || ""}
             className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none focus:border-[var(--vf-c1)]"
           />
 
           <div className="mt-4">
             <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Slots simultáneos ·{" "}
-              <span className="text-[var(--vf-c2)]">{slots}</span> en paralelo
+              {t("providerPanel.simultaneousSlots")}{" "}
+              <span className="text-[var(--vf-c2)]">{slots}</span> {t("providerPanel.inParallel")}
             </label>
             <SlotPicker value={slots} onChange={setSlots} max={maxSlots} />
           </div>
@@ -403,13 +401,13 @@ export default function ProviderPanel({
           disabled={!running && images.length === 0}
           className={running ? "flex-none" : "flex-1"}
         >
-          {running ? "Procesando..." : `Iniciar Animación (${providerLabel})`}
+          {running ? t("providerPanel.processing") : t("providerPanel.startAnimation", { label: providerLabel })}
         </PrimaryButton>
-        {running && <StopButton onClick={handleStart}>Detener</StopButton>}
+        {running && <StopButton onClick={handleStart} />}
         <div className="font-mono text-[10px] text-[var(--vf-muted)]">
           {images.length === 0
-            ? "Sube imágenes para comenzar"
-            : `${images.length} imagen${images.length !== 1 ? "es" : ""} lista${images.length !== 1 ? "s" : ""}`}
+            ? t("providerPanel.uploadImagesToStart")
+            : t("providerPanel.imagesReadyCount", { count: images.length })}
           {projectDir && (
             <div className="mt-0.5 text-[var(--vf-m2)]">📁 {projectDir}</div>
           )}
@@ -421,7 +419,7 @@ export default function ProviderPanel({
       {progress.total > 0 && (
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="font-mono text-[10px] text-[var(--vf-muted)]">Progreso</span>
+            <span className="font-mono text-[10px] text-[var(--vf-muted)]">{t("providerPanel.progress")}</span>
             <span className="font-mono text-[10px] text-[var(--vf-c2)]">
               {progress.done} / {progress.total} ({pct}%)
             </span>
@@ -432,13 +430,13 @@ export default function ProviderPanel({
 
       <div className="mt-4">
         <SectionCard
-          title={`// ${providerLabel.toLowerCase()}_multi — output en vivo`}
+          title={t("providerPanel.liveOutputTitle", { label: providerLabel.toLowerCase() })}
           right={
             <button
               onClick={clearLog}
               className="font-mono text-[9px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
             >
-              limpiar
+              {t("providerPanel.clearLog")}
             </button>
           }
         >
@@ -449,12 +447,12 @@ export default function ProviderPanel({
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <span className="font-mono text-xs uppercase tracking-wider text-[var(--vf-text)]">
-            // Videos generados
+            {t("providerPanel.generatedVideos")}
           </span>
           <div className="flex items-center gap-2">
             {progress.total > 0 && (
               <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                {progress.done}/{progress.total} completados
+                {t("providerPanel.completedCount", { done: progress.done, total: progress.total })}
               </span>
             )}
             {allDone && videos.length > 0 && (
@@ -463,11 +461,11 @@ export default function ProviderPanel({
                 className="border-none text-white"
                 style={{ background: "linear-gradient(135deg, var(--vf-c1), var(--vf-c2))" }}
               >
-                ⬇ Descargar todas
+                {t("providerPanel.downloadAll")}
               </GhostButton>
             )}
             <GhostButton onClick={handleOpenFolder} disabled={!project}>
-              📂 Abrir carpeta
+              {t("providerPanel.openFolder")}
             </GhostButton>
           </div>
         </div>

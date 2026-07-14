@@ -2,6 +2,7 @@
 // Mirrors the pattern established in pages/imagen/shared.jsx for visual consistency.
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface SectionCardProps {
   title?: ReactNode;
@@ -54,10 +55,11 @@ export interface LogConsoleProps {
 }
 
 export function LogConsole({ lines }: LogConsoleProps) {
+  const { t } = useTranslation();
   return (
     <div className="h-[260px] overflow-y-auto rounded-lg bg-black/30 p-3 font-mono text-[11px] leading-relaxed text-[var(--vf-muted)]">
       {lines.length === 0 ? (
-        <span className="text-[var(--vf-m2)]">Esperando inicio...</span>
+        <span className="text-[var(--vf-m2)]">{t("videoShared.waitingToStart")}</span>
       ) : (
         lines.map((l, i) => {
           const isErr = /❌|\[ERROR\]/.test(l);
@@ -105,10 +107,11 @@ export function PrimaryButton({
 }
 
 export function StopButton({
-  children = "Detener",
+  children,
   className = "",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const { t } = useTranslation();
   return (
     <button
       {...props}
@@ -122,7 +125,7 @@ export function StopButton({
         color: "#ef4444",
       }}
     >
-      {children}
+      {children ?? t("videoShared.stop")}
     </button>
   );
 }
@@ -161,6 +164,7 @@ export interface ImageSlotsProps {
 }
 
 export function ImageSlots({ files, onChange }: ImageSlotsProps) {
+  const { t } = useTranslation();
   function handleFiles(fileList: FileList) {
     const imgs = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
     if (imgs.length) onChange([...files, ...imgs]);
@@ -189,10 +193,10 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
         />
         <div className="mb-1 text-2xl">🖼️</div>
         <div className="font-mono text-xs text-[var(--vf-text)]">
-          <strong>Clic o arrastra</strong> las imágenes
+          <strong>{t("videoShared.clickOrDrag")}</strong> {t("videoShared.images")}
         </div>
         <div className="mt-1 font-mono text-[10px] text-[var(--vf-m2)]">
-          JPG · PNG · WEBP · múltiples a la vez · se numeran en orden de subida
+          {t("videoShared.imageFormatsHint")}
         </div>
       </label>
 
@@ -224,15 +228,14 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
           </div>
           <div className="mt-2 flex items-center gap-3">
             <span className="font-mono text-[10px] text-[var(--vf-success)]">
-              ✓ {files.length} imagen{files.length !== 1 ? "es" : ""} cargada
-              {files.length !== 1 ? "s" : ""}
+              {t("videoShared.imageLoadedCount", { count: files.length })}
             </span>
             <button
               type="button"
               onClick={clearAll}
               className="font-mono text-[10px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
             >
-              ✕ Limpiar
+              {t("videoShared.clear")}
             </button>
           </div>
         </>
@@ -265,29 +268,30 @@ export function AccountSessions({
   onDelete,
   onRefresh,
 }: AccountSessionsProps) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="mb-2 flex items-center justify-between">
         <span className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Cuentas
+          {t("videoShared.accounts")}
         </span>
         <button
           onClick={onRefresh}
           className="rounded-md border border-[var(--vf-b2)] px-2 py-0.5 font-mono text-[9px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
         >
-          ↺ Verificar
+          {t("videoShared.verify")}
         </button>
       </div>
       <div className="flex flex-col gap-1.5">
         {loading && (
-          <div className="font-mono text-[10px] text-[var(--vf-m2)]">Cargando cuentas...</div>
+          <div className="font-mono text-[10px] text-[var(--vf-m2)]">{t("videoShared.loadingAccounts")}</div>
         )}
         {!loading && error && (
           <div className="font-mono text-[10px] text-[var(--vf-danger)]">{error}</div>
         )}
         {!loading && !error && accounts.length === 0 && (
           <div className="font-mono text-[10px] text-[var(--vf-m2)]">
-            No hay carpetas en accounts/
+            {t("videoShared.noAccountFolders")}
           </div>
         )}
         {!loading &&
@@ -317,7 +321,7 @@ export function AccountSessions({
                   onClick={() => onLogin(a.name)}
                   className="rounded-md border border-[var(--vf-b2)] px-1.5 py-0.5 font-mono text-[9px] text-[var(--vf-muted)]"
                 >
-                  🔑 Login
+                  {t("videoShared.login")}
                 </button>
               </div>
             </div>
@@ -365,10 +369,11 @@ export interface VideoGalleryProps {
 }
 
 export function VideoGallery({ videos, project, videoUrl, onRegenerate }: VideoGalleryProps) {
+  const { t } = useTranslation();
   if (!videos || videos.length === 0) {
     return (
       <div className="py-10 text-center font-mono text-xs text-[var(--vf-m2)]">
-        Aún no hay videos generados para este proyecto.
+        {t("videoShared.noVideosYetForProject")}
       </div>
     );
   }
@@ -401,7 +406,7 @@ export function VideoGallery({ videos, project, videoUrl, onRegenerate }: VideoG
               className="flex-1 rounded-md px-2 py-1 text-center font-mono text-[9px] text-white"
               style={{ background: "linear-gradient(135deg, var(--vf-c1), var(--vf-c2))" }}
             >
-              ⬇ Descargar
+              {t("videoShared.download")}
             </a>
             {onRegenerate && (
               <button
@@ -413,7 +418,7 @@ export function VideoGallery({ videos, project, videoUrl, onRegenerate }: VideoG
                   color: "var(--vf-c4)",
                 }}
               >
-                ↺ Regen
+                {t("videoShared.regen")}
               </button>
             )}
           </div>
