@@ -85,11 +85,18 @@ jobs:
           npm run build
 
       - name: Register PyArmor license
+        id: pyarmor_reg
+        continue-on-error: true
         # El secret esta en base64 (no texto plano): echo/YAML pueden alterar
         # saltos de linea o espacios de un archivo de licencia de una sola
         # linea sin salto -- PyArmor lo rechaza silenciosamente si el
         # contenido no es byte-a-byte identico. base64 viaja intacto por
         # cualquier capa (shell/YAML) y se decodifica exacto del otro lado.
+        # Sigue fallando con "invalid activation file": el archivo que
+        # tenemos localmente (~/.pyarmor/license.lic) probablemente es el
+        # estado post-registro de PyArmor, no un archivo de activacion
+        # reutilizable -- pendiente encontrar/re-descargar el original. No
+        # bloquea el resto del pipeline (ver el paso siguiente).
         env:
           PYARMOR_LICENSE_B64: ${{ secrets.PYARMOR_LICENSE_B64 }}
         run: |
@@ -98,8 +105,26 @@ jobs:
           rm -f /tmp/license.lic
 
       - name: Obfuscate with PyArmor
+        if: steps.pyarmor_reg.outcome == 'success'
         run: |
           pyarmor gen -O build/pyarmor_dist -r main.py src desktop scripts
+
+      - name: Fallback -- copiar sin ofuscar (SOLO diagnostico)
+        # Se ejecuta unicamente si el registro de PyArmor de arriba fallo,
+        # para poder seguir probando el resto del pipeline (PyInstaller +
+        # pyobjc/pywebview + create-dmg, nunca corrido en Mac real) sin
+        # quedar bloqueados por la licencia. build/pyarmor_dist necesita
+        # exactamente esta forma (mismo root que pyarmor gen habria escrito)
+        # porque studioivr-mac.spec lee de ahi sin importar el origen.
+        # El .app que sale de esta rama NO esta ofuscado -- no es el build
+        # real para distribuir, solo sirve para validar que la app arranca.
+        if: steps.pyarmor_reg.outcome != 'success'
+        run: |
+          mkdir -p build/pyarmor_dist
+          cp main.py build/pyarmor_dist/
+          cp -r src desktop scripts build/pyarmor_dist/
+          mkdir -p build/pyarmor_dist/pyarmor_runtime_012301
+          echo "PLACEHOLDER -- este build no esta ofuscado, ver el paso 'Register PyArmor license'" > build/pyarmor_dist/pyarmor_runtime_012301/README.txt
 
       - name: Build .app with PyInstaller
         run: python -m PyInstaller studioivr-mac.spec --noconfirm
@@ -117,14 +142,16 @@ jobs:
             "dist/Studio IVR (${{ matrix.arch }}).dmg" \
             "dist/Studio IVR.app"
 
+      # El sufijo del nombre delata si esta ofuscado o no -- para que nadie
+      # confunda por error un build de diagnostico con el real distribuible.
       - name: Upload .app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StudioIVR-mac-${{ matrix.arch }}-app
+          name: StudioIVR-mac-${{ matrix.arch }}-app-${{ steps.pyarmor_reg.outcome == 'success' && 'obfuscated' || 'UNOBFUSCATED-DIAGNOSTIC' }}
           path: "dist/Studio IVR.app"
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StudioIVR-mac-${{ matrix.arch }}-dmg
+          name: StudioIVR-mac-${{ matrix.arch }}-dmg-${{ steps.pyarmor_reg.outcome == 'success' && 'obfuscated' || 'UNOBFUSCATED-DIAGNOSTIC' }}
           path: "dist/Studio IVR (${{ matrix.arch }}).dmg"
