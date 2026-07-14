@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   createAdminDoc,
   deleteAdminDoc,
@@ -31,6 +32,7 @@ interface DocFormModalProps {
 }
 
 function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<AdminDocInput>(initial);
 
   function set<K extends keyof AdminDocInput>(key: K, value: AdminDocInput[K]) {
@@ -50,26 +52,26 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
         className="max-h-[90vh] w-full max-w-[560px] overflow-y-auto rounded-2xl border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[var(--vf-s)] p-7 shadow-[0_24px_64px_rgba(0,0,0,.5)]"
       >
         <div className="mb-5 text-base font-bold text-[var(--vf-text)]">
-          {initial.title ? "Editar documento" : "Nuevo documento"}
+          {initial.title ? t("adminDocs.editDocument") : t("adminDocs.newDocument")}
         </div>
 
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Tipo
+              {t("adminDocs.type")}
             </label>
             <Select
               value={form.type}
               onChange={(v) => set("type", v)}
               className="w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none"
             >
-              <SelectOption value="video">Video</SelectOption>
-              <SelectOption value="text">Texto</SelectOption>
+              <SelectOption value="video">{t("adminDocs.typeVideo")}</SelectOption>
+              <SelectOption value="text">{t("adminDocs.typeText")}</SelectOption>
             </Select>
           </div>
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Categoría
+              {t("adminDocs.category")}
             </label>
             <input
               type="text"
@@ -82,7 +84,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
 
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            Título
+            {t("adminDocs.titleLabel")}
           </label>
           <input
             type="text"
@@ -95,7 +97,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
 
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            Descripción
+            {t("adminDocs.description")}
           </label>
           <textarea
             value={form.description}
@@ -107,7 +109,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
 
         <div className="mb-3">
           <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            URL {form.type === "video" ? "(YouTube)" : "(enlace externo, opcional)"}
+            {form.type === "video" ? t("adminDocs.urlYoutube") : t("adminDocs.urlExternalOptional")}
           </label>
           <input
             type="text"
@@ -120,13 +122,13 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
         {form.type === "text" && (
           <div className="mb-3">
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Contenido
+              {t("adminDocs.content")}
             </label>
             <textarea
               value={form.content}
               onChange={(e) => set("content", e.target.value)}
               rows={5}
-              placeholder="Párrafos separados por línea en blanco"
+              placeholder={t("adminDocs.contentPlaceholder") || ""}
               className="w-full resize-y rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none"
             />
           </div>
@@ -135,7 +137,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Miniatura (URL)
+              {t("adminDocs.thumbnailUrl")}
             </label>
             <input
               type="text"
@@ -146,7 +148,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Duración (ej. 5:30)
+              {t("adminDocs.durationExample")}
             </label>
             <input
               type="text"
@@ -160,7 +162,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Tags (separados por coma)
+              {t("adminDocs.tagsCommaSeparated")}
             </label>
             <input
               type="text"
@@ -171,7 +173,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-              Orden
+              {t("adminDocs.order")}
             </label>
             <input
               type="number"
@@ -189,7 +191,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
             onChange={(e) => set("is_published", e.target.checked)}
             className="accent-[var(--vf-c1)]"
           />
-          Publicado (visible en Documentación)
+          {t("adminDocs.published")}
         </label>
 
         <div className="flex gap-2">
@@ -198,14 +200,14 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
             disabled={saving}
             className="flex-1 rounded-[9px] border-none bg-gradient-to-br from-[#7c6aff] to-[#5b42f3] py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50"
           >
-            {saving ? "Guardando…" : "Guardar"}
+            {saving ? t("adminDocs.saving") : t("adminDocs.save")}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="rounded-[9px] border border-[var(--vf-border)] px-5 py-2.5 text-[13px] font-medium text-[var(--vf-text)] hover:bg-[var(--vf-surface-2)]"
           >
-            Cancelar
+            {t("adminDocs.cancel")}
           </button>
         </div>
       </form>
@@ -214,6 +216,7 @@ function DocFormModal({ initial, saving, onClose, onSave }: DocFormModalProps) {
 }
 
 export default function AdminDocsPage() {
+  const { t } = useTranslation();
   const [docs, setDocs] = useState<AdminDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -226,7 +229,7 @@ export default function AdminDocsPage() {
     setError("");
     listAdminDocs()
       .then(setDocs)
-      .catch((err: Error) => setError(err.message || "No tienes permiso para ver esta página."))
+      .catch((err: Error) => setError(err.message || t("adminDocs.noPermission")))
       .finally(() => setLoading(false));
   }
 
@@ -251,7 +254,7 @@ export default function AdminDocsPage() {
   }
 
   async function handleDelete(doc: AdminDoc) {
-    if (!confirm(`¿Borrar "${doc.title}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(t("adminDocs.confirmDelete", { title: doc.title }))) return;
     try {
       await deleteAdminDoc(doc.id);
       load();
@@ -264,35 +267,35 @@ export default function AdminDocsPage() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--vf-text)]">Administrar Documentación</h1>
+          <h1 className="text-2xl font-semibold text-[var(--vf-text)]">{t("adminDocs.title")}</h1>
           <p className="mt-1 text-sm text-[var(--vf-muted)]">
-            Ruta interna, sin enlace en el menú — solo cuentas con rol admin.
+            {t("adminDocs.subtitle")}
           </p>
         </div>
         <button
           onClick={() => setCreating(true)}
           className="rounded-lg bg-[var(--vf-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)]"
         >
-          + Nuevo doc
+          {t("adminDocs.newDoc")}
         </button>
       </div>
 
       {loading ? (
-        <p className="text-[var(--vf-muted)]">Cargando…</p>
+        <p className="text-[var(--vf-muted)]">{t("adminDocs.loading")}</p>
       ) : error ? (
         <p className="text-sm text-[var(--vf-danger)]">{error}</p>
       ) : docs.length === 0 ? (
-        <p className="text-[var(--vf-muted)]">Sin documentos todavía.</p>
+        <p className="text-[var(--vf-muted)]">{t("adminDocs.noDocsYet")}</p>
       ) : (
         <div className="overflow-hidden rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)]">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--vf-border)] text-[11px] uppercase tracking-wider text-[var(--vf-muted)]">
-                <th className="px-4 py-2.5">Título</th>
-                <th className="px-4 py-2.5">Categoría</th>
-                <th className="px-4 py-2.5">Tipo</th>
-                <th className="px-4 py-2.5">Estado</th>
-                <th className="px-4 py-2.5">Creado por</th>
+                <th className="px-4 py-2.5">{t("adminDocs.colTitle")}</th>
+                <th className="px-4 py-2.5">{t("adminDocs.colCategory")}</th>
+                <th className="px-4 py-2.5">{t("adminDocs.colType")}</th>
+                <th className="px-4 py-2.5">{t("adminDocs.colStatus")}</th>
+                <th className="px-4 py-2.5">{t("adminDocs.colCreatedBy")}</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
@@ -310,7 +313,7 @@ export default function AdminDocsPage() {
                           : "bg-[rgba(var(--vf-fg-rgb),0.08)] text-[var(--vf-muted)]"
                       }`}
                     >
-                      {doc.is_published ? "Publicado" : "Borrador"}
+                      {doc.is_published ? t("adminDocs.published_status") : t("adminDocs.draft")}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-[var(--vf-muted)]">{doc.created_by}</td>
@@ -319,13 +322,13 @@ export default function AdminDocsPage() {
                       onClick={() => setEditing(doc)}
                       className="mr-3 text-[var(--vf-accent)] hover:underline"
                     >
-                      Editar
+                      {t("adminDocs.edit")}
                     </button>
                     <button
                       onClick={() => handleDelete(doc)}
                       className="text-[var(--vf-danger)] hover:underline"
                     >
-                      Borrar
+                      {t("adminDocs.delete")}
                     </button>
                   </td>
                 </tr>

@@ -1,41 +1,30 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { submitHelpRequest } from "../api/docs";
 import { Select, SelectOption } from "../components/Select";
 
 type TabId = "faq" | "bug" | "suggestion" | "contact";
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "faq", label: "Preguntas frecuentes" },
-  { id: "bug", label: "Reportar bug" },
-  { id: "suggestion", label: "Sugerencias" },
-  { id: "contact", label: "Contacto" },
+const TABS: { id: TabId; labelKey: string }[] = [
+  { id: "faq", labelKey: "help.tabFaq" },
+  { id: "bug", labelKey: "help.tabBug" },
+  { id: "suggestion", labelKey: "help.tabSuggestion" },
+  { id: "contact", labelKey: "help.tabContact" },
 ];
 
 const FAQ_ITEMS = [
-  {
-    q: "¿Cómo genero un video?",
-    a: "Selecciona un proyecto, escribe tu guión y ejecuta el pipeline completo desde el menú principal.",
-  },
-  {
-    q: "¿Cuánto tiempo tarda la generación?",
-    a: "Depende del número de escenas e imágenes. En promedio, entre 3 y 15 minutos por video.",
-  },
-  {
-    q: "¿Qué formatos soporta?",
-    a: "El sistema genera videos en formato MP4. Las imágenes se generan en JPG/PNG.",
-  },
-  {
-    q: "¿Cómo funciona el modo Idea → Video?",
-    a: "Escribe tu idea, la IA genera el guión completo y luego el Autopilot ejecuta todo el pipeline automáticamente.",
-  },
+  { qKey: "help.faqQ1", aKey: "help.faqA1" },
+  { qKey: "help.faqQ2", aKey: "help.faqA2" },
+  { qKey: "help.faqQ3", aKey: "help.faqA3" },
+  { qKey: "help.faqQ4", aKey: "help.faqA4" },
 ];
 
 const BUG_CATEGORIES = [
-  { value: "crash", label: "Crash / La app no responde" },
-  { value: "ui", label: "Error de interfaz" },
-  { value: "render", label: "Problema en el render" },
-  { value: "voice", label: "Problema con la voz" },
-  { value: "other", label: "Otro" },
+  { value: "crash", labelKey: "help.bugCrash" },
+  { value: "ui", labelKey: "help.bugUi" },
+  { value: "render", labelKey: "help.bugRender" },
+  { value: "voice", labelKey: "help.bugVoice" },
+  { value: "other", labelKey: "help.bugOther" },
 ];
 
 function SuccessCheck() {
@@ -57,6 +46,7 @@ function SuccessState({
   message: string;
   onReset: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex max-w-[460px] flex-col items-center gap-3.5 px-5 py-14 text-center">
       <SuccessCheck />
@@ -68,13 +58,14 @@ function SuccessState({
         onClick={onReset}
         className="mt-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-6 py-2 text-xs text-[var(--vf-muted)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.1)] hover:text-[var(--vf-text)]"
       >
-        Volver
+        {t("help.back")}
       </button>
     </div>
   );
 }
 
 function FaqAccordion() {
+  const { t } = useTranslation();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   return (
@@ -82,7 +73,7 @@ function FaqAccordion() {
       {FAQ_ITEMS.map((item, idx) => {
         const isOpen = openIdx === idx;
         return (
-          <div key={item.q} className="border-b border-[var(--vf-border)] first:border-t">
+          <div key={item.qKey} className="border-b border-[var(--vf-border)] first:border-t">
             <button
               type="button"
               onClick={() => setOpenIdx(isOpen ? null : idx)}
@@ -90,7 +81,7 @@ function FaqAccordion() {
                 isOpen ? "text-[var(--vf-text)]" : "text-[rgba(var(--vf-fg-rgb),0.65)] hover:text-[var(--vf-text)]"
               }`}
             >
-              {item.q}
+              {t(item.qKey)}
               <svg
                 width="16"
                 height="16"
@@ -110,7 +101,7 @@ function FaqAccordion() {
               style={{ maxHeight: isOpen ? "400px" : "0px" }}
             >
               <p className="pb-5 pr-7 text-[13.5px] leading-relaxed text-[var(--vf-muted)]">
-                {item.a}
+                {t(item.aKey)}
               </p>
             </div>
           </div>
@@ -121,6 +112,7 @@ function FaqAccordion() {
 }
 
 function BugReportForm() {
+  const { t } = useTranslation();
   const [category, setCategory] = useState("crash");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -153,8 +145,8 @@ function BugReportForm() {
   if (sent) {
     return (
       <SuccessState
-        title="¡Reporte enviado!"
-        message="Gracias por reportar el problema."
+        title={t("help.bugReportSentTitle")}
+        message={t("help.bugReportSentMessage")}
         onReset={() => setSent(false)}
       />
     );
@@ -165,7 +157,7 @@ function BugReportForm() {
       <div className="mb-4.5">
         <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--vf-accent)]/70" />
-          Categoría
+          {t("help.category")}
         </label>
         <Select
           value={category}
@@ -174,7 +166,7 @@ function BugReportForm() {
         >
           {BUG_CATEGORIES.map((c) => (
             <SelectOption key={c.value} value={c.value}>
-              {c.label}
+              {t(c.labelKey)}
             </SelectOption>
           ))}
         </Select>
@@ -182,26 +174,26 @@ function BugReportForm() {
       <div className="mb-4.5">
         <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--vf-accent)]/70" />
-          Título del bug
+          {t("help.bugTitleLabel")}
         </label>
         <input
           type="text"
           required
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Describe brevemente el problema..."
+          placeholder={t("help.bugTitlePlaceholder") || ""}
           className="w-full rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
       </div>
       <div className="mb-4.5">
         <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--vf-accent)]/70" />
-          Descripción
+          {t("help.description")}
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="¿Cuándo ocurre? ¿Cómo reproducirlo?"
+          placeholder={t("help.bugDescriptionPlaceholder") || ""}
           rows={4}
           className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
@@ -212,13 +204,14 @@ function BugReportForm() {
         disabled={sending}
         className="mt-2 w-full rounded-xl bg-gradient-to-br from-[var(--vf-c1)] to-[var(--vf-c2)] py-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-[0_4px_20px_rgba(108,86,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {sending ? "Enviando…" : "Enviar reporte"}
+        {sending ? t("help.sending") : t("help.sendReport")}
       </button>
     </form>
   );
 }
 
 function SuggestionForm() {
+  const { t } = useTranslation();
   const [suggestion, setSuggestion] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -232,7 +225,7 @@ function SuggestionForm() {
       const trimmed = suggestion.trim();
       await submitHelpRequest({
         type: "suggestion",
-        title: trimmed.slice(0, 50) || "Sugerencia",
+        title: trimmed.slice(0, 50) || t("help.suggestionFallbackTitle"),
         description: suggestion,
       });
       setSent(true);
@@ -247,8 +240,8 @@ function SuggestionForm() {
   if (sent) {
     return (
       <SuccessState
-        title="¡Gracias!"
-        message="Tu sugerencia ha sido recibida."
+        title={t("help.suggestionSentTitle")}
+        message={t("help.suggestionSentMessage")}
         onReset={() => setSent(false)}
       />
     );
@@ -259,13 +252,13 @@ function SuggestionForm() {
       <div className="mb-4.5">
         <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--vf-accent)]/70" />
-          Tu sugerencia
+          {t("help.yourSuggestion")}
         </label>
         <textarea
           required
           value={suggestion}
           onChange={(e) => setSuggestion(e.target.value)}
-          placeholder="¿Qué funcionalidad te gustaría ver?"
+          placeholder={t("help.suggestionPlaceholder") || ""}
           rows={4}
           className="min-h-[112px] w-full resize-y rounded-[10px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-4 py-3 text-sm leading-relaxed text-[var(--vf-text)] outline-none transition-colors placeholder:text-[rgba(var(--vf-fg-rgb),0.2)] focus:border-[var(--vf-accent)]/50 focus:bg-[var(--vf-accent)]/5"
         />
@@ -276,17 +269,18 @@ function SuggestionForm() {
         disabled={sending}
         className="mt-2 w-full rounded-xl bg-gradient-to-br from-[var(--vf-c1)] to-[var(--vf-c2)] py-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-[0_4px_20px_rgba(108,86,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {sending ? "Enviando…" : "Enviar sugerencia"}
+        {sending ? t("help.sending") : t("help.sendSuggestion")}
       </button>
     </form>
   );
 }
 
 function ContactTab() {
+  const { t } = useTranslation();
   return (
     <div>
       <p className="mb-4 text-sm text-[var(--vf-muted)]">
-        Para soporte directo contáctanos en:
+        {t("help.contactIntro")}
       </p>
       <a
         href="mailto:soporte@videoforge.ai"
@@ -299,29 +293,30 @@ function ContactTab() {
 }
 
 export default function HelpPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<TabId>("faq");
 
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-1 text-[34px] font-bold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
-        Centro de Ayuda
+        {t("help.title")}
       </h1>
       <p className="mb-8 text-[11.5px] text-[var(--vf-muted)]">
-        Encuentra respuestas, reporta problemas y contáctanos
+        {t("help.subtitle")}
       </p>
 
       <div className="mb-9 flex w-fit gap-1 rounded-[14px] border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-1">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className={`whitespace-nowrap rounded-[10px] px-5 py-2 text-xs font-semibold transition-colors ${
-              tab === t.id
+              tab === tabItem.id
                 ? "bg-[rgba(var(--vf-fg-rgb),0.1)] text-[var(--vf-text)] shadow-[0_1px_4px_rgba(0,0,0,.15)]"
                 : "text-[rgba(var(--vf-fg-rgb),0.55)] hover:text-[rgba(var(--vf-fg-rgb),0.85)]"
             }`}
           >
-            {t.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>

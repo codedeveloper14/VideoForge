@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { listJobs } from "../api/quickRender";
 import type { MultitaskJob } from "../api/quickRender";
 
@@ -25,6 +26,7 @@ function IconPlay() {
 }
 
 export default function ActiveJobsPopup() {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<MultitaskJob[]>([]);
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number } | null>(null);
@@ -69,14 +71,14 @@ export default function ActiveJobsPopup() {
   }, [open]);
 
   const activeCount = jobs.filter((j) => j.estado === "procesando").length;
-  const label = activeCount > 0 ? `${activeCount} tarea${activeCount !== 1 ? "s" : ""}` : "Tareas";
+  const label = activeCount > 0 ? t("jobsPanel.taskCount", { count: activeCount }) : t("activeJobsPopup.tasks");
 
   return (
     <>
       <button
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
-        title="Tareas activas"
+        title={t("activeJobsPopup.activeTasks") || ""}
         className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
           activeCount > 0
             ? "border-[var(--vf-c1)]/40 bg-[var(--vf-c1)]/[0.12] text-[var(--vf-c1)]"
@@ -102,11 +104,11 @@ export default function ActiveJobsPopup() {
             }}
           >
             <div className="px-3.5 pb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Tareas en curso
+              {t("activeJobsPopup.tasksInProgress")}
             </div>
             {jobs.length === 0 ? (
               <p className="px-3.5 py-3 text-sm text-[var(--vf-muted)]">
-                No hay tareas activas ni recientes.
+                {t("jobsPanel.noActiveOrRecentTasks")}
               </p>
             ) : (
               <ul className="flex flex-col gap-2 px-2.5">
@@ -117,7 +119,7 @@ export default function ActiveJobsPopup() {
                   >
                     <div className="mb-1.5 flex items-center justify-between gap-2">
                       <span className="truncate font-mono text-[11px] text-[var(--vf-text)]">
-                        {job.tipo || "tarea"}
+                        {job.tipo || t("jobsPanel.taskFallback")}
                         {job.proyecto ? ` · ${job.proyecto}` : ""}
                       </span>
                       <span
@@ -143,7 +145,7 @@ export default function ActiveJobsPopup() {
                         className="mt-2 inline-block text-[11px] text-[var(--vf-accent)] hover:underline"
                         download
                       >
-                        Descargar video
+                        {t("jobsPanel.downloadVideo")}
                       </a>
                     )}
                   </li>
