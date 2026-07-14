@@ -1,44 +1,45 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getQuickRenderDownloadUrl, startQuickRender } from "../../api/quickRender";
 import { Select, SelectOption } from "../../components/Select";
 
 const RESOLUCIONES = [
-  { value: "1920x1080", label: "1920×1080 — YouTube" },
-  { value: "1080x1920", label: "1080×1920 — Reels/TikTok" },
-  { value: "1080x1080", label: "1080×1080 — Instagram" },
-  { value: "1280x720", label: "1280×720 — HD" },
+  { value: "1920x1080", labelKey: "projectRenderPanel.resYoutube" },
+  { value: "1080x1920", labelKey: "projectRenderPanel.resReels" },
+  { value: "1080x1080", labelKey: "projectRenderPanel.resInstagram" },
+  { value: "1280x720", labelKey: "projectRenderPanel.resHd" },
 ];
 
 const MODELOS = [
-  { value: "tiny", label: "tiny — Muy rápido" },
-  { value: "base", label: "base — Recomendado" },
-  { value: "small", label: "small — Preciso" },
-  { value: "medium", label: "medium — Muy preciso" },
+  { value: "tiny", labelKey: "projectRenderPanel.modelTiny" },
+  { value: "base", labelKey: "projectRenderPanel.modelBase" },
+  { value: "small", labelKey: "projectRenderPanel.modelSmall" },
+  { value: "medium", labelKey: "projectRenderPanel.modelMedium" },
 ];
 
 const WHISPER_BACKENDS = [
-  { value: "whisperx", label: "WhisperX API — Timestamps precisos" },
-  { value: "api", label: "API" },
-  { value: "faster", label: "Faster-whisper" },
-  { value: "local", label: "Local — Estándar" },
+  { value: "whisperx", labelKey: "projectRenderPanel.whisperXApi" },
+  { value: "api", labelKey: "projectRenderPanel.whisperApi" },
+  { value: "faster", labelKey: "projectRenderPanel.whisperFaster" },
+  { value: "local", labelKey: "projectRenderPanel.whisperLocal" },
 ];
 
 const MOTIONS = [
-  { value: "none", label: "Sin movimiento" },
-  { value: "ken_burns", label: "Ken Burns" },
-  { value: "zoom_in", label: "Zoom In" },
-  { value: "zoom_out", label: "Zoom Out" },
-  { value: "pan_left", label: "Pan Izquierda" },
-  { value: "pan_right", label: "Pan Derecha" },
+  { value: "none", labelKey: "projectRenderPanel.motionNone" },
+  { value: "ken_burns", labelKey: "projectRenderPanel.motionKenBurns" },
+  { value: "zoom_in", labelKey: "projectRenderPanel.motionZoomIn" },
+  { value: "zoom_out", labelKey: "projectRenderPanel.motionZoomOut" },
+  { value: "pan_left", labelKey: "projectRenderPanel.motionPanLeft" },
+  { value: "pan_right", labelKey: "projectRenderPanel.motionPanRight" },
 ];
 
 const TRANSITIONS = [
-  { value: "none", label: "Sin transición" },
-  { value: "dissolve", label: "Desvanecido" },
-  { value: "slide_left", label: "Slide Izquierda" },
-  { value: "slide_right", label: "Slide Derecha" },
-  { value: "zoom", label: "Zoom" },
-  { value: "fade", label: "Fade negro" },
+  { value: "none", labelKey: "projectRenderPanel.transitionNone" },
+  { value: "dissolve", labelKey: "projectRenderPanel.transitionDissolve" },
+  { value: "slide_left", labelKey: "projectRenderPanel.transitionSlideLeft" },
+  { value: "slide_right", labelKey: "projectRenderPanel.transitionSlideRight" },
+  { value: "zoom", labelKey: "projectRenderPanel.transitionZoom" },
+  { value: "fade", labelKey: "projectRenderPanel.transitionFade" },
 ];
 
 interface ImageEntry {
@@ -61,6 +62,7 @@ function formatSize(bytes: number) {
 }
 
 export default function QuickRenderPanel() {
+  const { t } = useTranslation();
   const [guion, setGuion] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [images, setImages] = useState<ImageEntry[]>([]);
@@ -131,15 +133,15 @@ export default function QuickRenderPanel() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!audioFile) {
-      setError("Sube un archivo de audio.");
+      setError(t("quickRenderPanel.uploadAudioFile"));
       return;
     }
     if (!images.length) {
-      setError("Sube al menos una imagen.");
+      setError(t("quickRenderPanel.uploadAtLeastOneImage"));
       return;
     }
     if (!guion.trim()) {
-      setError("Escribe el guión (una línea por escena).");
+      setError(t("quickRenderPanel.writeScriptOneLinePerScene"));
       return;
     }
     setError("");
@@ -160,7 +162,7 @@ export default function QuickRenderPanel() {
         imageFiles: images.map((i) => i.file),
       });
       const jobId = data.job_id;
-      setJob({ id: jobId, estado: "procesando", progreso: 0, mensaje: "Iniciando..." });
+      setJob({ id: jobId, estado: "procesando", progreso: 0, mensaje: t("projectRenderPanel.startingJob") });
       startPolling(jobId, getQuickRenderDownloadUrl(jobId));
     } catch (err) {
       setError((err as Error).message);
@@ -177,7 +179,7 @@ export default function QuickRenderPanel() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Audio
+            {t("projectRenderPanel.audioTitle")}
           </h3>
           <input
             type="file"
@@ -194,7 +196,7 @@ export default function QuickRenderPanel() {
 
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Imágenes ({images.length})
+            {t("quickRenderPanel.imagesCount", { count: images.length })}
           </h3>
           <input
             type="file"
@@ -245,23 +247,23 @@ export default function QuickRenderPanel() {
 
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Guión
+            {t("projectRenderPanel.scriptTitle")}
           </h3>
           <textarea
             value={guion}
             onChange={(e) => setGuion(e.target.value)}
             rows={6}
-            placeholder={"Esta es la primera escena.\nEsta es la segunda escena.\nCada línea = una imagen en orden."}
+            placeholder={t("quickRenderPanel.scriptPlaceholder") || ""}
             className="w-full rounded-lg border border-[var(--vf-border)] bg-black/20 p-3 text-sm text-[var(--vf-text)] outline-none focus:border-[var(--vf-accent)]"
           />
           <p className="mt-1 font-mono text-[11px] text-[var(--vf-muted)]">
-            {guion.length} caracteres · {lineCount} líneas
+            {t("quickRenderPanel.charsAndLines", { chars: guion.length, lines: lineCount })}
           </p>
         </div>
 
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Movimiento y transición
+            {t("quickRenderPanel.motionAndTransitionTitle")}
           </h3>
           <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {MOTIONS.map((m) => (
@@ -275,7 +277,7 @@ export default function QuickRenderPanel() {
                     : "border-[var(--vf-border)] text-[var(--vf-muted)]"
                 }`}
               >
-                {m.label}
+                {t(m.labelKey)}
               </button>
             ))}
           </div>
@@ -286,27 +288,27 @@ export default function QuickRenderPanel() {
               onChange={(e) => setShake(e.target.checked)}
               className="accent-[var(--vf-accent)]"
             />
-            Activar sacudida de lente (Shake)
+            {t("projectRenderPanel.enableShake")}
           </label>
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TRANSITIONS.map((t) => (
+            {TRANSITIONS.map((trans) => (
               <button
                 type="button"
-                key={t.value}
-                onClick={() => setTransicion(t.value)}
+                key={trans.value}
+                onClick={() => setTransicion(trans.value)}
                 className={`rounded-lg border px-3 py-2 text-xs transition ${
-                  transicion === t.value
+                  transicion === trans.value
                     ? "border-[var(--vf-accent)] bg-[var(--vf-accent)]/10 text-[var(--vf-text)]"
                     : "border-[var(--vf-border)] text-[var(--vf-muted)]"
                 }`}
               >
-                {t.label}
+                {t(trans.labelKey)}
               </button>
             ))}
           </div>
           {transicion !== "none" && (
             <div className="flex items-center gap-3">
-              <label className="text-xs text-[var(--vf-muted)]">Duración</label>
+              <label className="text-xs text-[var(--vf-muted)]">{t("projectRenderPanel.duration")}</label>
               <input
                 type="range"
                 min="0.3"
@@ -323,11 +325,11 @@ export default function QuickRenderPanel() {
 
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Configuración de salida
+            {t("projectRenderPanel.outputConfigTitle")}
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Resolución</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.resolution")}</label>
               <Select
                 value={resolucion}
                 onChange={(v) => setResolucion(v)}
@@ -335,13 +337,13 @@ export default function QuickRenderPanel() {
               >
                 {RESOLUCIONES.map((r) => (
                   <SelectOption key={r.value} value={r.value}>
-                    {r.label}
+                    {t(r.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Modelo Whisper</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.whisperModel")}</label>
               <Select
                 value={modelo}
                 onChange={(v) => setModelo(v)}
@@ -349,13 +351,13 @@ export default function QuickRenderPanel() {
               >
                 {MODELOS.map((m) => (
                   <SelectOption key={m.value} value={m.value}>
-                    {m.label}
+                    {t(m.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Motor Whisper</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.whisperEngine")}</label>
               <Select
                 value={whisperBackend}
                 onChange={(v) => setWhisperBackend(v)}
@@ -363,13 +365,13 @@ export default function QuickRenderPanel() {
               >
                 {WHISPER_BACKENDS.map((w) => (
                   <SelectOption key={w.value} value={w.value}>
-                    {w.label}
+                    {t(w.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Fade (s)</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("quickRenderPanel.fadeLabel")}</label>
               <input
                 type="number"
                 min="0"
@@ -389,7 +391,7 @@ export default function QuickRenderPanel() {
           disabled={loading || !!isRendering}
           className="rounded-lg bg-[var(--vf-accent)] px-5 py-3 font-medium text-white transition hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
         >
-          {loading ? "Enviando..." : isRendering ? "Renderizando..." : "Generar video"}
+          {loading ? t("projectRenderPanel.sending") : isRendering ? t("projectRenderPanel.rendering") : t("projectRenderPanel.generateVideo")}
         </button>
       </form>
 
@@ -397,7 +399,7 @@ export default function QuickRenderPanel() {
         {job && (
           <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
             <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-              {job.estado === "completado" ? "Video listo" : "Progreso del render"}
+              {job.estado === "completado" ? t("projectRenderPanel.videoReady") : t("projectRenderPanel.renderProgress")}
             </h3>
             <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
               <div
@@ -417,12 +419,12 @@ export default function QuickRenderPanel() {
                 download
                 className="mt-4 block rounded-lg bg-[var(--vf-success)] px-4 py-2.5 text-center font-medium text-black"
               >
-                Descargar video
+                {t("projectRenderPanel.downloadVideo")}
               </a>
             )}
             {job.estado === "error" && (
               <p className="mt-2 text-sm text-[var(--vf-danger)]">
-                {job.error || "Ocurrió un error durante el render."}
+                {job.error || t("projectRenderPanel.renderErrorGeneric")}
               </p>
             )}
           </div>

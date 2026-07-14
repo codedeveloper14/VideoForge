@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getRenderDownloadUrl, getRenderStatus, startRender } from "../../api/render";
 import type { RenderStatus } from "../../api/render";
 import { loadScript } from "../../api/script";
@@ -10,51 +11,52 @@ interface ProjectRenderPanelProps {
 }
 
 const RESOLUCIONES = [
-  { value: "1920x1080", label: "1920×1080 — YouTube" },
-  { value: "1080x1920", label: "1080×1920 — Reels/TikTok" },
-  { value: "1080x1080", label: "1080×1080 — Instagram" },
-  { value: "1280x720", label: "1280×720 — HD" },
+  { value: "1920x1080", labelKey: "projectRenderPanel.resYoutube" },
+  { value: "1080x1920", labelKey: "projectRenderPanel.resReels" },
+  { value: "1080x1080", labelKey: "projectRenderPanel.resInstagram" },
+  { value: "1280x720", labelKey: "projectRenderPanel.resHd" },
 ];
 
 const MODELOS = [
-  { value: "tiny", label: "tiny — Muy rápido" },
-  { value: "base", label: "base — Recomendado" },
-  { value: "small", label: "small — Preciso" },
-  { value: "medium", label: "medium — Muy preciso" },
+  { value: "tiny", labelKey: "projectRenderPanel.modelTiny" },
+  { value: "base", labelKey: "projectRenderPanel.modelBase" },
+  { value: "small", labelKey: "projectRenderPanel.modelSmall" },
+  { value: "medium", labelKey: "projectRenderPanel.modelMedium" },
 ];
 
 const WHISPER_BACKENDS = [
-  { value: "whisperx", label: "WhisperX API — Timestamps precisos" },
-  { value: "api", label: "API" },
-  { value: "faster", label: "Faster-whisper" },
-  { value: "local", label: "Local — Estándar" },
+  { value: "whisperx", labelKey: "projectRenderPanel.whisperXApi" },
+  { value: "api", labelKey: "projectRenderPanel.whisperApi" },
+  { value: "faster", labelKey: "projectRenderPanel.whisperFaster" },
+  { value: "local", labelKey: "projectRenderPanel.whisperLocal" },
 ];
 
 const RENDER_MODES = [
-  { value: "smart", label: "Mezcla inteligente", desc: "Usa videos disponibles + imágenes para el resto" },
-  { value: "images", label: "Solo imágenes", desc: "Ignora videos del proyecto" },
-  { value: "videos", label: "Solo videos", desc: "Solo videos ya generados del proyecto" },
+  { value: "smart", labelKey: "projectRenderPanel.modeSmart", descKey: "projectRenderPanel.modeSmartDesc" },
+  { value: "images", labelKey: "projectRenderPanel.modeImages", descKey: "projectRenderPanel.modeImagesDesc" },
+  { value: "videos", labelKey: "projectRenderPanel.modeVideos", descKey: "projectRenderPanel.modeVideosDesc" },
 ];
 
 const MOTIONS = [
-  { value: "none", label: "Sin movimiento" },
-  { value: "ken_burns", label: "Ken Burns" },
-  { value: "zoom_in", label: "Zoom In" },
-  { value: "zoom_out", label: "Zoom Out" },
-  { value: "pan_left", label: "Pan Izquierda" },
-  { value: "pan_right", label: "Pan Derecha" },
+  { value: "none", labelKey: "projectRenderPanel.motionNone" },
+  { value: "ken_burns", labelKey: "projectRenderPanel.motionKenBurns" },
+  { value: "zoom_in", labelKey: "projectRenderPanel.motionZoomIn" },
+  { value: "zoom_out", labelKey: "projectRenderPanel.motionZoomOut" },
+  { value: "pan_left", labelKey: "projectRenderPanel.motionPanLeft" },
+  { value: "pan_right", labelKey: "projectRenderPanel.motionPanRight" },
 ];
 
 const TRANSITIONS = [
-  { value: "none", label: "Sin transición" },
-  { value: "dissolve", label: "Desvanecido" },
-  { value: "slide_left", label: "Slide Izquierda" },
-  { value: "slide_right", label: "Slide Derecha" },
-  { value: "zoom", label: "Zoom" },
-  { value: "fade", label: "Fade negro" },
+  { value: "none", labelKey: "projectRenderPanel.transitionNone" },
+  { value: "dissolve", labelKey: "projectRenderPanel.transitionDissolve" },
+  { value: "slide_left", labelKey: "projectRenderPanel.transitionSlideLeft" },
+  { value: "slide_right", labelKey: "projectRenderPanel.transitionSlideRight" },
+  { value: "zoom", labelKey: "projectRenderPanel.transitionZoom" },
+  { value: "fade", labelKey: "projectRenderPanel.transitionFade" },
 ];
 
 export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps) {
+  const { t } = useTranslation();
   const [renderMode, setRenderMode] = useState("smart");
   const [guion, setGuion] = useState("");
   const [useProjectScript, setUseProjectScript] = useState(true);
@@ -110,11 +112,11 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!project) {
-      setError("Selecciona un proyecto primero.");
+      setError(t("projectRenderPanel.selectProjectFirst"));
       return;
     }
     if (!useProjectAudio && !audioFile) {
-      setError("Sube un archivo de audio o marca 'usar audio del proyecto'.");
+      setError(t("projectRenderPanel.uploadAudioOrMarkUseProject"));
       return;
     }
     setError("");
@@ -135,7 +137,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
         shake,
         audioFile: useProjectAudio ? null : audioFile,
       });
-      setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: "Iniciando..." });
+      setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: t("projectRenderPanel.startingJob") });
       startPolling(data.job_id);
     } catch (err) {
       const error = err as Error & { limit_reached?: boolean };
@@ -156,14 +158,14 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {!project && (
           <p className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] p-3 text-sm text-[var(--vf-muted)]">
-            Selecciona un proyecto arriba para renderizar.
+            {t("projectRenderPanel.selectProjectAbove")}
           </p>
         )}
 
         {/* Render mode */}
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Modo de renderizado
+            {t("projectRenderPanel.renderModeTitle")}
           </h3>
           <div className="flex flex-wrap gap-2">
             {RENDER_MODES.map((m) => (
@@ -184,9 +186,9 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
                     onChange={() => setRenderMode(m.value)}
                     className="accent-[var(--vf-accent)]"
                   />
-                  {m.label}
+                  {t(m.labelKey)}
                 </span>
-                <span className="pl-5 text-[11px] text-[var(--vf-muted)]">{m.desc}</span>
+                <span className="pl-5 text-[11px] text-[var(--vf-muted)]">{t(m.descKey)}</span>
               </label>
             ))}
           </div>
@@ -195,7 +197,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
         {/* Audio + Script */}
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Audio
+            {t("projectRenderPanel.audioTitle")}
           </h3>
           <label className="mb-2 flex items-center gap-2 text-sm text-[var(--vf-muted)]">
             <input
@@ -204,7 +206,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               onChange={(e) => setUseProjectAudio(e.target.checked)}
               className="accent-[var(--vf-accent)]"
             />
-            Usar audio del proyecto
+            {t("projectRenderPanel.useProjectAudio")}
           </label>
           {!useProjectAudio && (
             <input
@@ -216,7 +218,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
           )}
 
           <h3 className="mb-3 mt-5 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Guión
+            {t("projectRenderPanel.scriptTitle")}
           </h3>
           <label className="mb-2 flex items-center gap-2 text-sm text-[var(--vf-muted)]">
             <input
@@ -225,14 +227,14 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               onChange={(e) => setUseProjectScript(e.target.checked)}
               className="accent-[var(--vf-accent)]"
             />
-            Usar guión guardado del proyecto
+            {t("projectRenderPanel.useProjectScript")}
           </label>
           {!useProjectScript && (
             <textarea
               value={guion}
               onChange={(e) => setGuion(e.target.value)}
               rows={6}
-              placeholder="Cada línea = una escena..."
+              placeholder={t("projectRenderPanel.scriptPlaceholder") || ""}
               className="w-full rounded-lg border border-[var(--vf-border)] bg-black/20 p-3 text-sm text-[var(--vf-text)] outline-none focus:border-[var(--vf-accent)]"
             />
           )}
@@ -241,7 +243,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
         {/* Effects */}
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Movimiento de cámara
+            {t("projectRenderPanel.cameraMotionTitle")}
           </h3>
           <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {MOTIONS.map((m) => (
@@ -255,7 +257,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
                     : "border-[var(--vf-border)] text-[var(--vf-muted)]"
                 }`}
               >
-                {m.label}
+                {t(m.labelKey)}
               </button>
             ))}
           </div>
@@ -266,31 +268,31 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               onChange={(e) => setShake(e.target.checked)}
               className="accent-[var(--vf-accent)]"
             />
-            Activar sacudida de lente (Shake)
+            {t("projectRenderPanel.enableShake")}
           </label>
 
           <h3 className="mb-3 mt-5 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Transición entre clips
+            {t("projectRenderPanel.transitionTitle")}
           </h3>
           <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {TRANSITIONS.map((t) => (
+            {TRANSITIONS.map((trans) => (
               <button
                 type="button"
-                key={t.value}
-                onClick={() => setTransicion(t.value)}
+                key={trans.value}
+                onClick={() => setTransicion(trans.value)}
                 className={`rounded-lg border px-3 py-2 text-xs transition ${
-                  transicion === t.value
+                  transicion === trans.value
                     ? "border-[var(--vf-accent)] bg-[var(--vf-accent)]/10 text-[var(--vf-text)]"
                     : "border-[var(--vf-border)] text-[var(--vf-muted)]"
                 }`}
               >
-                {t.label}
+                {t(trans.labelKey)}
               </button>
             ))}
           </div>
           {transicion !== "none" && (
             <div className="flex items-center gap-3">
-              <label className="text-xs text-[var(--vf-muted)]">Duración</label>
+              <label className="text-xs text-[var(--vf-muted)]">{t("projectRenderPanel.duration")}</label>
               <input
                 type="range"
                 min="0.3"
@@ -308,11 +310,11 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
         {/* Output config */}
         <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
           <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Configuración de salida
+            {t("projectRenderPanel.outputConfigTitle")}
           </h3>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Resolución</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.resolution")}</label>
               <Select
                 value={resolucion}
                 onChange={(v) => setResolucion(v)}
@@ -320,13 +322,13 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               >
                 {RESOLUCIONES.map((r) => (
                   <SelectOption key={r.value} value={r.value}>
-                    {r.label}
+                    {t(r.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Modelo Whisper</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.whisperModel")}</label>
               <Select
                 value={modelo}
                 onChange={(v) => setModelo(v)}
@@ -334,13 +336,13 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               >
                 {MODELOS.map((m) => (
                   <SelectOption key={m.value} value={m.value}>
-                    {m.label}
+                    {t(m.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">Motor Whisper</label>
+              <label className="mb-1 block text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.whisperEngine")}</label>
               <Select
                 value={whisperBackend}
                 onChange={(v) => setWhisperBackend(v)}
@@ -348,7 +350,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
               >
                 {WHISPER_BACKENDS.map((w) => (
                   <SelectOption key={w.value} value={w.value}>
-                    {w.label}
+                    {t(w.labelKey)}
                   </SelectOption>
                 ))}
               </Select>
@@ -360,7 +362,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
           <div className="rounded-lg border border-[var(--vf-c4)]/40 bg-[var(--vf-c4)]/10 p-4 text-sm">
             <p className="mb-2 text-[var(--vf-c4)]">{limitInfo}</p>
             <Link to="/app/planes" className="text-[var(--vf-accent)] hover:underline">
-              Mejora tu plan →
+              {t("projectRenderPanel.upgradePlan")}
             </Link>
           </div>
         )}
@@ -371,7 +373,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
           disabled={loading || !project || !!isRendering}
           className="rounded-lg bg-[var(--vf-accent)] px-5 py-3 font-medium text-white transition hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
         >
-          {loading ? "Enviando..." : isRendering ? "Renderizando..." : "Generar video"}
+          {loading ? t("projectRenderPanel.sending") : isRendering ? t("projectRenderPanel.rendering") : t("projectRenderPanel.generateVideo")}
         </button>
       </form>
 
@@ -380,7 +382,7 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
         {job && (
           <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
             <h3 className="mb-3 font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-              {job.estado === "completado" ? "Video listo" : "Progreso del render"}
+              {job.estado === "completado" ? t("projectRenderPanel.videoReady") : t("projectRenderPanel.renderProgress")}
             </h3>
             <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),0.05)]">
               <div
@@ -407,20 +409,20 @@ export default function ProjectRenderPanel({ project }: ProjectRenderPanelProps)
                 download
                 className="mt-4 block rounded-lg bg-[var(--vf-success)] px-4 py-2.5 text-center font-medium text-black"
               >
-                Descargar video
+                {t("projectRenderPanel.downloadVideo")}
               </a>
             )}
             {job.estado === "error" && !!job.limit_reached && (
               <div className="mt-2 rounded-lg border border-[var(--vf-c4)]/40 bg-[var(--vf-c4)]/10 p-4 text-sm">
                 <p className="mb-2 text-[var(--vf-c4)]">{job.error}</p>
                 <Link to="/app/planes" className="text-[var(--vf-accent)] hover:underline">
-                  Mejora tu plan →
+                  {t("projectRenderPanel.upgradePlan")}
                 </Link>
               </div>
             )}
             {job.estado === "error" && !job.limit_reached && (
               <p className="mt-2 text-sm text-[var(--vf-danger)]">
-                {job.error || "Ocurrió un error durante el render."}
+                {job.error || t("projectRenderPanel.renderErrorGeneric")}
               </p>
             )}
           </div>
