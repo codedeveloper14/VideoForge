@@ -62,6 +62,8 @@ type PlanTheme = {
   nameColor: string;
   checkBg: string;
   btnClass: string;
+  /** RGB triplet (no "rgb()") used to build the "Tu plan actual" badge/border in this plan's own color. */
+  rgb: string;
   cardStyle?: React.CSSProperties;
   ribbon?: string;
 };
@@ -75,6 +77,7 @@ const THEMES: Record<string, PlanTheme> = {
     nameColor: "#94a3b8",
     checkBg: "#64748b20",
     btnClass: "free-btn",
+    rgb: "148,163,184",
   },
   basico: {
     accent: "linear-gradient(90deg,#22d3a0,#0ea5e9)",
@@ -84,6 +87,7 @@ const THEMES: Record<string, PlanTheme> = {
     nameColor: "#22d3a0",
     checkBg: "#22d3a020",
     btnClass: "starter-btn",
+    rgb: "34,211,160",
   },
   pro: {
     accent: "linear-gradient(90deg,#6c56ff,#a855f7,#ec4899)",
@@ -93,6 +97,7 @@ const THEMES: Record<string, PlanTheme> = {
     nameColor: "#a78bfa",
     checkBg: "#7c6aff20",
     btnClass: "pro-btn",
+    rgb: "167,139,250",
     ribbon: "Más popular",
   },
   ultra: {
@@ -103,6 +108,7 @@ const THEMES: Record<string, PlanTheme> = {
     nameColor: "#fbbf24",
     checkBg: "#fbbf2420",
     btnClass: "ultra-btn",
+    rgb: "251,191,36",
   },
   unlimited: {
     accent: "linear-gradient(90deg,#9333ea,#c084fc,#e879f9)",
@@ -112,6 +118,7 @@ const THEMES: Record<string, PlanTheme> = {
     nameColor: "#c084fc",
     checkBg: "#c084fc20",
     btnClass: "unlimited-btn",
+    rgb: "192,132,252",
     cardStyle: {
       background: "linear-gradient(160deg,rgba(147,51,234,.1) 0%,rgba(192,132,252,.04) 100%)",
       borderColor: "rgba(192,132,252,.25)",
@@ -303,10 +310,10 @@ export default function PlansPage() {
               style={{
                 background: "rgba(var(--vf-fg-rgb),.038)",
                 border: isCurrent
-                  ? "1px solid rgba(34,211,160,.42)"
+                  ? `1px solid rgba(${theme.rgb},.42)`
                   : "1px solid rgba(var(--vf-fg-rgb),.09)",
                 boxShadow: isCurrent
-                  ? "0 0 0 1px rgba(34,211,160,.14),0 8px 32px rgba(34,211,160,.07)"
+                  ? `0 0 0 1px rgba(${theme.rgb},.14),0 8px 32px rgba(${theme.rgb},.07)`
                   : isHighlight
                     ? "0 0 0 1px rgba(108,86,255,.22),0 24px 70px rgba(108,86,255,.22),0 8px 24px rgba(0,0,0,.45)"
                     : undefined,
@@ -318,11 +325,12 @@ export default function PlansPage() {
               <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-[26px]">
                 {isCurrent && (
                   <div
-                    className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[9px] font-bold uppercase text-[#22d3a0]"
+                    className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[9px] font-bold uppercase"
                     style={{
                       letterSpacing: ".1em",
-                      background: "rgba(34,211,160,.12)",
-                      border: "1px solid rgba(34,211,160,.3)",
+                      color: theme.nameColor,
+                      background: `rgba(${theme.rgb},.14)`,
+                      border: `1px solid rgba(${theme.rgb},.35)`,
                     }}
                   >
                     ✓ Tu plan actual
