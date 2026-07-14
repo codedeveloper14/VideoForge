@@ -112,9 +112,12 @@ export default function AppLayout() {
   const { openTab } = useTabs();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const initial = (user || "?").charAt(0).toUpperCase();
   const hideSidebar = NO_SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
+  // On the mobile drawer, always show full labels regardless of the desktop collapse toggle.
+  const effectiveCollapsed = collapsed && !mobileNavOpen;
 
   useEffect(() => {
     const project = getProjectFromLocation(location.pathname, location.search);
@@ -122,18 +125,39 @@ export default function AppLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search]);
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
       {!hideSidebar && (
+      <>
+      <button
+        onClick={() => setMobileNavOpen(true)}
+        title="Abrir menú"
+        className="fixed left-3 top-3 z-[905] flex h-9 w-9 items-center justify-center rounded-lg md:hidden"
+        style={{ background: "var(--vf-s)", border: "1px solid rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-m)" }}
+      >
+        <IconMenu />
+      </button>
+      {mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 z-[915] bg-black/50 md:hidden"
+        />
+      )}
       <aside
-        className={`fixed left-0 top-0 bottom-0 z-[920] flex flex-col overflow-y-auto transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[220px]"}`}
+        className={`fixed left-0 top-0 bottom-0 z-[920] flex w-[220px] flex-col overflow-y-auto transition-transform duration-200 md:transition-[width] ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${collapsed ? "md:w-[64px]" : "md:w-[220px]"}`}
         style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
       >
         <div
           className="flex flex-shrink-0 items-center gap-[11px] px-[15px] pb-[15px] pt-[18px]"
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
-          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={collapsed ? "Studio IVR" : undefined}>
+          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
             <div
               className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
               style={{
@@ -149,7 +173,7 @@ export default function AppLayout() {
                 <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
               </svg>
             </div>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <div>
                 <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
                 <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
@@ -158,7 +182,7 @@ export default function AppLayout() {
               </div>
             )}
           </NavLink>
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <button
               onClick={() => setCollapsed(true)}
               title="Colapsar menú"
@@ -169,7 +193,7 @@ export default function AppLayout() {
           )}
         </div>
 
-        {collapsed && (
+        {effectiveCollapsed && (
           <div className="flex flex-shrink-0 justify-center px-2 pt-2">
             <button
               onClick={() => setCollapsed(false)}
@@ -182,57 +206,57 @@ export default function AppLayout() {
         )}
 
         <nav className="flex flex-1 flex-col gap-px px-2 pt-2.5">
-          <NavLink to="/app/home" end className={xiClass} title={collapsed ? "Inicio" : undefined}>
+          <NavLink to="/app/home" end className={xiClass} title={effectiveCollapsed ? "Inicio" : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
-            {!collapsed && "Inicio"}
+            {!effectiveCollapsed && "Inicio"}
           </NavLink>
 
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
               General
             </span>
           )}
 
-          <NavLink to="/app/home" className={xiClass} title={collapsed ? "Proyectos" : undefined}>
+          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? "Proyectos" : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
-            {!collapsed && "Proyectos"}
+            {!effectiveCollapsed && "Proyectos"}
           </NavLink>
 
           <button
             onClick={() => navigate("/app/idea2video")}
-            title={collapsed ? "Idea → Video" : undefined}
+            title={effectiveCollapsed ? "Idea → Video" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
-            {!collapsed && <>Idea &rarr; Video</>}
+            {!effectiveCollapsed && <>Idea &rarr; Video</>}
           </button>
 
           <button
             onClick={() => navigate("/app/tareas")}
-            title={collapsed ? "Tareas" : undefined}
+            title={effectiveCollapsed ? "Tareas" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
-            {!collapsed && "Tareas"}
+            {!effectiveCollapsed && "Tareas"}
           </button>
 
-          <NavLink to="/app/ajustes" className={xiClass} title={collapsed ? "Ajustes" : undefined}>
+          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? "Ajustes" : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
-            {!collapsed && "Ajustes"}
+            {!effectiveCollapsed && "Ajustes"}
           </NavLink>
         </nav>
 
-        {collapsed ? (
+        {effectiveCollapsed ? (
           <div className="mx-2 mb-1.5 mt-3 flex flex-shrink-0 justify-center">
             <button
               onClick={() => navigate("/app/planes")}
@@ -273,31 +297,31 @@ export default function AppLayout() {
         <div className="flex flex-shrink-0 flex-col gap-px px-2 pb-1 pt-[5px]">
           <button
             onClick={() => navigate("/app/documentacion")}
-            title={collapsed ? "Documentación" : undefined}
+            title={effectiveCollapsed ? "Documentación" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
-            {!collapsed && "Documentación"}
+            {!effectiveCollapsed && "Documentación"}
           </button>
           <button
             onClick={() => navigate("/app/ayuda")}
-            title={collapsed ? "Centro de ayuda" : undefined}
+            title={effectiveCollapsed ? "Centro de ayuda" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
-            {!collapsed && "Centro de ayuda"}
+            {!effectiveCollapsed && "Centro de ayuda"}
           </button>
         </div>
 
         <div className="relative flex-shrink-0">
           <div
             onClick={() => setDropdownOpen((v) => !v)}
-            title={collapsed ? user || undefined : undefined}
-            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${collapsed ? "justify-center px-2" : "px-[13px]"}`}
+            title={effectiveCollapsed ? user || undefined : undefined}
+            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${effectiveCollapsed ? "justify-center px-2" : "px-[13px]"}`}
             style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
           >
             <div
@@ -306,7 +330,7 @@ export default function AppLayout() {
             >
               {initial}
             </div>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12.5px] font-semibold text-[var(--vf-text)]">{user}</div>
@@ -332,7 +356,7 @@ export default function AppLayout() {
 
           {dropdownOpen && (
             <div
-              className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${collapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
+              className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${effectiveCollapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
               style={{ background: "var(--vf-p)", border: "1px solid rgba(var(--vf-fg-rgb),.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
             >
               <button
@@ -377,11 +401,12 @@ export default function AppLayout() {
           )}
         </div>
       </aside>
+      </>
       )}
 
       <main
-        className={`flex-1 overflow-y-auto p-8 transition-[margin] duration-200 ${
-          hideSidebar ? "ml-0" : collapsed ? "ml-[64px]" : "ml-[220px]"
+        className={`flex-1 overflow-y-auto overflow-x-hidden p-4 transition-[margin] duration-200 md:p-8 ${
+          hideSidebar ? "md:ml-0" : `${collapsed ? "md:ml-[64px]" : "md:ml-[220px]"} pt-16 md:pt-8`
         }`}
         style={{ background: "var(--vf-bg)" }}
       >

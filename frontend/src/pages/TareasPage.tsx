@@ -92,7 +92,7 @@ function NewTaskModal({
 
   return (
     <div
-      className="fixed inset-0 z-[8100] flex items-center justify-center bg-black/55"
+      className="fixed inset-0 z-[8100] flex items-center justify-center bg-black/55 p-4"
       onClick={onClose}
     >
       <div
@@ -220,8 +220,8 @@ export default function TareasPage() {
         Tareas
       </h1>
 
-      <div className="mb-7 flex items-center justify-between">
-        <div className="flex w-fit gap-1 rounded-[14px] border border-[rgba(var(--vf-fg-rgb),0.06)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-1">
+      <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex w-fit flex-wrap gap-1 rounded-[14px] border border-[rgba(var(--vf-fg-rgb),0.06)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
