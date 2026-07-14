@@ -33,3 +33,8 @@ black>=24.0.0
 ruff>=0.6.0
 mypy>=1.10.0
 pre-commit>=3.7.0
+
+# --- Empaquetado (build-time, no hace falta para correr la app en dev) ---
+# Ofuscacion antes de compilar el instalador. Licencia Basic ya comprada y
+# registrada para esta maquina (producto "StudioIVR") -- ver pyarmor reg.
+pyarmor>=9.2.5
