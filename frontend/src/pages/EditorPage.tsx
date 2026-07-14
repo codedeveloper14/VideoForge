@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import { Select, SelectOption } from "../components/Select";
@@ -19,9 +20,9 @@ import type { ImageSearchPick } from "./editor/ImageSearchModal";
 
 const RESOLUCIONES = ["1920x1080", "1280x720", "1080x1920"];
 const TRANSICIONES = [
-  { value: "none", label: "Corte directo" },
-  { value: "xfade", label: "Crossfade" },
-  { value: "fade", label: "Fade a negro" },
+  { value: "none", labelKey: "editorTool.transNone" },
+  { value: "xfade", labelKey: "editorTool.transXfade" },
+  { value: "fade", labelKey: "editorTool.transFade" },
 ];
 
 const TIPO_OPTIONS = [
@@ -41,15 +42,16 @@ const TIPO_OPTIONS = [
 ];
 
 const OVERLAY_POS_OPTIONS = [
-  { value: "bottom_center", label: "Abajo centro" },
-  { value: "top_center", label: "Arriba centro" },
-  { value: "center", label: "Centro" },
-  { value: "bottom_left", label: "Abajo izquierda" },
-  { value: "top_left", label: "Arriba izquierda" },
-  { value: "right_center", label: "Derecha centro" },
+  { value: "bottom_center", labelKey: "editorTool.posBottomCenter" },
+  { value: "top_center", labelKey: "editorTool.posTopCenter" },
+  { value: "center", labelKey: "editorTool.posCenter" },
+  { value: "bottom_left", labelKey: "editorTool.posBottomLeft" },
+  { value: "top_left", labelKey: "editorTool.posTopLeft" },
+  { value: "right_center", labelKey: "editorTool.posRightCenter" },
 ];
 
 export default function EditorPage() {
+  const { t } = useTranslation();
   const { proyecto: routeProject } = useParams<{ proyecto?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -148,11 +150,11 @@ export default function EditorPage() {
 
   async function handleAnalizar() {
     if (!project) {
-      setError("Selecciona un proyecto primero.");
+      setError(t("editorTool.selectProjectFirst"));
       return;
     }
     if (!escenas.length) {
-      setError("El proyecto no tiene escenas para analizar.");
+      setError(t("editorTool.noScenesToAnalyze"));
       return;
     }
     setAnalyzing(true);
@@ -166,7 +168,7 @@ export default function EditorPage() {
         imagen_url: escenas[i]?.imagen_url ?? null,
       }));
       setEscenas(enriched);
-      setNotice(`Análisis completo — ${enriched.length} escenas clasificadas.`);
+      setNotice(t("editorTool.analysisComplete", { count: enriched.length }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -176,7 +178,7 @@ export default function EditorPage() {
 
   async function handleTranscribir() {
     if (!project) {
-      setError("Selecciona un proyecto primero.");
+      setError(t("editorTool.selectProjectFirst"));
       return;
     }
     setTranscribing(true);
@@ -188,7 +190,7 @@ export default function EditorPage() {
       setTimestamps(
         segs.map((s) => ({ escena: s.seg_idx + 1, inicio: s.start, fin: s.end, texto: s.text })),
       );
-      setNotice(`Transcripción lista (${segs.length} segmentos, fuente: ${data.source || "?"}).`);
+      setNotice(t("editorTool.transcriptionReady", { count: segs.length, source: data.source || "?" }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -198,14 +200,14 @@ export default function EditorPage() {
 
   async function handleGuardarPlan() {
     if (!project || !escenas.length) {
-      setError("Sin escenas para guardar.");
+      setError(t("editorTool.noScenesToSave"));
       return;
     }
     setSaving(true);
     setError("");
     try {
       await guardarPlan({ project_name: project, escenas });
-      setNotice("Plan guardado.");
+      setNotice(t("editorTool.planSaved"));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -219,11 +221,11 @@ export default function EditorPage() {
     try {
       const data = await cargarPlan(project);
       if (!data.existe) {
-        setNotice("No hay un plan guardado para este proyecto.");
+        setNotice(t("editorTool.noSavedPlan"));
         return;
       }
       setEscenas(data.escenas || []);
-      setNotice(`Plan cargado (${(data.escenas || []).length} escenas).`);
+      setNotice(t("editorTool.planLoaded", { count: (data.escenas || []).length }));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -248,7 +250,7 @@ export default function EditorPage() {
 
   async function handleRenderizar() {
     if (!project || !escenas.length) {
-      setError("Sin escenas para renderizar.");
+      setError(t("editorTool.noScenesToRender"));
       return;
     }
     setError("");
@@ -264,7 +266,7 @@ export default function EditorPage() {
         transicion,
         trans_dur: transDur,
       });
-      if (!result.job_id) throw new Error(result.error || "No se recibió job_id del render.");
+      if (!result.job_id) throw new Error(result.error || t("editorTool.noJobId"));
       setRenderJobId(result.job_id);
       startPolling(result.job_id);
     } catch (err) {
@@ -290,8 +292,8 @@ export default function EditorPage() {
 
   const selectedScene = selectedIdx >= 0 ? escenas[selectedIdx] : null;
   const tsLookup: Record<number, TimestampEntry> = {};
-  timestamps.forEach((t) => {
-    tsLookup[(t.escena || 1) - 1] = t;
+  timestamps.forEach((ts) => {
+    tsLookup[(ts.escena || 1) - 1] = ts;
   });
 
   return (
@@ -299,31 +301,30 @@ export default function EditorPage() {
       {/* Project selector */}
       <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-3">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Proyecto
+          {t("tools.project")}
         </span>
         <Select
           value={project}
           onChange={(v) => handleSelectProject(v)}
           className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
-          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
+          <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
           {projects.map((p) => (
             <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
             </SelectOption>
           ))}
         </Select>
-        {loading && <span className="font-mono text-xs text-[var(--vf-muted)]">Cargando…</span>}
+        {loading && <span className="font-mono text-xs text-[var(--vf-muted)]">{t("editorTool.loading")}</span>}
         {audioUrl && <audio controls src={audioUrl} className="ml-auto h-8 max-w-[260px]" />}
       </div>
 
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-[var(--vf-text)]">
-          Editor <span className="text-[var(--vf-c5)]">visual</span>
+          {t("editorTool.titlePart1")} <span className="text-[var(--vf-c5)]">{t("editorTool.titlePart2")}</span>
         </h1>
         <p className="mt-1 font-mono text-xs text-[var(--vf-muted)]">
-          Analiza escenas con IA, reemplaza imágenes, transcribe el audio y genera el render
-          enriquecido con overlays y Ken Burns.
+          {t("editorTool.subtitle")}
         </p>
       </div>
 
@@ -331,7 +332,7 @@ export default function EditorPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
         <div>
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Resolución
+            {t("editorTool.resolution")}
           </label>
           <Select
             value={resolucion}
@@ -347,23 +348,23 @@ export default function EditorPage() {
         </div>
         <div>
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Transición
+            {t("editorTool.transition")}
           </label>
           <Select
             value={transicion}
             onChange={(v) => setTransicion(v)}
             className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           >
-            {TRANSICIONES.map((t) => (
-              <SelectOption key={t.value} value={t.value}>
-                {t.label}
+            {TRANSICIONES.map((trans) => (
+              <SelectOption key={trans.value} value={trans.value}>
+                {t(trans.labelKey)}
               </SelectOption>
             ))}
           </Select>
         </div>
         <div className="w-[90px]">
           <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Dur. trans (s)
+            {t("editorTool.transDurLabel")}
           </label>
           <input
             type="number"
@@ -381,7 +382,7 @@ export default function EditorPage() {
             disabled={transcribing || !project}
             className="rounded-lg border border-[var(--vf-b2)] bg-transparent px-3.5 py-2 font-mono text-xs text-[var(--vf-muted)] hover:text-[var(--vf-text)] disabled:opacity-40"
           >
-            {transcribing ? "Transcribiendo…" : "Transcribir audio"}
+            {transcribing ? t("editorTool.transcribing") : t("editorTool.transcribeAudio")}
           </button>
           <button
             onClick={handleAnalizar}
@@ -389,7 +390,7 @@ export default function EditorPage() {
             className="rounded-lg border-none px-4 py-2 font-mono text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, var(--vf-c5), var(--vf-c1))" }}
           >
-            {analyzing ? "Analizando…" : "Analizar con IA"}
+            {analyzing ? t("editorTool.analyzing") : t("editorTool.analyzeWithAI")}
           </button>
         </div>
       </div>
@@ -407,12 +408,11 @@ export default function EditorPage() {
 
       {!project ? (
         <div className="rounded-xl border border-dashed border-[var(--vf-border)] p-14 text-center font-mono text-xs text-[var(--vf-muted)]">
-          Selecciona un proyecto para empezar a editar.
+          {t("editorTool.selectProjectToStart")}
         </div>
       ) : escenas.length === 0 && !loading ? (
         <div className="rounded-xl border border-dashed border-[var(--vf-border)] p-14 text-center font-mono text-xs text-[var(--vf-muted)]">
-          Este proyecto no tiene escenas todavía. Genera guion e imágenes primero, o carga un
-          plan guardado.
+          {t("editorTool.noScenesYet")}
         </div>
       ) : (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_340px]">
@@ -420,10 +420,10 @@ export default function EditorPage() {
           <div className="overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)]">
             <div className="flex items-center justify-between border-b border-[var(--vf-border)] px-4 py-3">
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--vf-c2)]">
-                Escenas
+                {t("editorTool.scenes")}
               </span>
               <span className="rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-muted)]">
-                {escenas.length} escenas
+                {t("editorTool.scenesCount", { count: escenas.length })}
               </span>
             </div>
             <div className="max-h-[640px] overflow-y-auto p-2">
@@ -446,12 +446,12 @@ export default function EditorPage() {
           <div className="sticky top-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
             {!selectedScene ? (
               <p className="py-10 text-center font-mono text-xs text-[var(--vf-muted)]">
-                Selecciona una escena para ver sus detalles.
+                {t("editorTool.selectSceneDetails")}
               </p>
             ) : (
               <div className="flex flex-col gap-3">
                 <div className="font-mono text-[11px] uppercase tracking-wider text-[var(--vf-c2)]">
-                  Escena {selectedIdx + 1}
+                  {t("editorTool.sceneNumber", { n: selectedIdx + 1 })}
                 </div>
                 <div className="rounded-lg border border-[var(--vf-border)] bg-black/20 p-2.5 font-mono text-[11px] italic leading-relaxed text-[var(--vf-muted)]">
                   {selectedScene.texto}
@@ -466,16 +466,16 @@ export default function EditorPage() {
                 <div className="flex flex-col gap-2.5">
                   <div>
                     <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                      Tipo
+                      {t("editorTool.type")}
                     </label>
                     <Select
                       value={selectedScene.tipo || "normal"}
                       onChange={(v) => handleUpdateScene(selectedIdx, { tipo: v })}
                       className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-text)] outline-none"
                     >
-                      {TIPO_OPTIONS.map((t) => (
-                        <SelectOption key={t} value={t}>
-                          {t.replace(/_/g, " ")}
+                      {TIPO_OPTIONS.map((tipoOpt) => (
+                        <SelectOption key={tipoOpt} value={tipoOpt}>
+                          {tipoOpt.replace(/_/g, " ")}
                         </SelectOption>
                       ))}
                     </Select>
@@ -483,7 +483,7 @@ export default function EditorPage() {
 
                   <div>
                     <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                      Texto overlay
+                      {t("editorTool.overlayText")}
                     </label>
                     <input
                       type="text"
@@ -496,7 +496,7 @@ export default function EditorPage() {
                   {selectedScene.texto_overlay && (
                     <div>
                       <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                        Posición overlay
+                        {t("editorTool.overlayPosition")}
                       </label>
                       <Select
                         value={selectedScene.texto_overlay_pos || "bottom_center"}
@@ -505,7 +505,7 @@ export default function EditorPage() {
                       >
                         {OVERLAY_POS_OPTIONS.map((o) => (
                           <SelectOption key={o.value} value={o.value}>
-                            {o.label}
+                            {t(o.labelKey)}
                           </SelectOption>
                         ))}
                       </Select>
@@ -514,7 +514,7 @@ export default function EditorPage() {
 
                   <div>
                     <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                      Texto secundario
+                      {t("editorTool.secondaryText")}
                     </label>
                     <input
                       type="text"
@@ -527,7 +527,7 @@ export default function EditorPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                        Color acento
+                        {t("editorTool.accentColor")}
                       </label>
                       <div className="flex items-center gap-2">
                         <input
@@ -550,7 +550,7 @@ export default function EditorPage() {
                     </div>
                     <div>
                       <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                        N° capítulo
+                        {t("editorTool.chapterNumber")}
                       </label>
                       <input
                         type="number"
@@ -564,7 +564,7 @@ export default function EditorPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                        Split label 1
+                        {t("editorTool.splitLabel1")}
                       </label>
                       <input
                         type="text"
@@ -575,7 +575,7 @@ export default function EditorPage() {
                     </div>
                     <div>
                       <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                        Split label 2
+                        {t("editorTool.splitLabel2")}
                       </label>
                       <input
                         type="text"
@@ -588,7 +588,7 @@ export default function EditorPage() {
 
                   <div>
                     <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-m2)]">
-                      Ref label
+                      {t("editorTool.refLabel")}
                     </label>
                     <input
                       type="text"
@@ -600,7 +600,7 @@ export default function EditorPage() {
 
                   {selectedScene.google_query && (
                     <div className="truncate font-mono text-[10px] text-[var(--vf-muted)]">
-                      <span className="text-[var(--vf-m2)]">Query: </span>
+                      <span className="text-[var(--vf-m2)]">{t("editorTool.query")} </span>
                       {selectedScene.google_query}
                     </div>
                   )}
@@ -609,7 +609,7 @@ export default function EditorPage() {
                   onClick={() => setSearchModalIdx(selectedIdx)}
                   className="rounded-lg border border-[var(--vf-b2)] px-3 py-2 font-mono text-xs text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                 >
-                  Buscar / reemplazar imagen
+                  {t("editorTool.searchReplaceImage")}
                 </button>
               </div>
             )}
@@ -626,13 +626,13 @@ export default function EditorPage() {
               disabled={saving}
               className="rounded-lg border border-[var(--vf-b2)] px-4 py-2 font-mono text-xs text-[var(--vf-muted)] hover:text-[var(--vf-text)] disabled:opacity-50"
             >
-              {saving ? "Guardando…" : "Guardar plan"}
+              {saving ? t("editorTool.saving") : t("editorTool.savePlan")}
             </button>
             <button
               onClick={handleCargarPlan}
               className="rounded-lg border border-[var(--vf-b2)] px-4 py-2 font-mono text-xs text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
             >
-              Cargar plan guardado
+              {t("editorTool.loadSavedPlan")}
             </button>
           </div>
           <button
@@ -641,7 +641,7 @@ export default function EditorPage() {
             className="rounded-lg border-none px-6 py-2.5 font-mono text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: "linear-gradient(135deg, var(--vf-c5), var(--vf-c1))" }}
           >
-            Renderizar (enriquecido)
+            {t("editorTool.render")}
           </button>
         </div>
       )}
@@ -651,7 +651,7 @@ export default function EditorPage() {
         <div className="mt-4 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="font-mono text-xs text-[var(--vf-c2)]">
-              {renderJob.mensaje || "Procesando…"}
+              {renderJob.mensaje || t("editorTool.processing")}
             </span>
             <span className="font-mono text-[10px] text-[var(--vf-muted)]">
               {renderJob.estado}
@@ -673,12 +673,12 @@ export default function EditorPage() {
               className="mt-2 inline-block rounded-lg px-4 py-2 font-mono text-xs font-bold text-black"
               style={{ background: "var(--vf-c5)" }}
             >
-              Descargar video enriquecido
+              {t("editorTool.downloadEnrichedVideo")}
             </a>
           )}
           {renderJob.estado === "error" && (
             <p className="text-xs text-[var(--vf-danger)]">
-              {renderJob.error || "El render falló."}
+              {renderJob.error || t("editorTool.renderFailed")}
             </p>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects } from "../api/projects";
 import { analyzeImage, loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
@@ -9,7 +10,15 @@ import type { Project } from "../types";
 
 type ActivePanel = "prompts" | "guion";
 
+const PIPELINE_STEPS = [
+  { n: "01", nameKey: "guionTool.step1Name", descKey: "guionTool.step1Desc" },
+  { n: "02", nameKey: "guionTool.step2Name", descKey: "guionTool.step2Desc" },
+  { n: "03", nameKey: "guionTool.step3Name", descKey: "guionTool.step3Desc" },
+  { n: "04", nameKey: "guionTool.step4Name", descKey: "guionTool.step4Desc" },
+];
+
 export default function GuionPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
@@ -140,14 +149,14 @@ export default function GuionPage() {
 
   async function handleSaveScript() {
     if (!project) {
-      setError("Selecciona un proyecto antes de guardar.");
+      setError(t("guionTool.selectProjectFirst"));
       return;
     }
-    setSaveStatus("Guardando…");
+    setSaveStatus(t("guionTool.saving"));
     setError("");
     try {
       await saveScript(project, guion, promptsText || "");
-      setSaveStatus("Guardado ✓");
+      setSaveStatus(t("guionTool.saved"));
       setTimeout(() => setSaveStatus(""), 2500);
     } catch (err) {
       setError((err as Error).message);
@@ -165,14 +174,14 @@ export default function GuionPage() {
       {/* Project selector topbar */}
       <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-3">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Proyecto
+          {t("tools.project")}
         </span>
         <Select
           value={project}
           onChange={(v) => setProject(v)}
           className="min-w-[200px] rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--vf-accent)]"
         >
-          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
+          <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
           {projects.map((p) => (
             <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
@@ -190,10 +199,10 @@ export default function GuionPage() {
             className="h-[5px] w-[5px] rounded-full"
             style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
           />
-          Módulo 01 · Pipeline
+          {t("guionTool.moduleLabel")}
         </div>
         <h1 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
-          Guión{" "}
+          {t("guionTool.titlePart1")}{" "}
           <span
             className="bg-clip-text text-transparent"
             style={{
@@ -201,23 +210,17 @@ export default function GuionPage() {
                 "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
             }}
           >
-            a Escenas
+            {t("guionTool.titlePart2")}
           </span>
         </h1>
         <p className="font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
-          Ingresa tu guión completo. La IA lo fragmenta, calcula el timing y genera un prompt de
-          imagen cinematográfico para cada escena.
+          {t("guionTool.subtitle")}
         </p>
       </div>
 
       {/* Pipeline steps */}
       <div className="mb-9 flex flex-wrap overflow-hidden rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)]">
-        {[
-          { n: "01", name: "Dividir", desc: "~1820 chars / bloque" },
-          { n: "02", name: "Timing", desc: "5–7 seg / escena" },
-          { n: "03", name: "Prompts", desc: "Imagen por escena" },
-          { n: "04", name: "Output", desc: "Listo para copiar" },
-        ].map((s, i) => (
+        {PIPELINE_STEPS.map((s, i) => (
           <div
             key={s.n}
             className={`flex flex-1 min-w-[150px] items-center gap-3 px-4 py-4 ${
@@ -228,8 +231,8 @@ export default function GuionPage() {
               {s.n}
             </div>
             <div>
-              <div className="text-xs font-bold">{s.name}</div>
-              <div className="font-mono text-[9.5px] text-[var(--vf-muted)]">{s.desc}</div>
+              <div className="text-xs font-bold">{t(s.nameKey)}</div>
+              <div className="font-mono text-[9.5px] text-[var(--vf-muted)]">{t(s.descKey)}</div>
             </div>
           </div>
         ))}
@@ -239,33 +242,33 @@ export default function GuionPage() {
         <div className="mb-5 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)]">
           <div className="flex items-center justify-between px-5 pt-4">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-              // Guión Completo
+              {t("guionTool.fullScript")}
             </span>
             <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-              {charCount} caracteres
+              {t("guionTool.characters", { count: charCount })}
             </span>
           </div>
 
           <textarea
             value={guion}
             onChange={(e) => setGuion(e.target.value)}
-            placeholder="Pega aquí tu guión completo. En un mundo donde la tecnología avanza a pasos agigantados..."
+            placeholder={t("guionTool.scriptPlaceholder") || ""}
             className="min-h-[220px] w-full resize-y bg-transparent px-5 py-3 font-mono text-[12.5px] leading-relaxed text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]"
           />
 
           <div className="flex items-center justify-between px-5 pb-4">
             <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-              ↳ El corte siempre se hace en frase completa
+              {t("guionTool.cutNote")}
             </span>
             <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-              Escenas estimadas: <strong className="text-[var(--vf-text)]">{fragEstimate}</strong>
+              {t("guionTool.estimatedScenes")} <strong className="text-[var(--vf-text)]">{fragEstimate}</strong>
             </span>
           </div>
 
           {/* Output mode toggle */}
           <div className="flex flex-wrap items-center gap-3 border-t border-[var(--vf-border)] px-5 py-3.5">
             <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Salida
+              {t("guionTool.output")}
             </span>
             <div className="flex gap-0.5 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] p-0.5">
               <button
@@ -277,7 +280,7 @@ export default function GuionPage() {
                     : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                 }`}
               >
-                💬 Solo saltos
+                {t("guionTool.onlyBreaks")}
               </button>
               <button
                 type="button"
@@ -288,7 +291,7 @@ export default function GuionPage() {
                     : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                 }`}
               >
-                🖼 + Prompts
+                {t("guionTool.withPrompts")}
               </button>
             </div>
           </div>
@@ -298,7 +301,7 @@ export default function GuionPage() {
               {/* Prompt mode toggle */}
               <div className="flex flex-wrap items-center gap-3 border-t border-[var(--vf-border)] px-5 py-3.5">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Modo de prompt
+                  {t("guionTool.promptMode")}
                 </span>
                 <div className="flex gap-0.5 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] p-0.5">
                   <button
@@ -310,7 +313,7 @@ export default function GuionPage() {
                         : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                     }`}
                   >
-                    General
+                    {t("guionTool.general")}
                   </button>
                   <button
                     type="button"
@@ -321,7 +324,7 @@ export default function GuionPage() {
                         : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                     }`}
                   >
-                    Figuras de palitos
+                    {t("guionTool.stickFigures")}
                   </button>
                   <button
                     type="button"
@@ -332,7 +335,7 @@ export default function GuionPage() {
                         : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                     }`}
                   >
-                    Ultrarealismo
+                    {t("guionTool.ultraRealism")}
                   </button>
                 </div>
               </div>
@@ -341,7 +344,7 @@ export default function GuionPage() {
               <div className="border-t border-[var(--vf-border)] px-5 py-3.5">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    Imagen de referencia (opcional)
+                    {t("guionTool.refImage")}
                   </span>
                   {refImageFile && (
                     <button
@@ -349,7 +352,7 @@ export default function GuionPage() {
                       onClick={clearRefImage}
                       className="font-mono text-[10px] text-[var(--vf-danger)] hover:underline"
                     >
-                      Quitar
+                      {t("guionTool.remove")}
                     </button>
                   )}
                 </div>
@@ -363,14 +366,14 @@ export default function GuionPage() {
                       className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                     />
                     <div className="font-mono text-[11px] text-[var(--vf-muted)]">
-                      <strong>Clic o arrastra</strong> una imagen de estilo/referencia
+                      <strong>{t("guionTool.clickOrDrag")}</strong> {t("guionTool.refImageHint")}
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-3 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-3">
                     <img
                       src={refImagePreviewUrl}
-                      alt="Referencia"
+                      alt={t("guionTool.referenceAlt") || ""}
                       className="h-16 w-16 flex-shrink-0 rounded-md object-cover"
                     />
                     <div className="min-w-0 flex-1">
@@ -379,7 +382,7 @@ export default function GuionPage() {
                       </div>
                       {analyzingImage ? (
                         <div className="font-mono text-[10px] text-[var(--vf-muted)]">
-                          Analizando imagen…
+                          {t("guionTool.analyzingImage")}
                         </div>
                       ) : refImageError ? (
                         <div className="font-mono text-[10px] text-[var(--vf-danger)]">
@@ -409,10 +412,10 @@ export default function GuionPage() {
               disabled={loading || !guion.trim() || analyzingImage}
               className="rounded-lg bg-[var(--vf-accent)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
             >
-              {loading ? "Procesando…" : "Procesar Guión →"}
+              {loading ? t("guionTool.processing") : t("guionTool.processScript")}
             </button>
             <div className="font-mono text-[10px] text-[var(--vf-muted)]">
-              El proceso puede tardar <strong>2–5 min</strong> según la extensión
+              {t("guionTool.processTimeNote")} <strong>{t("guionTool.processTimeRange")}</strong> {t("guionTool.processTimeSuffix")}
             </div>
           </div>
         </div>
@@ -423,7 +426,7 @@ export default function GuionPage() {
           <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Prompts generados
+                {t("guionTool.promptsGenerated")}
               </div>
               <div className="mt-1 text-2xl font-bold text-[var(--vf-c1)]">
                 {Array.isArray(result.prompts) ? result.prompts.length : "—"}
@@ -431,7 +434,7 @@ export default function GuionPage() {
             </div>
             <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Total de escenas
+                {t("guionTool.totalScenes")}
               </div>
               <div className="mt-1 text-2xl font-bold text-[var(--vf-c2)]">
                 {result.escenas ?? result.total_escenas ?? "—"}
@@ -439,7 +442,7 @@ export default function GuionPage() {
             </div>
             <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
               <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Fragmentos
+                {t("guionTool.fragments")}
               </div>
               <div className="mt-1 text-2xl font-bold text-[var(--vf-c3)]">
                 {result.fragmentos ?? "—"}
@@ -459,7 +462,7 @@ export default function GuionPage() {
                       : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                   }`}
                 >
-                  Prompts de imagen
+                  {t("guionTool.imagePrompts")}
                 </button>
                 <button
                   type="button"
@@ -470,13 +473,13 @@ export default function GuionPage() {
                       : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                   }`}
                 >
-                  Guión con saltos
+                  {t("guionTool.scriptWithBreaks")}
                 </button>
               </div>
               <span className="font-mono text-[10px] text-[var(--vf-muted)]">
                 {activePanel === "prompts"
-                  ? "// Prompts de imagen — listos para copiar"
-                  : "// Guión con saltos"}
+                  ? t("guionTool.imagePromptsReady")
+                  : t("guionTool.scriptWithBreaksComment")}
               </span>
               <div className="ml-auto flex gap-2">
                 <button
@@ -484,14 +487,14 @@ export default function GuionPage() {
                   onClick={copyActive}
                   className="rounded-lg border border-[var(--vf-border)] px-3 py-1.5 font-mono text-[10.5px] hover:bg-[var(--vf-surface-2)]"
                 >
-                  Copiar todo
+                  {t("guionTool.copyAll")}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveScript}
                   className="rounded-lg border border-[var(--vf-success)]/30 bg-[var(--vf-success)]/10 px-3 py-1.5 font-mono text-[10.5px] text-[var(--vf-success)] hover:bg-[var(--vf-success)]/20"
                 >
-                  💾 Guardar en proyecto
+                  {t("guionTool.saveToProject")}
                 </button>
               </div>
             </div>

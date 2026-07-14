@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { buscarImagen, proxyImagen } from "../../api/editor";
 
 export interface ImageSearchPick {
@@ -19,6 +20,7 @@ export default function ImageSearchModal({
   onClose,
   onPick,
 }: ImageSearchModalProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState(initialQuery || "");
   const [urls, setUrls] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ export default function ImageSearchModal({
     try {
       const data = await buscarImagen({ query: query.trim(), n: 8 });
       setUrls(data.urls || []);
-      if (!data.urls?.length) setError("Sin resultados para esa búsqueda.");
+      if (!data.urls?.length) setError(t("editorTool.noResultsForSearch"));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -48,7 +50,7 @@ export default function ImageSearchModal({
       if (data.error) throw new Error(data.error);
       onPick(sceneIndex, { url, b64: data.b64 });
     } catch (err) {
-      setError(`No se pudo cargar esa imagen: ${(err as Error).message}`);
+      setError(t("editorTool.couldNotLoadImage", { message: (err as Error).message }));
     } finally {
       setPickingUrl("");
     }
@@ -65,7 +67,7 @@ export default function ImageSearchModal({
       >
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Buscar imagen — Escena {sceneIndex + 1}
+            {t("editorTool.searchImageForScene", { n: sceneIndex + 1 })}
           </h3>
           <button
             onClick={onClose}
@@ -80,7 +82,7 @@ export default function ImageSearchModal({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="Query de búsqueda…"
+            placeholder={t("editorTool.searchQueryPlaceholder") || ""}
             className="flex-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
           />
           <button
@@ -89,7 +91,7 @@ export default function ImageSearchModal({
             className="rounded-lg border-none px-4 py-2 font-mono text-xs font-bold text-white disabled:opacity-50"
             style={{ background: "var(--vf-c1)" }}
           >
-            {loading ? "Buscando…" : "Buscar"}
+            {loading ? t("editorTool.searching") : t("editorTool.search")}
           </button>
         </div>
 
@@ -107,7 +109,7 @@ export default function ImageSearchModal({
                 <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                   <span className="font-mono text-[10px] font-bold text-white">
-                    {pickingUrl === url ? "Cargando…" : "Usar esta"}
+                    {pickingUrl === url ? t("editorTool.loadingImage") : t("editorTool.useThis")}
                   </span>
                 </div>
               </button>
@@ -117,7 +119,7 @@ export default function ImageSearchModal({
 
         {!loading && urls.length === 0 && !error && (
           <p className="py-8 text-center font-mono text-xs text-[var(--vf-muted)]">
-            Escribe una búsqueda y presiona Buscar.
+            {t("editorTool.typeSearchAndPress")}
           </p>
         )}
       </div>
