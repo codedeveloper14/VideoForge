@@ -9,14 +9,20 @@ name: Build for macOS
 # un runner real -- ver notas de riesgo abajo antes de dispararlo.
 #
 # Riesgos conocidos, sin verificar (documentados para quien lo corra primero):
-#   - PyArmor: la licencia Basic instalada hoy esta registrada para la
-#     maquina Windows de desarrollo y su modo "CI/CD Mode" esta en No, lo que
-#     significa que valida contra el servidor de PyArmor en cada corrida. Un
-#     runner de GitHub Actions es una maquina nueva cada vez -- es probable
-#     que el paso de "pyarmor gen" falle aca hasta registrar la licencia (o
-#     una licencia CI-compatible) con pyarmor reg en el propio runner, via un
-#     secret. Ver [[project-production-requirements]] (nota "Obfuscation tool
-#     decision") para el detalle completo de esta limitacion.
+#   - PyArmor: `pip install pyarmor` en el runner instala el software pero no
+#     una licencia -- corre en modo trial (limite de archivos) hasta que se
+#     registra. Se agrego un paso "Register PyArmor license" que usa el
+#     secret PYARMOR_LICENSE (contenido de ~/.pyarmor/license.lic de la
+#     maquina de desarrollo, subido via `gh secret set`, nunca commiteado al
+#     repo publico) y corre `pyarmor reg` antes de obfuscar. Riesgo real sin
+#     confirmar: esta licencia Basic tiene "CI/CD Mode: No", lo que
+#     probablemente significa que esta pensada para un solo dispositivo activo
+#     -- registrarla en un runner efimero podria fallar, gastar intentos de
+#     activacion limitados, o des-registrar la maquina Windows. Si el paso de
+#     registro falla o rompe el registro local, la opcion de respaldo es
+#     compilar Mac localmente en hardware real (mismo patron que Windows) en
+#     vez de por CI. Ver [[project-production-requirements]] (nota
+#     "Obfuscation tool decision") para el detalle completo.
 #   - pywebview + pyobjc (backend nativo Cocoa/WebKit) nunca se probo en Mac
 #     real durante todo este proyecto -- ver [[project-refactor-plan]].
 #   - No hay firma de codigo todavia (Apple Developer Program comprado,
@@ -77,6 +83,14 @@ jobs:
           cd frontend
           npm ci
           npm run build
+
+      - name: Register PyArmor license
+        env:
+          PYARMOR_LICENSE: ${{ secrets.PYARMOR_LICENSE }}
+        run: |
+          echo "$PYARMOR_LICENSE" > /tmp/license.lic
+          pyarmor reg /tmp/license.lic
+          rm -f /tmp/license.lic
 
       - name: Obfuscate with PyArmor
         run: |
