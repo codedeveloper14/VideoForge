@@ -1,5 +1,6 @@
 // Small shared UI bits reused across the Imagen sub-panels (Flow/Gentube).
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface GalleryImage {
   key?: string;
@@ -83,13 +84,14 @@ interface ImageGalleryProps {
 
 export function ImageGallery({
   images,
-  emptyLabel = "Sin imágenes todavía",
+  emptyLabel,
   renderOverlay,
 }: ImageGalleryProps) {
+  const { t } = useTranslation();
   if (!images || images.length === 0) {
     return (
       <div className="py-10 text-center font-mono text-xs text-[var(--vf-m2)]">
-        {emptyLabel}
+        {emptyLabel ?? t("imagenShared.noImagesYet")}
       </div>
     );
   }
@@ -122,10 +124,11 @@ interface LogConsoleProps {
 }
 
 export function LogConsole({ lines }: LogConsoleProps) {
+  const { t } = useTranslation();
   return (
     <div className="h-[240px] overflow-y-auto rounded-lg bg-black/20 p-3 font-mono text-[11px] leading-relaxed text-[var(--vf-muted)]">
       {lines.length === 0 ? (
-        <span className="text-[var(--vf-m2)]">Esperando inicio…</span>
+        <span className="text-[var(--vf-m2)]">{t("videoShared.waitingToStart")}</span>
       ) : (
         lines.map((l, i) => <div key={i}>{l}</div>)
       )}
@@ -150,7 +153,8 @@ export function PrimaryButton({ children, className = "", ...props }: ButtonProp
   );
 }
 
-export function StopButton({ children = "Detener", className = "", ...props }: ButtonProps) {
+export function StopButton({ children, className = "", ...props }: ButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       {...props}
@@ -164,7 +168,7 @@ export function StopButton({ children = "Detener", className = "", ...props }: B
         color: "#ef4444",
       }}
     >
-      {children}
+      {children ?? t("videoShared.stop")}
     </button>
   );
 }

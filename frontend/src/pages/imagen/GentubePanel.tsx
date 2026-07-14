@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../../components/Select";
 import {
   gentubeCheckLogin,
@@ -35,6 +36,7 @@ interface GentubePanelProps {
 }
 
 export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelProps) {
+  const { t } = useTranslation();
   const [prompts, setPrompts] = useState("");
   const [repeat, setRepeat] = useState<number | string>(1);
   const [slots, setSlots] = useState(1);
@@ -116,11 +118,11 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
       .map((l) => l.trim())
       .filter(Boolean);
     if (!list.length) {
-      setError("Escribe al menos un prompt.");
+      setError(t("flowPanel.writeAtLeastOnePrompt"));
       return;
     }
     if (!outputDir) {
-      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
+      setError(t("flowPanel.selectActiveProject"));
       return;
     }
     try {
@@ -168,7 +170,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   }
 
   async function handleReset() {
-    if (!confirm("¿Reiniciar el estado de Gentube?")) return;
+    if (!confirm(t("gentubePanel.confirmReset"))) return;
     try {
       await gentubeReset();
       pollStatus();
@@ -195,25 +197,25 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   return (
     <div>
       <p className="mb-4 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-        Genera imágenes con Gentube y guárdalas en la carpeta del proyecto.
+        {t("gentubePanel.subtitle")}
       </p>
 
       <div className="mb-4 grid grid-cols-[260px_1fr] gap-4 max-lg:grid-cols-1">
         <div className="flex flex-col gap-3">
           <SectionCard
-            title="// Cuentas"
+            title={t("gentubePanel.accountsTitle")}
             right={
               <button
                 onClick={loadAccounts}
                 className="font-mono text-[9px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
               >
-                ↺ Actualizar
+                {t("flowPanel.refresh")}
               </button>
             }
           >
             <div className="flex flex-col gap-1.5">
               {accounts.length === 0 ? (
-                <div className="font-mono text-[10px] text-[var(--vf-m2)]">Sin datos aún</div>
+                <div className="font-mono text-[10px] text-[var(--vf-m2)]">{t("flowPanel.noDataYet")}</div>
               ) : (
                 accounts.map((a, i) => (
                   <div
@@ -221,21 +223,21 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
                     className="flex items-center justify-between rounded-md border border-[var(--vf-border)] bg-[var(--vf-p)] px-2 py-1"
                   >
                     <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                      {a.name || `Cuenta ${i}`}
+                      {a.name || t("flowPanel.accountFallback", { n: i })}
                     </span>
                     <div className="flex items-center gap-2">
                       <span
                         className="font-mono text-[9px]"
                         style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
                       >
-                        {a.logged_in ? "conectado" : "desconectado"}
+                        {a.logged_in ? t("flowPanel.connected") : t("flowPanel.disconnected")}
                       </span>
                       <button
                         onClick={() => handleLogin(i)}
                         disabled={loggingIn === i}
                         className="font-mono text-[9px] text-[var(--vf-c2)] underline disabled:opacity-50"
                       >
-                        {loggingIn === i ? "Abriendo…" : "Login"}
+                        {loggingIn === i ? t("gentubePanel.openingEllipsis") : t("flowPanel.login")}
                       </button>
                     </div>
                   </div>
@@ -247,7 +249,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
           <div className="rounded-lg border border-[var(--vf-c1)]/20 bg-[var(--vf-c1)]/[0.07] p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                Slots simultáneos
+                {t("gentubePanel.simultaneousSlots")}
               </span>
               <span className="font-mono text-lg font-bold text-[var(--vf-c2)]">{slots}</span>
             </div>
@@ -261,11 +263,11 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
             />
           </div>
 
-          <SectionCard title="// Formato">
+          <SectionCard title={t("gentubePanel.formatTitle")}>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Ratio
+                  {t("gentubePanel.ratio")}
                 </label>
                 <Select
                   value={ratio}
@@ -279,15 +281,15 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               </div>
               <div>
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Calidad
+                  {t("gentubePanel.quality")}
                 </label>
                 <Select
                   value={quality}
                   onChange={(v) => setQuality(v)}
                   className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <SelectOption value="standard">Standard</SelectOption>
-                  <SelectOption value="high">High</SelectOption>
+                  <SelectOption value="standard">{t("gentubePanel.qualityStandard")}</SelectOption>
+                  <SelectOption value="high">{t("gentubePanel.qualityHigh")}</SelectOption>
                 </Select>
               </div>
             </div>
@@ -297,33 +299,33 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2">
             <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Destino:
+              {t("flowPanel.destination")}
             </span>
             <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
               {resolvingDir
-                ? "Resolviendo carpeta del proyecto…"
-                : outputDir || "— selecciona un proyecto arriba —"}
+                ? t("flowPanel.resolvingProjectFolder")
+                : outputDir || t("flowPanel.selectProjectAbove")}
             </span>
           </div>
 
           <SectionCard
-            title="// Prompts"
+            title={t("gentubePanel.promptsTitleShort")}
             right={
               <span className="font-mono text-[9px] text-[var(--vf-m2)]">
-                {countPrompts(prompts)} prompts
+                {t("gentubePanel.promptsCount", { count: countPrompts(prompts) })}
               </span>
             }
           >
             <textarea
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
-              placeholder={"Un prompt por línea."}
+              placeholder={t("gentubePanel.promptPlaceholderShort") || ""}
               className="min-h-[140px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-2.5 font-mono text-[11px] leading-relaxed text-[var(--vf-text)] outline-none"
             />
             <div className="mt-2 grid grid-cols-2 gap-2">
               <div>
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Repeticiones
+                  {t("gentubePanel.repetitions")}
                 </label>
                 <input
                   type="number"
@@ -336,7 +338,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               </div>
               <div>
                 <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Total estimado
+                  {t("gentubePanel.estimatedTotal")}
                 </label>
                 <div className="py-1 font-mono text-lg font-bold text-[var(--vf-c2)]">
                   {countPrompts(prompts) * (Number(repeat) || 1)}
@@ -347,13 +349,13 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
 
           <div className="flex gap-2.5">
             <PrimaryButton onClick={handleStart} disabled={running}>
-              ⚡ Iniciar generación
+              {t("flowPanel.startGeneration")}
             </PrimaryButton>
             <StopButton onClick={handleStop} disabled={!running}>
-              ⏹ Detener
+              {t("flowPanel.stop")}
             </StopButton>
             <GhostButton onClick={handleClearImages}>🗑</GhostButton>
-            <GhostButton onClick={handleReset}>↺ Reset</GhostButton>
+            <GhostButton onClick={handleReset}>{t("gentubePanel.resetButton")}</GhostButton>
           </div>
           <ErrorText message={error} />
         </div>
@@ -361,10 +363,10 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
 
       <div className="mb-4 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-3.5">
         <div className="mb-3 grid grid-cols-4 gap-2">
-          <StatBox value={processed} label="Procesados" />
-          <StatBox value={savedImages} label="Imágenes" color="var(--vf-c5)" />
-          <StatBox value={total} label="Total" />
-          <StatBox value={rate} label="Img/min" color="var(--vf-c2)" />
+          <StatBox value={processed} label={t("gentubePanel.processed")} />
+          <StatBox value={savedImages} label={t("gentubePanel.images")} color="var(--vf-c5)" />
+          <StatBox value={total} label={t("gentubePanel.total")} />
+          <StatBox value={rate} label={t("gentubePanel.imgPerMin")} color="var(--vf-c2)" />
         </div>
         <ProgressBar pct={pct} />
         <div className="flex justify-between font-mono text-[10px] text-[var(--vf-m2)]">
@@ -384,7 +386,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               (tab === "log" ? "border-[var(--vf-c1)] text-[var(--vf-text)]" : "border-transparent text-[var(--vf-muted)]")
             }
           >
-            Terminal
+            {t("gentubePanel.terminal")}
           </button>
           <button
             onClick={() => setTab("gal")}
@@ -393,7 +395,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               (tab === "gal" ? "border-[var(--vf-c1)] text-[var(--vf-text)]" : "border-transparent text-[var(--vf-muted)]")
             }
           >
-            Galería ({images.length})
+            {t("gentubePanel.galleryCount", { count: images.length })}
           </button>
         </div>
         <div className="p-3">

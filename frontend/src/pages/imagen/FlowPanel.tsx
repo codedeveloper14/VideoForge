@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../../components/Select";
 import {
   flowAbrirCarpeta,
@@ -44,6 +45,7 @@ interface Progress {
 }
 
 export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
+  const { t } = useTranslation();
   const [prompts, setPrompts] = useState("");
   const [slots, setSlots] = useState(2);
   const [aspect, setAspect] = useState("IMAGE_ASPECT_RATIO_LANDSCAPE");
@@ -53,7 +55,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const [referenceImageName, setReferenceImageName] = useState("");
 
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: "Listo para generar" });
+  const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: t("flowPanel.readyToGenerate") });
   const [logLines, setLogLines] = useState<string[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [error, setError] = useState("");
@@ -75,7 +77,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
     if (!file) return;
     const isImage = file.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name);
     if (!isImage) {
-      setError("Elige un archivo de imagen (JPG, PNG, WebP, etc.).");
+      setError(t("flowPanel.chooseImageFile"));
       return;
     }
     const reader = new FileReader();
@@ -83,7 +85,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       setReferenceImage(reader.result as string);
       setReferenceImageName(file.name);
     };
-    reader.onerror = () => setError("No se pudo leer la imagen de referencia.");
+    reader.onerror = () => setError(t("flowPanel.couldNotReadRefImage"));
     reader.readAsDataURL(file);
   }
 
@@ -123,7 +125,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           setProgress({
             done: d.done ?? 0,
             total: d.total ?? 0,
-            label: d.label || (d.running ? "Generando…" : "Completado"),
+            label: d.label || (d.running ? t("flowPanel.generating") : t("flowPanel.completed")),
           });
         }
         setRunning(!!d.running);
@@ -170,11 +172,11 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       .map((l) => l.trim())
       .filter(Boolean);
     if (!list.length) {
-      setError("Escribe al menos un prompt.");
+      setError(t("flowPanel.writeAtLeastOnePrompt"));
       return;
     }
     if (!outputDir) {
-      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
+      setError(t("flowPanel.selectActiveProject"));
       return;
     }
     try {
@@ -233,7 +235,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   }
 
   async function handleResetChromium() {
-    if (!confirm("¿Reiniciar todos los perfiles de Chromium? Esto cerrará sesiones activas.")) return;
+    if (!confirm(t("flowPanel.confirmResetChromium"))) return;
     try {
       await flowResetChromium();
       loadChromium();
@@ -247,40 +249,39 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   return (
     <div>
       <p className="mb-4 max-w-2xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-        Generación por lotes con Google Flow (Labs). Las imágenes se guardan en la carpeta de
-        imágenes del proyecto activo.
+        {t("flowPanel.subtitle")}
       </p>
 
       <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2">
         <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Destino:
+          {t("flowPanel.destination")}
         </span>
         <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
           {resolvingDir
-            ? "Resolviendo carpeta del proyecto…"
-            : outputDir || "— selecciona un proyecto arriba —"}
+            ? t("flowPanel.resolvingProjectFolder")
+            : outputDir || t("flowPanel.selectProjectAbove")}
         </span>
       </div>
 
       <div className="mb-4 grid grid-cols-[1.35fr_460px] gap-4 max-[1040px]:grid-cols-1">
         <div className="flex flex-col gap-3.5">
           <SectionCard
-            title={`Prompts · ${countPrompts(prompts)}`}
+            title={t("flowPanel.promptsTitle", { count: countPrompts(prompts) })}
             right={
               <button onClick={() => setPrompts("")} className="font-mono text-[10px] text-[var(--vf-muted)]">
-                ✕ Vaciar
+                {t("flowPanel.clearPrompts")}
               </button>
             }
           >
             <textarea
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
-              placeholder={"Un prompt por línea. Ejemplo:\nCinematic wide shot, golden hour, anamorphic flare"}
+              placeholder={t("flowPanel.promptPlaceholder") || ""}
               className="min-h-[176px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] p-3 font-mono text-xs leading-relaxed text-[var(--vf-text)] outline-none"
             />
           </SectionCard>
 
-          <SectionCard title="Referencia visual" right={<span className="font-mono text-[9px] text-[var(--vf-muted)]">Opcional · guía de estilo</span>}>
+          <SectionCard title={t("flowPanel.visualReference")} right={<span className="font-mono text-[9px] text-[var(--vf-muted)]">{t("flowPanel.optionalStyleGuide")}</span>}>
             <input
               ref={refInputRef}
               type="file"
@@ -297,7 +298,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     onClick={() => refInputRef.current?.click()}
                     className="font-mono text-[10px] text-[var(--vf-c2)] underline"
                   >
-                    Reemplazar
+                    {t("flowPanel.replace")}
                   </button>
                 </div>
                 <button
@@ -307,7 +308,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     if (refInputRef.current) refInputRef.current.value = "";
                   }}
                   className="rounded-full px-2 py-1 font-mono text-xs text-[var(--vf-danger)]"
-                  aria-label="Quitar"
+                  aria-label={t("flowPanel.remove") || ""}
                 >
                   ×
                 </button>
@@ -318,9 +319,9 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 onClick={() => refInputRef.current?.click()}
                 className="flex w-full flex-col items-center gap-1 rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.02)] px-3 py-5 text-center transition-colors hover:border-[var(--vf-c2)]"
               >
-                <span className="font-mono text-[11px] text-[var(--vf-text)]">Adjuntar imagen</span>
+                <span className="font-mono text-[11px] text-[var(--vf-text)]">{t("flowPanel.attachImage")}</span>
                 <span className="font-mono text-[9px] text-[var(--vf-muted)]">
-                  Haz clic para elegir · JPG, PNG, WebP
+                  {t("flowPanel.clickToChooseFormats")}
                 </span>
               </button>
             )}
@@ -328,11 +329,11 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         </div>
 
         <div className="flex flex-col gap-3.5">
-          <SectionCard title="Parámetros">
+          <SectionCard title={t("flowPanel.parameters")}>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
-                  Slots paralelos · <span className="text-[var(--vf-c2)]">{slots}</span>
+                  {t("flowPanel.parallelSlots")} <span className="text-[var(--vf-c2)]">{slots}</span>
                 </label>
                 <input
                   type="range"
@@ -345,34 +346,34 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               </div>
               <div>
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
-                  Aspect ratio
+                  {t("flowPanel.aspectRatio")}
                 </label>
                 <Select
                   value={aspect}
                   onChange={(v) => setAspect(v)}
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</SelectOption>
-                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</SelectOption>
-                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">{t("flowPanel.aspectLandscape")}</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">{t("flowPanel.aspectPortrait")}</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">{t("flowPanel.aspectSquare")}</SelectOption>
                 </Select>
               </div>
               <div>
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
-                  Modelo
+                  {t("flowPanel.model")}
                 </label>
                 <Select
                   value={model}
                   onChange={(v) => setModel(v)}
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
-                  <SelectOption value="NANO_BANANA_2">Nano Banana 2 · calidad</SelectOption>
-                  <SelectOption value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</SelectOption>
+                  <SelectOption value="NANO_BANANA_2">{t("flowPanel.modelQuality")}</SelectOption>
+                  <SelectOption value="IMAGE_GENERATION_001_IMAGEN4">{t("flowPanel.modelSpeed")}</SelectOption>
                 </Select>
               </div>
               <div>
                 <label className="mb-1.5 block font-mono text-[10px] text-[var(--vf-muted)]">
-                  Reintentos
+                  {t("flowPanel.retries")}
                 </label>
                 <Select
                   value={maxRetries}
@@ -380,8 +381,8 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2.5 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
                 >
                   <SelectOption value={1}>1</SelectOption>
-                  <SelectOption value={2}>2 · equilibrado</SelectOption>
-                  <SelectOption value={3}>3 · máx. tolerancia</SelectOption>
+                  <SelectOption value={2}>{t("flowPanel.retriesBalanced")}</SelectOption>
+                  <SelectOption value={3}>{t("flowPanel.retriesMaxTolerance")}</SelectOption>
                 </Select>
               </div>
             </div>
@@ -395,21 +396,21 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
             <ProgressBar pct={pct} />
             <div className="mt-3 flex gap-3">
               <PrimaryButton onClick={handleStart} disabled={running}>
-                ⚡ Iniciar generación
+                {t("flowPanel.startGeneration")}
               </PrimaryButton>
               <StopButton onClick={handleStop} disabled={!running}>
-                ⏹ Detener
+                {t("flowPanel.stop")}
               </StopButton>
             </div>
             <ErrorText message={error} />
 
             <details className="mt-3 overflow-hidden rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)]">
               <summary className="cursor-pointer px-3 py-2 font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Cuentas / Perfiles Chromium
+                {t("flowPanel.accountsProfilesChromium")}
               </summary>
               <div className="flex flex-col gap-1.5 px-2.5 pb-2.5">
                 {accounts.length === 0 && chromiumProfiles.length === 0 ? (
-                  <div className="font-mono text-[10px] text-[var(--vf-m2)]">Sin datos aún</div>
+                  <div className="font-mono text-[10px] text-[var(--vf-m2)]">{t("flowPanel.noDataYet")}</div>
                 ) : (
                   <>
                     {accounts.map((a, i) => (
@@ -418,37 +419,37 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                         className="flex items-center justify-between rounded-md border border-[var(--vf-border)] px-2 py-1"
                       >
                         <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                          {a.name || `Cuenta ${i}`}
+                          {a.name || t("flowPanel.accountFallback", { n: i })}
                         </span>
                         <div className="flex items-center gap-2">
                           <span
                             className="font-mono text-[9px]"
                             style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
                           >
-                            {a.logged_in ? "conectado" : "desconectado"}
+                            {a.logged_in ? t("flowPanel.connected") : t("flowPanel.disconnected")}
                           </span>
                           <button
                             onClick={() => handleLogin(i)}
                             className="font-mono text-[9px] text-[var(--vf-c2)] underline"
                           >
-                            Login
+                            {t("flowPanel.login")}
                           </button>
                         </div>
                       </div>
                     ))}
                     {chromiumProfiles.map((p, i) => (
                       <div key={`ch-${i}`} className="font-mono text-[9px] text-[var(--vf-m2)]">
-                        Perfil {i}: {p.status || (p.active ? "activo" : "inactivo")}
+                        {t("flowPanel.profileLabel", { n: i, status: p.status || (p.active ? t("flowPanel.active") : t("flowPanel.inactive")) })}
                       </div>
                     ))}
                   </>
                 )}
                 <div className="mt-1 flex gap-2">
                   <GhostButton onClick={() => flowOpenAll().catch(() => {})} className="flex-1">
-                    Abrir todos
+                    {t("flowPanel.openAll")}
                   </GhostButton>
                   <GhostButton onClick={handleResetChromium} className="flex-1">
-                    Reset
+                    {t("flowPanel.reset")}
                   </GhostButton>
                 </div>
               </div>
@@ -458,10 +459,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       </div>
 
       <SectionCard
-        title="Galería"
+        title={t("flowPanel.gallery")}
         right={
           <div className="flex gap-2">
-            <GhostButton onClick={refreshImages}>↺ Actualizar</GhostButton>
+            <GhostButton onClick={refreshImages}>{t("flowPanel.refresh")}</GhostButton>
             <GhostButton onClick={() => flowAbrirCarpeta().catch(() => {})}>📁</GhostButton>
           </div>
         }
@@ -491,7 +492,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
 
       <details>
         <summary className="cursor-pointer font-mono text-[10px] text-[var(--vf-muted)]">
-          Ver log completo
+          {t("flowPanel.viewFullLog")}
         </summary>
         <div className="mt-2">
           <LogConsole lines={logLines} />
