@@ -85,10 +85,15 @@ jobs:
           npm run build
 
       - name: Register PyArmor license
+        # El secret esta en base64 (no texto plano): echo/YAML pueden alterar
+        # saltos de linea o espacios de un archivo de licencia de una sola
+        # linea sin salto -- PyArmor lo rechaza silenciosamente si el
+        # contenido no es byte-a-byte identico. base64 viaja intacto por
+        # cualquier capa (shell/YAML) y se decodifica exacto del otro lado.
         env:
-          PYARMOR_LICENSE: ${{ secrets.PYARMOR_LICENSE }}
+          PYARMOR_LICENSE_B64: ${{ secrets.PYARMOR_LICENSE_B64 }}
         run: |
-          echo "$PYARMOR_LICENSE" > /tmp/license.lic
+          python3 -c "import base64, os; open('/tmp/license.lic', 'wb').write(base64.b64decode(os.environ['PYARMOR_LICENSE_B64']))"
           pyarmor reg /tmp/license.lic
           rm -f /tmp/license.lic
 
