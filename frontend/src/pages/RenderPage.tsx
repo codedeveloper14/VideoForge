@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import { Select, SelectOption } from "../components/Select";
@@ -10,6 +11,7 @@ import QuickRenderPanel from "./render/QuickRenderPanel";
 type RenderMode = "project" | "quick";
 
 export default function RenderPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
@@ -36,9 +38,9 @@ export default function RenderPage() {
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="tool-h1 text-2xl font-semibold">Render</h1>
+          <h1 className="tool-h1 text-2xl font-semibold">{t("renderTool.title")}</h1>
           <p className="mt-1 text-sm text-[var(--vf-muted)]">
-            Ensambla guión, audio e imágenes/escenas en el video final.
+            {t("renderTool.subtitle")}
           </p>
         </div>
       </div>
@@ -53,7 +55,7 @@ export default function RenderPage() {
               : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
           }`}
         >
-          Render de proyecto
+          {t("renderTool.projectRender")}
         </button>
         <button
           type="button"
@@ -64,21 +66,21 @@ export default function RenderPage() {
               : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
           }`}
         >
-          Modo rápido
+          {t("renderTool.quickMode")}
         </button>
       </div>
 
       {mode === "project" && (
         <div className="proj-topbar mb-6 flex items-center gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-3">
           <span className="font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-            Proyecto
+            {t("tools.project")}
           </span>
           <Select
             value={project}
             onChange={(v) => setProject(v)}
             className="proj-select flex-1 rounded-lg border border-[var(--vf-border)] bg-black/20 p-2 text-sm text-[var(--vf-text)]"
           >
-            <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
+            <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
             {projects.map((p) => (
               <SelectOption key={p.nombre} value={p.nombre}>
                 {p.nombre}

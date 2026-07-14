@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listPlans } from "../api/plans";
 import { pollSession, startCheckout } from "../api/stripe";
 import { getProfile } from "../api/user";
@@ -65,7 +66,7 @@ type PlanTheme = {
   /** RGB triplet (no "rgb()") used to build the "Tu plan actual" badge/border in this plan's own color. */
   rgb: string;
   cardStyle?: React.CSSProperties;
-  ribbon?: string;
+  ribbonKey?: string;
 };
 
 const THEMES: Record<string, PlanTheme> = {
@@ -98,7 +99,7 @@ const THEMES: Record<string, PlanTheme> = {
     checkBg: "#7c6aff20",
     btnClass: "pro-btn",
     rgb: "167,139,250",
-    ribbon: "Más popular",
+    ribbonKey: "plans.mostPopular",
   },
   ultra: {
     accent: "linear-gradient(90deg,#fbbf24,#f97316)",
@@ -123,7 +124,7 @@ const THEMES: Record<string, PlanTheme> = {
       background: "linear-gradient(160deg,rgba(147,51,234,.1) 0%,rgba(192,132,252,.04) 100%)",
       borderColor: "rgba(192,132,252,.25)",
     },
-    ribbon: "⬡ Enterprise",
+    ribbonKey: "plans.enterprise",
   },
 };
 
@@ -133,20 +134,21 @@ function themeFor(planId: string): PlanTheme {
   return THEMES[planId] ?? DEFAULT_THEME;
 }
 
-function planFeatures(plan: Plan): string[] {
+function planFeatures(plan: Plan, t: (key: string, opts?: Record<string, unknown>) => string): string[] {
   const feats: string[] = [];
-  if (plan.videos_per_month != null) feats.push(`${plan.videos_per_month} videos al mes`);
-  if (plan.videos_per_day != null) feats.push(`${plan.videos_per_day} videos al día`);
-  if (plan.shorts_per_month != null) feats.push(`${plan.shorts_per_month} shorts al mes`);
-  if (plan.audio_hours_per_month != null) feats.push(`${plan.audio_hours_per_month} h audio al mes`);
-  if (plan.tts_mins_per_day != null) feats.push(`${plan.tts_mins_per_day} min de voz al día`);
-  if (plan.max_video_minutes != null) feats.push(`hasta ${plan.max_video_minutes} min por video`);
+  if (plan.videos_per_month != null) feats.push(t("plans.videosPerMonth", { count: plan.videos_per_month }));
+  if (plan.videos_per_day != null) feats.push(t("plans.videosPerDay", { count: plan.videos_per_day }));
+  if (plan.shorts_per_month != null) feats.push(t("plans.shortsPerMonth", { count: plan.shorts_per_month }));
+  if (plan.audio_hours_per_month != null) feats.push(t("plans.audioHoursPerMonth", { count: plan.audio_hours_per_month }));
+  if (plan.tts_mins_per_day != null) feats.push(t("plans.ttsMinsPerDay", { count: plan.tts_mins_per_day }));
+  if (plan.max_video_minutes != null) feats.push(t("plans.maxVideoMinutes", { count: plan.max_video_minutes }));
   return feats;
 }
 
 type ConfirmState = "idle" | "confirming" | "success" | "timeout";
 
 export default function PlansPage() {
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -223,7 +225,7 @@ export default function PlansPage() {
       if (url) {
         window.location.href = url;
       } else {
-        setError("No se pudo iniciar el pago para este plan.");
+        setError(t("plans.checkoutStartError"));
       }
     } catch (err) {
       setError((err as Error).message);
@@ -232,7 +234,7 @@ export default function PlansPage() {
     }
   }
 
-  if (loading) return <p className="text-[var(--vf-muted)]">Cargando planes…</p>;
+  if (loading) return <p className="text-[var(--vf-muted)]">{t("plans.loading")}</p>;
 
   return (
     <div>
@@ -245,7 +247,7 @@ export default function PlansPage() {
             className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2"
             style={{ borderColor: "rgba(124,106,255,.35)", borderTopColor: "#7c6aff" }}
           />
-          Confirmando tu pago con Stripe…
+          {t("plans.confirmingPayment")}
         </div>
       )}
       {confirmState === "success" && (
@@ -261,7 +263,7 @@ export default function PlansPage() {
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </span>
-          ¡Listo! Tu plan ahora es <strong>{confirmedPlanName}</strong>.
+          {t("plans.planNowIs")} <strong>{confirmedPlanName}</strong>.
         </div>
       )}
       {confirmState === "timeout" && (
@@ -269,7 +271,7 @@ export default function PlansPage() {
           className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
           style={{ borderColor: "rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)", color: "var(--vf-text)" }}
         >
-          Recibimos tu pago pero aún no lo confirmamos. Si tu plan no cambia en unos minutos, contáctanos.
+          {t("plans.paymentTimeout")}
         </div>
       )}
       <h1
@@ -282,13 +284,13 @@ export default function PlansPage() {
           backgroundClip: "text",
         }}
       >
-        Elige tu plan
+        {t("plans.title")}
       </h1>
       <p
         className="mb-9 max-w-xl font-mono text-[11.5px]"
         style={{ color: "rgba(var(--vf-fg-rgb),.32)", letterSpacing: ".01em" }}
       >
-        Escala tu producción. Cancela cuando quieras.
+        {t("plans.subtitle")}
       </p>
 
       {error && <p className="mb-4 text-sm text-[var(--vf-danger)]">{error}</p>}
@@ -299,7 +301,7 @@ export default function PlansPage() {
           const isFree = plan.id === "free";
           const theme = themeFor(plan.id);
           const isHighlight = plan.highlight && !isCurrent;
-          const feats = planFeatures(plan);
+          const feats = planFeatures(plan, t);
 
           return (
             <div
@@ -333,10 +335,10 @@ export default function PlansPage() {
                       border: `1px solid rgba(${theme.rgb},.35)`,
                     }}
                   >
-                    ✓ Tu plan actual
+                    {t("plans.currentPlan")}
                   </div>
                 )}
-                {!isCurrent && theme.ribbon && (
+                {!isCurrent && theme.ribbonKey && (
                   <div
                     className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-[13px] py-[5px] font-mono text-[9px] font-bold uppercase text-white"
                     style={{
@@ -348,7 +350,7 @@ export default function PlansPage() {
                       boxShadow: "0 3px 14px rgba(108,86,255,.45)",
                     }}
                   >
-                    {theme.ribbon}
+                    {t(theme.ribbonKey)}
                   </div>
                 )}
 
@@ -369,7 +371,7 @@ export default function PlansPage() {
                     ${plan.price_usd}
                   </span>
                   <span className="mb-[5px] text-xs" style={{ color: "rgba(var(--vf-fg-rgb),.28)" }}>
-                    /mes
+                    {t("plans.perMonth")}
                   </span>
                 </div>
 
@@ -445,12 +447,12 @@ export default function PlansPage() {
                   }}
                 >
                   {isCurrent
-                    ? "Plan actual"
+                    ? t("plans.btnCurrentPlan")
                     : isFree
-                      ? "Plan gratuito"
+                      ? t("plans.btnFreePlan")
                       : checkingOut === plan.id
-                        ? "Redirigiendo…"
-                        : `↗ Elegir ${plan.name}`}
+                        ? t("plans.btnRedirecting")
+                        : t("plans.btnChoose", { name: plan.name })}
                 </button>
               </div>
             </div>

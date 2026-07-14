@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getProjectFromLocation, useTabs } from "../context/TabsContext";
 import ProjectPickerModal from "./ProjectPickerModal";
 import ActiveJobsPopup from "./ActiveJobsPopup";
@@ -38,6 +39,7 @@ function IconBell() {
 }
 
 export default function TopTabBar() {
+  const { t } = useTranslation();
   const { tabs, openTab, closeTab } = useTabs();
   const location = useLocation();
   const navigate = useNavigate();
@@ -78,7 +80,7 @@ export default function TopTabBar() {
             className="flex items-center gap-1.5 rounded-lg border border-[rgba(var(--vf-fg-rgb),0.12)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1.5 text-xs font-semibold text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
           >
             <IconPlus />
-            Abrir proyecto
+            {t("topbar.openProject")}
           </button>
         ) : (
           <>
@@ -107,7 +109,7 @@ export default function TopTabBar() {
             })}
             <button
               onClick={() => setPickerOpen(true)}
-              title="Abrir otro proyecto"
+              title={t("topbar.openOtherProject")}
               className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[rgba(var(--vf-fg-rgb),0.03)] text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
             >
               <IconPlus />
@@ -121,17 +123,17 @@ export default function TopTabBar() {
         className="flex min-w-[180px] items-center gap-2 rounded-lg border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1.5 text-xs text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
       >
         <IconSearch />
-        Buscar proyectos...
+        {t("topbar.searchProjects")}
       </button>
       <button
         onClick={() => setPickerOpen(true)}
         className="flex-shrink-0 rounded-lg bg-[var(--vf-accent)] px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--vf-accent-hover)]"
       >
-        + Nuevo Proyecto
+        {t("topbar.newProject")}
       </button>
       <ActiveJobsPopup />
       <button
-        title="Notificaciones"
+        title={t("topbar.notifications")}
         className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[rgba(var(--vf-fg-rgb),0.03)] text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
       >
         <IconBell />

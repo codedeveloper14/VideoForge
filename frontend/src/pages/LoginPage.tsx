@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -20,8 +21,8 @@ const FEATURES = [
     icon: "#fbbf24",
     bg: "rgba(251,191,36,.12)",
     path: <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
-    title: "Pipeline inteligente",
-    desc: "Automatiza cada etapa de tu producción.",
+    titleKey: "login.featurePipelineTitle",
+    descKey: "login.featurePipelineDesc",
   },
   {
     icon: "#a78bfa",
@@ -33,8 +34,8 @@ const FEATURES = [
         <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
       </>
     ),
-    title: "Colaboración en equipo",
-    desc: "Trabaja junto a tu equipo en tiempo real.",
+    titleKey: "login.featureTeamTitle",
+    descKey: "login.featureTeamDesc",
   },
   {
     icon: "#22d3a0",
@@ -45,12 +46,13 @@ const FEATURES = [
         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
       </>
     ),
-    title: "Seguro y confiable",
-    desc: "Tus proyectos están siempre protegidos.",
+    titleKey: "login.featureSecureTitle",
+    descKey: "login.featureSecureDesc",
   },
 ];
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const { login, changePassword } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -68,7 +70,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     if (!username.trim() || !password) {
-      setError("Completa usuario y contraseña.");
+      setError(t("login.fillFields"));
       return;
     }
     setSubmitting(true);
@@ -154,7 +156,7 @@ export default function LoginPage() {
                 className="text-[9.5px] uppercase tracking-[0.2em]"
                 style={{ fontFamily: "var(--vf-mono)", color: "rgba(167,139,250,.5)" }}
               >
-                AI Pipeline
+                {t("login.tagline")}
               </span>
             </div>
           </div>
@@ -164,19 +166,18 @@ export default function LoginPage() {
               className="mb-4 font-extrabold leading-[1.06] tracking-[-1.8px] text-[var(--vf-text)]"
               style={{ fontSize: "clamp(32px,3.5vw,50px)" }}
             >
-              Crea. Automatiza.
+              {t("login.heroTitle1")}
               <br />
-              <span style={{ color: "var(--vf-c1)" }}>Produce.</span>
+              <span style={{ color: "var(--vf-c1)" }}>{t("login.heroTitle2")}</span>
             </h1>
             <p className="max-w-[360px] text-[13px] leading-[1.7] text-[rgba(var(--vf-fg-rgb),0.38)]" style={{ fontFamily: "var(--vf-mono)" }}>
-              La plataforma completa para producción audiovisual con IA. Guión, voz, video y renderizado en un solo
-              flujo.
+              {t("login.heroSubtitle")}
             </p>
           </div>
 
           <div className="relative z-10 flex flex-col gap-4">
             {FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-3.5">
+              <div key={f.titleKey} className="flex items-start gap-3.5">
                 <div
                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px]"
                   style={{ background: f.bg }}
@@ -186,9 +187,9 @@ export default function LoginPage() {
                   </svg>
                 </div>
                 <div>
-                  <div className="mb-0.5 text-[13px] font-bold text-[rgba(var(--vf-fg-rgb),0.8)]">{f.title}</div>
+                  <div className="mb-0.5 text-[13px] font-bold text-[rgba(var(--vf-fg-rgb),0.8)]">{t(f.titleKey)}</div>
                   <div className="text-[11.5px] leading-[1.4] text-[rgba(var(--vf-fg-rgb),0.3)]" style={{ fontFamily: "var(--vf-mono)" }}>
-                    {f.desc}
+                    {t(f.descKey)}
                   </div>
                 </div>
               </div>
@@ -196,7 +197,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative z-10 mt-6 text-[8.5px] text-[rgba(var(--vf-fg-rgb),0.18)]" style={{ fontFamily: "var(--vf-mono)" }}>
-            © 2026 Studio IVR. Todos los derechos reservados.
+            {t("login.copyright")}
           </div>
         </div>
 
@@ -209,10 +210,10 @@ export default function LoginPage() {
             {!mustChange ? (
               <form onSubmit={handleSubmit}>
                 <div className="mb-1.5 whitespace-nowrap text-xl font-extrabold tracking-[-0.4px]">
-                  Bienvenido de nuevo
+                  {t("login.welcomeBack")}
                 </div>
                 <div className="mb-6 text-[12.5px] leading-[1.55] text-[rgba(var(--vf-fg-rgb),0.38)]">
-                  Inicia sesión para continuar con tus proyectos.
+                  {t("login.welcomeBackSubtitle")}
                 </div>
 
                 {error && (
@@ -226,7 +227,7 @@ export default function LoginPage() {
 
                 <div className="mb-3">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Correo electrónico o usuario</span>
+                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">{t("login.emailOrUsername")}</span>
                   </div>
                   <div className="relative">
                     <svg className="pointer-events-none absolute left-[13px] top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[rgba(var(--vf-fg-rgb),0.22)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -237,7 +238,7 @@ export default function LoginPage() {
                       type="text"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="tu_usuario"
+                      placeholder={t("login.usernamePlaceholder")}
                       autoComplete="username"
                       autoCapitalize="off"
                       spellCheck="false"
@@ -250,9 +251,9 @@ export default function LoginPage() {
 
                 <div className="mb-3">
                   <div className="mb-1.5 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Contraseña</span>
+                    <span className="text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">{t("login.password")}</span>
                     <span className="pointer-events-none text-[11px] opacity-38" style={{ fontFamily: "var(--vf-mono)", color: "var(--vf-c1)" }}>
-                      ¿Olvidaste tu contraseña?
+                      {t("login.forgotPassword")}
                     </span>
                   </div>
                   <div className="relative">
@@ -294,7 +295,7 @@ export default function LoginPage() {
                         </svg>
                       )}
                     </span>
-                    Recordarme
+                    {t("login.remember")}
                   </label>
                 </div>
 
@@ -307,7 +308,7 @@ export default function LoginPage() {
                     boxShadow: "0 4px 18px rgba(112,90,255,.3)",
                   }}
                 >
-                  {submitting ? "Ingresando…" : "Iniciar sesión →"}
+                  {submitting ? t("login.signingIn") : t("login.signIn")}
                 </button>
 
                 <div
@@ -315,14 +316,14 @@ export default function LoginPage() {
                   style={{ fontFamily: "var(--vf-mono)", color: "rgba(var(--vf-fg-rgb),.18)" }}
                 >
                   <span className="h-px flex-1" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
-                  O continúa con
+                  {t("login.orContinueWith")}
                   <span className="h-px flex-1" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
                 </div>
 
                 <div className="mb-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => alert("Próximamente.")}
+                    onClick={() => alert(t("login.comingSoon"))}
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
                     style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
@@ -332,11 +333,11 @@ export default function LoginPage() {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
-                    Continuar con Google
+                    {t("login.continueWithGoogle")}
                   </button>
                   <button
                     type="button"
-                    onClick={() => alert("Próximamente.")}
+                    onClick={() => alert(t("login.comingSoon"))}
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
                     style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
@@ -344,14 +345,14 @@ export default function LoginPage() {
                       <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105-36.8-162.8-106.3C180.9 742.2 139 649 139 603c0-188.1 130.9-314.3 260.2-314.3 73.9 0 135.4 48.4 179.9 48.4 42.6 0 113.5-50.7 196.7-50.7z" />
                       <path d="M555.5 0c-58.1 0-115.8 38.4-153.1 97.8-33.1 53.2-60.3 131.2-60.3 209.5 0 4.7.5 9.4.5 14.1 3.7.2 7.5.3 11.2.3 55.1 0 113.9-37.1 149.7-95.7 37.7-62.4 62.3-140.6 62.3-218.8 0-2.6-.1-5.2-.2-7.8z" />
                     </svg>
-                    Continuar con Apple
+                    {t("login.continueWithApple")}
                   </button>
                 </div>
 
                 <div className="text-center text-xs" style={{ fontFamily: "var(--vf-mono)", color: "rgba(var(--vf-fg-rgb),.28)" }}>
-                  ¿No tienes cuenta?
+                  {t("login.noAccount")}
                   <Link to="/register" className="ml-1 font-bold" style={{ color: "var(--vf-c2)" }}>
-                    Registrarse
+                    {t("login.signUp")}
                   </Link>
                 </div>
               </form>
@@ -363,11 +364,11 @@ export default function LoginPage() {
                 >
                   🔐
                 </div>
-                <div className="mb-1 text-lg font-extrabold tracking-[-0.35px]">Cambia tu contraseña</div>
+                <div className="mb-1 text-lg font-extrabold tracking-[-0.35px]">{t("login.changePasswordTitle")}</div>
                 <p className="mb-4.5 text-[10px] leading-[1.6] text-[rgba(var(--vf-fg-rgb),0.28)]" style={{ fontFamily: "var(--vf-mono)" }}>
-                  Es tu primer acceso. Por seguridad
+                  {t("login.changePasswordSubtitle1")}
                   <br />
-                  debes establecer una nueva contraseña.
+                  {t("login.changePasswordSubtitle2")}
                 </p>
 
                 {error && (
@@ -384,9 +385,9 @@ export default function LoginPage() {
                   style={{ background: "rgba(var(--vf-fg-rgb),.02)", border: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
                 >
                   {[
-                    { ok: reqLen, label: "Mínimo 8 caracteres" },
-                    { ok: reqNum, label: "Al menos un número" },
-                    { ok: reqUp, label: "Al menos una mayúscula" },
+                    { ok: reqLen, label: t("login.reqLength") },
+                    { ok: reqNum, label: t("login.reqNumber") },
+                    { ok: reqUp, label: t("login.reqUpper") },
                   ].map((r) => (
                     <div
                       key={r.label}
@@ -400,13 +401,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mb-3 text-left">
-                  <div className="mb-1.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">Nueva contraseña</div>
+                  <div className="mb-1.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.62)]">{t("login.newPassword")}</div>
                   <div className="relative">
                     <input
                       type={showNewPassword ? "text" : "password"}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Nueva contraseña"
+                      placeholder={t("login.newPassword")}
                       autoComplete="new-password"
                       autoFocus
                       className="w-full rounded-[10px] py-3 pl-[14px] pr-[40px] text-[13.5px] font-medium text-[var(--vf-text)] outline-none"
@@ -422,7 +423,7 @@ export default function LoginPage() {
                   className="mt-1 w-full rounded-[9px] py-3 text-[11.5px] font-bold uppercase tracking-[0.05em] text-black transition-transform hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
                   style={{ fontFamily: "var(--vf-mono)", background: "#fbbf24" }}
                 >
-                  {submitting ? "Guardando…" : "Guardar contraseña →"}
+                  {submitting ? t("login.saving") : t("login.savePassword")}
                 </button>
               </form>
             )}

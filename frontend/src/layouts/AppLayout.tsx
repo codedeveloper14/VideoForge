@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { getProjectFromLocation, useTabs } from "../context/TabsContext";
 import TopTabBar from "../components/TopTabBar";
@@ -107,6 +108,7 @@ function xiClass({ isActive }: { isActive: boolean }) {
 }
 
 export default function AppLayout() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -160,7 +162,7 @@ export default function AppLayout() {
       <>
       <button
         onClick={() => setMobileNavOpen(true)}
-        title="Abrir menú"
+        title={t("sidebar.openMenu")}
         className="fixed left-3 top-3 z-[905] flex h-9 w-9 items-center justify-center rounded-lg md:hidden"
         style={{ background: "var(--vf-s)", border: "1px solid rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-m)" }}
       >
@@ -184,13 +186,13 @@ export default function AppLayout() {
           }`}
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
-          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
+          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? t("sidebar.appName") : undefined}>
             <img src="/logo.png" alt="" className="h-[38px] w-[38px] flex-shrink-0 object-contain" />
             {!effectiveCollapsed && (
               <div>
-                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
+                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">{t("sidebar.appName")}</b>
                 <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
-                  AI Pipeline
+                  {t("sidebar.tagline")}
                 </span>
               </div>
             )}
@@ -198,7 +200,7 @@ export default function AppLayout() {
           {!effectiveCollapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              title="Colapsar menú"
+              title={t("sidebar.collapseMenu")}
               className="ml-auto flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
@@ -210,7 +212,7 @@ export default function AppLayout() {
           <div className="flex flex-shrink-0 justify-center px-2 pt-2">
             <button
               onClick={() => setCollapsed(false)}
-              title="Expandir menú"
+              title={t("sidebar.expandMenu")}
               className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
@@ -219,53 +221,53 @@ export default function AppLayout() {
         )}
 
         <nav className="flex flex-1 flex-col gap-px px-2 pt-2.5">
-          <NavLink to="/app/home" end className={xiClass} title={effectiveCollapsed ? "Inicio" : undefined}>
+          <NavLink to="/app/home" end className={xiClass} title={effectiveCollapsed ? t("sidebar.home") : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
-            {!effectiveCollapsed && "Inicio"}
+            {!effectiveCollapsed && t("sidebar.home")}
           </NavLink>
 
           {!effectiveCollapsed && (
             <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
-              General
+              {t("sidebar.general")}
             </span>
           )}
 
-          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? "Proyectos" : undefined}>
+          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? t("sidebar.projects") : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
-            {!effectiveCollapsed && "Proyectos"}
+            {!effectiveCollapsed && t("sidebar.projects")}
           </NavLink>
 
           <button
             onClick={() => navigate("/app/idea2video")}
-            title={effectiveCollapsed ? "Idea → Video" : undefined}
+            title={effectiveCollapsed ? t("sidebar.ideaToVideo") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
-            {!effectiveCollapsed && <>Idea &rarr; Video</>}
+            {!effectiveCollapsed && t("sidebar.ideaToVideo")}
           </button>
 
           <button
             onClick={() => navigate("/app/tareas")}
-            title={effectiveCollapsed ? "Tareas" : undefined}
+            title={effectiveCollapsed ? t("sidebar.tasks") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
-            {!effectiveCollapsed && "Tareas"}
+            {!effectiveCollapsed && t("sidebar.tasks")}
           </button>
 
-          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? "Ajustes" : undefined}>
+          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? t("sidebar.settings") : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
-            {!effectiveCollapsed && "Ajustes"}
+            {!effectiveCollapsed && t("sidebar.settings")}
           </NavLink>
         </nav>
 
@@ -273,7 +275,7 @@ export default function AppLayout() {
           <div className="mx-2 mb-1.5 mt-3 flex flex-shrink-0 justify-center">
             <button
               onClick={() => navigate("/app/planes")}
-              title="Upgrade — Ver planes"
+              title={`${t("sidebar.upgrade")} — ${t("sidebar.viewPlans")}`}
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px]"
               style={{ background: "rgba(124,106,255,.15)", border: "1px solid rgba(124,106,255,.25)" }}
             >
@@ -289,17 +291,17 @@ export default function AppLayout() {
               <div className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-[7px]" style={{ background: "rgba(124,106,255,.2)" }}>
                 <IconUpgrade />
               </div>
-              <span className="text-[13px] font-bold text-[#a78bfa]">Upgrade</span>
+              <span className="text-[13px] font-bold text-[#a78bfa]">{t("sidebar.upgrade")}</span>
             </div>
             <p className="mb-[9px] text-[11px] leading-[1.5] text-[var(--vf-m)]">
-              Más créditos, renders y funciones premium.
+              {t("sidebar.upgradeDesc")}
             </p>
             <button
               onClick={() => navigate("/app/planes")}
               className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#a78bfa]"
               style={{ color: "#7c6aff" }}
             >
-              Ver planes
+              {t("sidebar.viewPlans")}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -310,23 +312,23 @@ export default function AppLayout() {
         <div className="flex flex-shrink-0 flex-col gap-px px-2 pb-1 pt-[5px]">
           <button
             onClick={() => navigate("/app/documentacion")}
-            title={effectiveCollapsed ? "Documentación" : undefined}
+            title={effectiveCollapsed ? t("sidebar.docs") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
-            {!effectiveCollapsed && "Documentación"}
+            {!effectiveCollapsed && t("sidebar.docs")}
           </button>
           <button
             onClick={() => navigate("/app/ayuda")}
-            title={effectiveCollapsed ? "Centro de ayuda" : undefined}
+            title={effectiveCollapsed ? t("sidebar.helpCenter") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
-            {!effectiveCollapsed && "Centro de ayuda"}
+            {!effectiveCollapsed && t("sidebar.helpCenter")}
           </button>
         </div>
 
@@ -392,7 +394,7 @@ export default function AppLayout() {
                 <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
                   <IconSettings />
                 </span>
-                Configuración
+                {t("sidebar.configuration")}
               </button>
               <button
                 onClick={() => {
@@ -404,7 +406,7 @@ export default function AppLayout() {
                 <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
                   <IconUpgrade />
                 </span>
-                Upgrade
+                {t("sidebar.upgrade")}
               </button>
               <div style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.06)" }} />
               <button
@@ -418,7 +420,7 @@ export default function AppLayout() {
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                 </span>
-                Cerrar sesión
+                {t("sidebar.logout")}
               </button>
               </div>,
               document.body,
@@ -441,7 +443,7 @@ export default function AppLayout() {
             className="mb-4 flex items-center gap-1.5 text-sm text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
           >
             <IconBack />
-            Volver
+            {t("sidebar.back")}
           </button>
         )}
         <Outlet />

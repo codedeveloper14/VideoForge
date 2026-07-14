@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { createProject, deleteProject, listProjects } from "../api/projects";
 import type { Project } from "../types";
 
@@ -80,8 +81,8 @@ function pmStyle(name: string) {
   return PALETTE[idx];
 }
 
-function formatDate(creado: number) {
-  return new Date(creado * 1000).toLocaleDateString("es-CO", {
+function formatDate(creado: number, locale: string) {
+  return new Date(creado * 1000).toLocaleDateString(locale === "en" ? "en-US" : "es-CO", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -89,6 +90,7 @@ function formatDate(creado: number) {
 }
 
 export default function HomePage() {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +129,7 @@ export default function HomePage() {
 
   async function handleDelete(name: string) {
     setOpenMenu(null);
-    if (!confirm(`¿Borrar el proyecto "${name}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(t("home.confirmDelete", { name }))) return;
     setError("");
     try {
       await deleteProject(name);
@@ -152,19 +154,19 @@ export default function HomePage() {
             className="h-[5px] w-[5px] rounded-full"
             style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
           />
-          IVR Pipeline
+          {t("home.eyebrow")}
         </div>
         <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-bold leading-[1.05] tracking-[-1px]">
-          Mis{" "}
+          {t("home.myProjects")}{" "}
           <span
             className="bg-clip-text text-transparent"
             style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2), var(--vf-c1), var(--vf-c3))" }}
           >
-            Proyectos
+            {t("home.projects")}
           </span>
         </h1>
         <p className="max-w-[380px] text-xs leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
-          Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.
+          {t("home.subtitle")}
         </p>
       </div>
 
@@ -177,7 +179,7 @@ export default function HomePage() {
             autoFocus
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            placeholder="Nombre del nuevo proyecto"
+            placeholder={t("home.newProjectNamePlaceholder")}
             className="min-w-[220px] flex-1 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
           />
           <button
@@ -185,14 +187,14 @@ export default function HomePage() {
             disabled={creating}
             className="rounded-lg bg-[var(--vf-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
           >
-            {creating ? "Creando…" : "Crear"}
+            {creating ? t("home.creating") : t("home.create")}
           </button>
           <button
             type="button"
             onClick={() => setShowCreate(false)}
             className="rounded-lg border border-[var(--vf-border)] px-4 py-2 text-sm hover:bg-[rgba(var(--vf-fg-rgb),0.04)]"
           >
-            Cancelar
+            {t("home.cancel")}
           </button>
         </form>
       )}
@@ -200,15 +202,15 @@ export default function HomePage() {
       {error && <p className="mb-6 text-sm text-[var(--vf-danger)]">{error}</p>}
 
       {loading ? (
-        <p className="text-[var(--vf-muted)]">Cargando…</p>
+        <p className="text-[var(--vf-muted)]">{t("home.loading")}</p>
       ) : projects.length === 0 ? (
         <div
           className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),0.02)] p-[60px_40px] text-center"
         >
           <div className="text-[40px] opacity-40">🎬</div>
-          <div className="text-lg font-bold tracking-[-0.4px] text-[var(--vf-text)] opacity-60">Sin proyectos aún</div>
+          <div className="text-lg font-bold tracking-[-0.4px] text-[var(--vf-text)] opacity-60">{t("home.noProjectsYet")}</div>
           <p className="max-w-[300px] text-[11px] leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
-            Crea tu primer proyecto para comenzar a trabajar en el pipeline completo.
+            {t("home.noProjectsDesc")}
           </p>
           <button
             onClick={() => setShowCreate(true)}
@@ -223,7 +225,7 @@ export default function HomePage() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Crear primer proyecto
+            {t("home.createFirstProject")}
           </button>
         </div>
       ) : (
@@ -251,7 +253,7 @@ export default function HomePage() {
                       e.stopPropagation();
                       setOpenMenu(openMenu === p.nombre ? null : p.nombre);
                     }}
-                    title="Opciones"
+                    title={t("home.options")}
                     className="rounded-[5px] border-none bg-transparent px-1.5 py-0.5 text-base text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
                   >
                     ⋯
@@ -266,14 +268,14 @@ export default function HomePage() {
                         className="flex w-full items-center gap-2 rounded-[7px] border-none bg-transparent px-3 py-2 text-left text-[11px] text-[var(--vf-danger)] transition-colors hover:bg-[rgba(255,85,102,0.1)]"
                         style={{ fontFamily: "var(--vf-mono)" }}
                       >
-                        Borrar
+                        {t("home.delete")}
                       </button>
                     </div>
                   )}
                 </div>
                 <div className="truncate text-[15px] font-bold tracking-[-0.3px] text-[var(--vf-text)]">{p.nombre}</div>
                 <div className="text-[10px] tracking-[0.04em] text-[var(--vf-m2)]" style={{ fontFamily: "var(--vf-mono)" }}>
-                  Creado {formatDate(p.creado)}
+                  {t("home.createdOn", { date: formatDate(p.creado, i18n.language) })}
                 </div>
                 <button
                   onClick={(e) => {
@@ -283,7 +285,7 @@ export default function HomePage() {
                   className="mt-1 w-full rounded-lg border border-[rgba(124,106,255,0.2)] py-2 text-[11px] font-medium tracking-[0.04em] transition-all hover:border-[rgba(124,106,255,0.35)]"
                   style={{ fontFamily: "var(--vf-mono)", background: "rgba(124,106,255,.1)", color: "var(--vf-c2)" }}
                 >
-                  Abrir proyecto →
+                  {t("home.openProject")}
                 </button>
               </div>
             );

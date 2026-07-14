@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { createProject, listProjects } from "../api/projects";
 import type { Project } from "../types";
 
@@ -8,6 +9,7 @@ interface ProjectPickerModalProps {
 }
 
 export default function ProjectPickerModal({ onClose, onSelect }: ProjectPickerModalProps) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -48,22 +50,22 @@ export default function ProjectPickerModal({ onClose, onSelect }: ProjectPickerM
         className="w-full max-w-[440px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[var(--vf-s)] p-6 shadow-[0_24px_64px_rgba(0,0,0,.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 text-base font-bold text-[var(--vf-text)]">Abrir proyecto</div>
+        <div className="mb-4 text-base font-bold text-[var(--vf-text)]">{t("topbar.openProject")}</div>
 
         <input
           autoFocus
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar proyecto…"
+          placeholder={t("topbar.searchPlaceholder")}
           className="mb-3 w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50"
         />
 
         <div className="mb-4 max-h-[240px] overflow-y-auto rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.08)]">
           {loading ? (
-            <p className="p-3.5 text-sm text-[var(--vf-muted)]">Cargando…</p>
+            <p className="p-3.5 text-sm text-[var(--vf-muted)]">{t("topbar.loading")}</p>
           ) : filtered.length === 0 ? (
-            <p className="p-3.5 text-sm text-[var(--vf-muted)]">Sin resultados.</p>
+            <p className="p-3.5 text-sm text-[var(--vf-muted)]">{t("topbar.noResults")}</p>
           ) : (
             filtered.map((p) => (
               <button
@@ -73,7 +75,7 @@ export default function ProjectPickerModal({ onClose, onSelect }: ProjectPickerM
               >
                 <span className="truncate">{p.nombre}</span>
                 <span className="flex-shrink-0 text-[11px] text-[var(--vf-muted)]">
-                  {p.videos} videos
+                  {t("topbar.videosCount", { count: p.videos })}
                 </span>
               </button>
             ))
@@ -85,7 +87,7 @@ export default function ProjectPickerModal({ onClose, onSelect }: ProjectPickerM
             type="text"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            placeholder="Nombre del nuevo proyecto"
+            placeholder={t("topbar.newProjectNamePlaceholder")}
             className="flex-1 rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.18)] bg-[rgba(var(--vf-fg-rgb),0.05)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50"
           />
           <button
@@ -93,7 +95,7 @@ export default function ProjectPickerModal({ onClose, onSelect }: ProjectPickerM
             disabled={creating || !nombre.trim()}
             className="flex-shrink-0 rounded-[9px] border-none bg-gradient-to-br from-[#7c6aff] to-[#5b42f3] px-4 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50"
           >
-            {creating ? "Creando…" : "Crear"}
+            {creating ? t("topbar.creating") : t("topbar.create")}
           </button>
         </form>
 

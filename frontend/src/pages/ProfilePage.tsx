@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getPayments, getProfile } from "../api/user";
 import { useTheme } from "../context/ThemeContext";
+import { setLanguage, type Language } from "../i18n";
 import type { Payment, UserProfile } from "../types";
 
 const PLAN_BADGE_STYLES: Record<string, { background: string; color: string; border: string }> = {
@@ -22,6 +24,7 @@ function usagePct(used: number, limit: number | null) {
 }
 
 function ThemeCard() {
+  const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
 
   return (
@@ -34,13 +37,13 @@ function ThemeCard() {
           className="mb-1 font-mono text-[9px] uppercase"
           style={{ color: "var(--vf-m)", letterSpacing: ".14em" }}
         >
-          Apariencia
+          {t("settings.appearance")}
         </div>
         <div className="text-sm font-semibold" style={{ color: "var(--vf-text)" }}>
-          Tema {theme === "dark" ? "oscuro" : "claro"}
+          {theme === "dark" ? t("settings.darkTheme") : t("settings.lightTheme")}
         </div>
         <p className="mt-1 text-xs" style={{ color: "var(--vf-m)" }}>
-          Se guarda en tu cuenta — la próxima vez que inicies sesión, aquí o en otro dispositivo, se aplica igual.
+          {t("settings.themeDesc")}
         </p>
       </div>
 
@@ -58,7 +61,7 @@ function ThemeCard() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
           </svg>
-          Oscuro
+          {t("settings.dark")}
         </button>
         <button
           type="button"
@@ -81,7 +84,65 @@ function ThemeCard() {
             <line x1="4.93" y1="19.07" x2="6.34" y2="17.66" />
             <line x1="17.66" y1="6.34" x2="19.07" y2="4.93" />
           </svg>
-          Claro
+          {t("settings.light")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LanguageCard() {
+  const { t, i18n } = useTranslation();
+  const current = i18n.language === "en" ? "en" : "es";
+
+  function choose(lang: Language) {
+    setLanguage(lang);
+  }
+
+  return (
+    <div
+      className="mb-6 flex items-center justify-between rounded-[20px] p-6"
+      style={{ background: "var(--vf-surface)", border: "1px solid var(--vf-border)" }}
+    >
+      <div>
+        <div
+          className="mb-1 font-mono text-[9px] uppercase"
+          style={{ color: "var(--vf-m)", letterSpacing: ".14em" }}
+        >
+          {t("settings.language")}
+        </div>
+        <div className="text-sm font-semibold" style={{ color: "var(--vf-text)" }}>
+          {current === "es" ? t("settings.spanish") : t("settings.english")}
+        </div>
+        <p className="mt-1 text-xs" style={{ color: "var(--vf-m)" }}>
+          {t("settings.languageDesc")}
+        </p>
+      </div>
+
+      <div className="flex flex-shrink-0 gap-1 rounded-full p-1" style={{ background: "var(--vf-p)", border: "1px solid var(--vf-border)" }}>
+        <button
+          type="button"
+          onClick={() => choose("es")}
+          className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors"
+          style={
+            current === "es"
+              ? { background: "linear-gradient(135deg,#6c56ff,#a855f7)", color: "#fff" }
+              : { color: "var(--vf-m)" }
+          }
+        >
+          {t("settings.spanish")}
+        </button>
+        <button
+          type="button"
+          onClick={() => choose("en")}
+          className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition-colors"
+          style={
+            current === "en"
+              ? { background: "linear-gradient(135deg,#6c56ff,#a855f7)", color: "#fff" }
+              : { color: "var(--vf-m)" }
+          }
+        >
+          {t("settings.english")}
         </button>
       </div>
     </div>
@@ -89,6 +150,7 @@ function ThemeCard() {
 }
 
 export default function ProfilePage() {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [error, setError] = useState("");
@@ -104,7 +166,7 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-[var(--vf-muted)]">Cargando perfil…</p>;
+  if (loading) return <p className="text-[var(--vf-muted)]">{t("profile.loadingProfile")}</p>;
   if (error) return <p className="text-sm text-[var(--vf-danger)]">{error}</p>;
   if (!profile) return null;
 
@@ -128,13 +190,13 @@ export default function ProfilePage() {
           backgroundClip: "text",
         }}
       >
-        Configuración
+        {t("profile.title")}
       </h1>
       <p
         className="mb-8 font-mono text-[11.5px]"
         style={{ color: "rgba(var(--vf-fg-rgb),.32)", letterSpacing: ".01em" }}
       >
-        Tu cuenta, uso y suscripción
+        {t("profile.subtitle")}
       </p>
 
       {/* Profile card */}
@@ -174,6 +236,9 @@ export default function ProfilePage() {
       {/* Appearance card */}
       <ThemeCard />
 
+      {/* Language card */}
+      <LanguageCard />
+
       {/* Usage card */}
       <div
         className="mb-6 rounded-[20px] p-6"
@@ -183,12 +248,12 @@ export default function ProfilePage() {
           className="mb-[18px] font-mono text-[9px] uppercase"
           style={{ color: "rgba(var(--vf-fg-rgb),.3)", letterSpacing: ".14em" }}
         >
-          Uso este mes
+          {t("profile.usageThisMonth")}
         </div>
 
         <div className="mb-4">
           <div className="mb-[7px] flex justify-between font-mono text-[11px]">
-            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>Videos generados</span>
+            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>{t("profile.videosGenerated")}</span>
             <span style={{ color: "rgba(var(--vf-fg-rgb),.3)" }}>
               {profile.usage.videos} / {profile.limits.videos_per_month ?? "—"}
             </span>
@@ -206,7 +271,7 @@ export default function ProfilePage() {
 
         <div className="mb-4">
           <div className="mb-[7px] flex justify-between font-mono text-[11px]">
-            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>Shorts generados</span>
+            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>{t("profile.shortsGenerated")}</span>
             <span style={{ color: "rgba(var(--vf-fg-rgb),.3)" }}>
               {profile.usage.shorts} / {profile.limits.shorts_per_month ?? "—"}
             </span>
@@ -224,7 +289,7 @@ export default function ProfilePage() {
 
         <div>
           <div className="mb-[7px] flex justify-between font-mono text-[11px]">
-            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>Generación de voz</span>
+            <span style={{ color: "rgba(var(--vf-fg-rgb),.65)" }}>{t("profile.voiceGeneration")}</span>
             <span style={{ color: "rgba(var(--vf-fg-rgb),.3)" }}>
               {ttsUsedHours} / {ttsLimitHours ?? "—"} h
             </span>
@@ -250,7 +315,7 @@ export default function ProfilePage() {
           className="mb-3.5 font-mono text-[9px] uppercase"
           style={{ color: "rgba(var(--vf-fg-rgb),.3)", letterSpacing: ".14em" }}
         >
-          💳  Suscripción
+          {t("profile.subscription")}
         </div>
         {profile.subscription_date && (
           <div
@@ -258,7 +323,7 @@ export default function ProfilePage() {
             style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
           >
             <span className="font-mono text-[10.5px]" style={{ color: "rgba(var(--vf-fg-rgb),.42)" }}>
-              Fecha de suscripción
+              {t("profile.subscriptionDate")}
             </span>
             <span className="font-mono text-[10.5px] font-semibold" style={{ color: "rgba(var(--vf-fg-rgb),.82)" }}>
               {profile.subscription_date}
@@ -270,7 +335,7 @@ export default function ProfilePage() {
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
           <span className="font-mono text-[10.5px]" style={{ color: "rgba(var(--vf-fg-rgb),.42)" }}>
-            Plan activado
+            {t("profile.planActivated")}
           </span>
           <span className="font-mono text-[10.5px] font-semibold" style={{ color: "rgba(var(--vf-fg-rgb),.82)" }}>
             {profile.payment.activated_at || "—"}
@@ -278,7 +343,7 @@ export default function ProfilePage() {
         </div>
         <div className="flex items-center justify-between py-[9px] last:pb-0" style={{ borderBottom: "none" }}>
           <span className="font-mono text-[10.5px]" style={{ color: "rgba(var(--vf-fg-rgb),.42)" }}>
-            Próxima renovación
+            {t("profile.nextRenewal")}
           </span>
           <span className="font-mono text-[10.5px] font-semibold" style={{ color: "rgba(var(--vf-fg-rgb),.82)" }}>
             {profile.payment.expires_at || "—"}
@@ -296,7 +361,7 @@ export default function ProfilePage() {
             className="mb-3.5 font-mono text-[9px] uppercase"
             style={{ color: "rgba(var(--vf-fg-rgb),.3)", letterSpacing: ".14em" }}
           >
-            📈  Historial de pagos
+            {t("profile.paymentHistory")}
           </div>
           <div className="flex flex-col gap-1.5">
             {payments.map((p, i) => (
@@ -328,7 +393,7 @@ export default function ProfilePage() {
           background: "linear-gradient(135deg,#6c56ff 0%,#a855f7 100%)",
         }}
       >
-        ↗ Ver planes y hacer upgrade
+        {t("profile.viewPlansUpgrade")}
       </Link>
     </div>
   );
