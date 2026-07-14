@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../components/Select";
 import {
   abrirCarpetaAutopilot,
@@ -14,52 +15,52 @@ import type { Voice } from "../api/voice";
 const VOICE_ID_KEY = "vf_i2v_voice_id";
 
 const DUR_OPTIONS = [
-  { value: 60, label: "60 segundos" },
-  { value: 90, label: "90 segundos" },
-  { value: 120, label: "2 minutos" },
-  { value: 180, label: "3 minutos" },
-  { value: 300, label: "5 minutos" },
-  { value: 600, label: "10 minutos" },
+  { value: 60, labelKey: "idea2video.dur60" },
+  { value: 90, labelKey: "idea2video.dur90" },
+  { value: 120, labelKey: "idea2video.dur120" },
+  { value: 180, labelKey: "idea2video.dur180" },
+  { value: 300, labelKey: "idea2video.dur300" },
+  { value: 600, labelKey: "idea2video.dur600" },
 ];
 
 const STYLE_OPTIONS = [
-  { value: "cinematic", label: "Cinemático" },
-  { value: "tutorial", label: "Tutorial / Explainer" },
-  { value: "documental", label: "Documental" },
-  { value: "viral", label: "Viral / Social Media" },
-  { value: "corporativo", label: "Corporativo / B2B" },
+  { value: "cinematic", labelKey: "idea2video.styleCinematic" },
+  { value: "tutorial", labelKey: "idea2video.styleTutorial" },
+  { value: "documental", labelKey: "idea2video.styleDocumentary" },
+  { value: "viral", labelKey: "idea2video.styleViral" },
+  { value: "corporativo", labelKey: "idea2video.styleCorporate" },
 ];
 
 const TONE_OPTIONS = [
-  { value: "inspirador", label: "Inspirador" },
-  { value: "profesional", label: "Profesional" },
-  { value: "casual", label: "Casual / Cercano" },
-  { value: "tecnico", label: "Técnico / Experto" },
-  { value: "urgente", label: "Urgente / Impactante" },
+  { value: "inspirador", labelKey: "idea2video.toneInspiring" },
+  { value: "profesional", labelKey: "idea2video.toneProfessional" },
+  { value: "casual", labelKey: "idea2video.toneCasual" },
+  { value: "tecnico", labelKey: "idea2video.toneTechnical" },
+  { value: "urgente", labelKey: "idea2video.toneUrgent" },
 ];
 
 const AUDIENCE_OPTIONS = [
-  { value: "general", label: "Audiencia general" },
-  { value: "profesional", label: "Profesionales" },
-  { value: "jovenes", label: "Jóvenes (18-30)" },
-  { value: "empresarial", label: "Empresarial" },
-  { value: "educativo", label: "Estudiantes" },
+  { value: "general", labelKey: "idea2video.audienceGeneral" },
+  { value: "profesional", labelKey: "idea2video.audienceProfessional" },
+  { value: "jovenes", labelKey: "idea2video.audienceYoung" },
+  { value: "empresarial", labelKey: "idea2video.audienceBusiness" },
+  { value: "educativo", labelKey: "idea2video.audienceStudents" },
 ];
 
-const LOADING_LABELS = [
-  "Analizando concepto e idea central...",
-  "Estructurando narrativa y arco dramático...",
-  "Escribiendo escenas y narración...",
-  "Ajustando timing y finalizando guión...",
+const LOADING_LABEL_KEYS = [
+  "idea2video.loading1",
+  "idea2video.loading2",
+  "idea2video.loading3",
+  "idea2video.loading4",
 ];
 
-const PHASE_LABELS: Record<string, string> = {
-  recursos: "Recursos del proyecto",
-  fragmentar: "Fragmentar guión",
-  prompts: "Prompts visuales",
-  voz: "Síntesis de voz",
-  imagenes: "Generación de imágenes",
-  ensamblar: "Ensamblado final",
+const PHASE_LABEL_KEYS: Record<string, string> = {
+  recursos: "idea2video.phaseRecursos",
+  fragmentar: "idea2video.phaseFragmentar",
+  prompts: "idea2video.phasePrompts",
+  voz: "idea2video.phaseVoz",
+  imagenes: "idea2video.phaseImagenes",
+  ensamblar: "idea2video.phaseEnsamblar",
 };
 
 const PHASE_ORDER = ["recursos", "fragmentar", "prompts", "voz", "imagenes", "ensamblar"];
@@ -80,10 +81,11 @@ function formatDur(secs?: number): string {
 
 /** Steps bar shown at the top of the overlay: "1 Tu Idea / 2 Generando / 3 Tu Guión" */
 function StepsBar({ step }: { step: number }) {
+  const { t } = useTranslation();
   const items = [
-    { n: 1, label: "Tu Idea" },
-    { n: 2, label: "Generando" },
-    { n: 3, label: "Tu Guión" },
+    { n: 1, label: t("idea2video.stepIdea") },
+    { n: 2, label: t("idea2video.stepGenerating") },
+    { n: 3, label: t("idea2video.stepScript") },
   ];
   return (
     <div className="mx-auto flex items-center gap-0">
@@ -126,6 +128,7 @@ function StepsBar({ step }: { step: number }) {
 
 /** Hero decoration: concentric spinning rings + glow orb, used in step 1. */
 function HeroDecoration() {
+  const { t } = useTranslation();
   return (
     <div
       className="relative hidden flex-col justify-end overflow-hidden px-10 py-11 md:flex"
@@ -195,16 +198,16 @@ function HeroDecoration() {
         VideoForge AI Studio
       </div>
       <div className="relative z-[1] mb-2.5 text-[28px] font-black leading-[1.15]" style={{ color: "#eeeef5" }}>
-        De idea a
+        {t("idea2video.heroTitle1")}
         <br />
-        <span style={{ color: "#7c6aff" }}>video</span>
+        <span style={{ color: "#7c6aff" }}>{t("idea2video.heroTitle2")}</span>
         <br />
-        profesional
+        {t("idea2video.heroTitle3")}
       </div>
       {/* Texto fijo claro: el fondo de este panel es siempre morado oscuro,
           no sigue el tema del sitio (ver el gradiente en el div padre). */}
       <p className="relative z-[1] text-[13px] leading-relaxed" style={{ color: "rgba(238,238,245,.38)" }}>
-        Escribe tu concepto. La IA genera el guión completo, listo para el pipeline de producción.
+        {t("idea2video.heroSubtitle")}
       </p>
     </div>
   );
@@ -327,6 +330,7 @@ function PhaseRow({ label, status }: { label: string; status: string }) {
 }
 
 export default function Idea2VideoPage() {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
 
@@ -435,7 +439,7 @@ export default function Idea2VideoPage() {
 
   async function handleGenerateScript() {
     if (!idea.trim()) {
-      setError("Escribe una idea primero.");
+      setError(t("idea2video.writeIdeaFirst"));
       return;
     }
     setError("");
@@ -444,7 +448,7 @@ export default function Idea2VideoPage() {
     try {
       const data = await generateScript({ idea, dur, style, tone, audience });
       if (!data.ok) {
-        setError(data.error || "No se pudo generar el guión.");
+        setError(data.error || t("idea2video.couldNotGenerateScript"));
         setStep(1);
         return;
       }
@@ -462,11 +466,11 @@ export default function Idea2VideoPage() {
 
   async function handleStartAutopilot() {
     if (!script.trim()) {
-      setError("El guión está vacío.");
+      setError(t("idea2video.scriptEmpty"));
       return;
     }
     if (!voiceId) {
-      setError("Selecciona una voz antes de continuar.");
+      setError(t("idea2video.selectVoiceFirst"));
       return;
     }
     setError("");
@@ -522,8 +526,8 @@ export default function Idea2VideoPage() {
   const progressPct = Math.round((donePhases / PHASE_ORDER.length) * 100);
   const modeHint =
     renderMode === "profesional"
-      ? "WhisperX + render profesional (más lento)"
-      : "Slideshow rápido con FFmpeg";
+      ? t("idea2video.modeHintProfessional")
+      : t("idea2video.modeHintFast");
 
   // Steps-bar step (1 = idea, 2 = generando, 3 = guión) collapses our internal
   // step 3 (script review) and step 4 (execution) both onto steps-bar position 3,
@@ -554,14 +558,14 @@ export default function Idea2VideoPage() {
         style={{ borderColor: "rgba(124,106,255,.13)", background: "var(--vf-s)" }}
       >
         <span className="hidden flex-shrink-0 font-mono text-[13px] sm:inline" style={{ color: "var(--vf-m)" }}>
-          Idea → Video
+          {t("sidebar.ideaToVideo")}
         </span>
         <StepsBar step={barStep} />
         <span
           className="ml-auto hidden flex-shrink-0 text-[10px] font-bold uppercase tracking-[.15em] md:inline"
           style={{ color: "rgba(124,106,255,.6)" }}
         >
-          Idea → Video
+          {t("sidebar.ideaToVideo")}
         </span>
       </div>
 
@@ -577,21 +581,20 @@ export default function Idea2VideoPage() {
           <HeroDecoration />
           <div className="flex-1 overflow-y-auto px-5 py-6 md:px-12 md:py-9">
             <div className="mb-1 text-[21px] font-bold" style={{ color: "var(--vf-text)" }}>
-              ¿Cuál es tu idea?
+              {t("idea2video.whatsYourIdea")}
             </div>
             <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "var(--vf-m)" }}>
-              Describe tu concepto con el mayor detalle posible. Mientras más contexto des, mejor será el
-              guión.
+              {t("idea2video.ideaSubtitle")}
             </p>
 
             <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-              Concepto
+              {t("idea2video.concept")}
             </label>
             <textarea
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               rows={4}
-              placeholder="Ej: Un video sobre cómo la inteligencia artificial está transformando la medicina..."
+              placeholder={t("idea2video.conceptPlaceholder") || ""}
               className="xi2v-ta w-full resize-y rounded-[10px] border-[1.5px] px-[15px] py-[13px] text-sm outline-none transition-colors"
               style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.07)", color: "var(--vf-text)", minHeight: 108 }}
             />
@@ -599,7 +602,7 @@ export default function Idea2VideoPage() {
             <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-                  Duración
+                  {t("idea2video.duration")}
                 </label>
                 <Select
                   value={dur}
@@ -609,14 +612,14 @@ export default function Idea2VideoPage() {
                 >
                   {DUR_OPTIONS.map((o) => (
                     <SelectOption key={o.value} value={o.value}>
-                      {o.label}
+                      {t(o.labelKey)}
                     </SelectOption>
                   ))}
                 </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-                  Estilo
+                  {t("idea2video.style")}
                 </label>
                 <Select
                   value={style}
@@ -626,14 +629,14 @@ export default function Idea2VideoPage() {
                 >
                   {STYLE_OPTIONS.map((o) => (
                     <SelectOption key={o.value} value={o.value}>
-                      {o.label}
+                      {t(o.labelKey)}
                     </SelectOption>
                   ))}
                 </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-                  Tono
+                  {t("idea2video.tone")}
                 </label>
                 <Select
                   value={tone}
@@ -643,14 +646,14 @@ export default function Idea2VideoPage() {
                 >
                   {TONE_OPTIONS.map((o) => (
                     <SelectOption key={o.value} value={o.value}>
-                      {o.label}
+                      {t(o.labelKey)}
                     </SelectOption>
                   ))}
                 </Select>
               </div>
               <div className="flex flex-col">
                 <label className="mb-[7px] block text-[10.5px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-                  Audiencia
+                  {t("idea2video.audience")}
                 </label>
                 <Select
                   value={audience}
@@ -660,7 +663,7 @@ export default function Idea2VideoPage() {
                 >
                   {AUDIENCE_OPTIONS.map((o) => (
                     <SelectOption key={o.value} value={o.value}>
-                      {o.label}
+                      {t(o.labelKey)}
                     </SelectOption>
                   ))}
                 </Select>
@@ -677,7 +680,7 @@ export default function Idea2VideoPage() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5" />
               </svg>
-              {generatingScript ? "Generando guión…" : "Generar guión con IA"}
+              {generatingScript ? t("idea2video.generatingScript") : t("idea2video.generateScriptCta")}
             </button>
           </div>
         </div>
@@ -688,9 +691,9 @@ export default function Idea2VideoPage() {
         <div className="flex flex-1 flex-col items-center justify-center gap-9">
           <LoadingOrb />
           <div className="flex min-w-[270px] flex-col gap-2">
-            {LOADING_LABELS.map((label, i) => (
+            {LOADING_LABEL_KEYS.map((labelKey, i) => (
               <div
-                key={label}
+                key={labelKey}
                 className="flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-[13px] transition-all"
                 style={{
                   background: i === 0 ? "rgba(124,106,255,.1)" : "transparent",
@@ -704,12 +707,12 @@ export default function Idea2VideoPage() {
                     boxShadow: i === 0 ? "0 0 8px rgba(124,106,255,.8)" : "none",
                   }}
                 />
-                {label}
+                {t(labelKey)}
               </div>
             ))}
           </div>
           <div className="text-xs" style={{ color: "var(--vf-m2)" }}>
-            Esto tarda entre 3 y 15 segundos
+            {t("idea2video.loadingTimeHint")}
           </div>
         </div>
       )}
@@ -719,7 +722,7 @@ export default function Idea2VideoPage() {
         <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
           <div className="flex flex-1 flex-col overflow-hidden border-b px-5 py-5 md:border-b-0 md:border-r md:px-8 md:py-7" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
             <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
-              Guión generado — puedes editarlo antes de continuar
+              {t("idea2video.scriptGeneratedEditable")}
             </div>
             <textarea
               value={script}
@@ -737,7 +740,7 @@ export default function Idea2VideoPage() {
           <div className="flex w-full flex-shrink-0 flex-col gap-4 overflow-y-auto px-5 py-5 md:w-[300px] md:px-6 md:py-7">
             <div>
               <label className="mb-[7px] block text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
-                Título sugerido
+                {t("idea2video.suggestedTitle")}
               </label>
               <input
                 type="text"
@@ -751,16 +754,16 @@ export default function Idea2VideoPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-[7px]">
-              <StatBox value={scenesInfo?.scenes ?? "—"} label="Escenas" />
-              <StatBox value={formatDur(scenesInfo?.dur)} label="Duración" />
-              <StatBox value={scenesInfo?.words ?? "—"} label="Palabras" wide />
+              <StatBox value={scenesInfo?.scenes ?? "—"} label={t("idea2video.scenes")} />
+              <StatBox value={formatDur(scenesInfo?.dur)} label={t("idea2video.duration")} />
+              <StatBox value={scenesInfo?.words ?? "—"} label={t("idea2video.wordsLabel")} wide />
             </div>
 
             <div className="h-px" style={{ background: "rgba(var(--vf-fg-rgb),.05)" }} />
 
             <div>
               <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
-                Voz narradora <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>(opcional)</span>
+                {t("idea2video.narratorVoice")} <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>{t("idea2video.optional")}</span>
               </div>
               <Select
                 value={voiceId}
@@ -769,8 +772,8 @@ export default function Idea2VideoPage() {
                 className="xi2v-vsel w-full rounded-lg border px-2.5 py-[7px] text-xs outline-none"
                 style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-text)" }}
               >
-                {voicesLoading && <SelectOption value="">Cargando voces...</SelectOption>}
-                {!voicesLoading && voices.length === 0 && <SelectOption value="">Sin voces disponibles</SelectOption>}
+                {voicesLoading && <SelectOption value="">{t("idea2video.loadingVoices")}</SelectOption>}
+                {!voicesLoading && voices.length === 0 && <SelectOption value="">{t("idea2video.noVoicesAvailable")}</SelectOption>}
                 {voices.map((v) => {
                   const id = v["ID Voz"] || v.id || v.voice_id;
                   const name = v["Nombre Voz"] || v.name || id;
@@ -785,14 +788,14 @@ export default function Idea2VideoPage() {
 
             <div>
               <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
-                Imagen de referencia <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>(opcional)</span>
+                {t("idea2video.referenceImage")} <span className="font-normal" style={{ fontSize: 10, color: "var(--vf-m2)" }}>{t("idea2video.optional")}</span>
               </div>
               {!refImageFile ? (
                 <label
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all"
                   style={{ color: "#a089ff", background: "rgba(124,106,255,.1)", borderColor: "rgba(124,106,255,.3)" }}
                 >
-                  📎 Adjuntar imagen
+                  {t("idea2video.attachImage")}
                   <input type="file" accept="image/*" onChange={handleRefImageChange} className="hidden" />
                 </label>
               ) : (
@@ -811,7 +814,7 @@ export default function Idea2VideoPage() {
                     className="bg-transparent text-[11px]"
                     style={{ color: "var(--vf-m)" }}
                   >
-                    ✕ Quitar
+                    {t("idea2video.remove")}
                   </button>
                 </div>
               )}
@@ -819,7 +822,7 @@ export default function Idea2VideoPage() {
 
             <div>
               <div className="mb-[7px] text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
-                Modo de render
+                {t("idea2video.renderMode")}
               </div>
               <div className="flex gap-2">
                 <button
@@ -832,7 +835,7 @@ export default function Idea2VideoPage() {
                       : { background: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m)", borderColor: "rgba(124,106,255,.25)" }
                   }
                 >
-                  ⚡ Rápido
+                  {t("idea2video.modeFast")}
                 </button>
                 <button
                   type="button"
@@ -844,7 +847,7 @@ export default function Idea2VideoPage() {
                       : { background: "rgba(var(--vf-fg-rgb),.04)", color: "var(--vf-m)", borderColor: "rgba(124,106,255,.25)" }
                   }
                 >
-                  🎬 Profesional
+                  {t("idea2video.modeProfessional")}
                 </button>
               </div>
               <div className="mt-[5px] text-[10px]" style={{ color: "var(--vf-m2)" }}>
@@ -854,17 +857,17 @@ export default function Idea2VideoPage() {
 
             <div className="rounded-[10px] border px-4 py-3.5" style={{ background: "var(--vf-s)", borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
               <div className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
-                Flujo de producción
+                {t("idea2video.productionFlow")}
               </div>
-              <PipelineStep icon="✎" label="Guión" active />
+              <PipelineStep icon="✎" label={t("idea2video.pipelineScript")} active />
               <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
-              <PipelineStep icon="▢" label="Imágenes" active={false} />
+              <PipelineStep icon="▢" label={t("idea2video.pipelineImages")} active={false} />
               <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
-              <PipelineStep icon="♪" label="Voz" active={false} />
+              <PipelineStep icon="♪" label={t("idea2video.pipelineVoice")} active={false} />
               <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
-              <PipelineStep icon="▶" label="Video" active={false} />
+              <PipelineStep icon="▶" label={t("idea2video.pipelineVideo")} active={false} />
               <div className="ml-1.5 my-0.5 text-[8px]" style={{ color: "var(--vf-m2)" }}>↓</div>
-              <PipelineStep icon="★" label="Render" active={false} />
+              <PipelineStep icon="★" label={t("idea2video.pipelineRender")} active={false} />
             </div>
 
             <button
@@ -874,7 +877,7 @@ export default function Idea2VideoPage() {
               className="w-full rounded-[10px] py-[13px] text-[13.5px] font-bold text-white transition-transform disabled:opacity-50"
               style={{ background: "linear-gradient(135deg,#7c6aff,#5b42f3)" }}
             >
-              {starting ? "Iniciando…" : "▶ Generar Video Automático"}
+              {starting ? t("idea2video.starting") : t("idea2video.generateAutoVideo")}
             </button>
             <button
               type="button"
@@ -882,7 +885,7 @@ export default function Idea2VideoPage() {
               className="w-full rounded-[10px] border py-[9px] text-[12.5px] transition-all"
               style={{ background: "transparent", borderColor: "rgba(var(--vf-fg-rgb),.08)", color: "var(--vf-m)" }}
             >
-              ↺ Regenerar
+              {t("idea2video.regenerate")}
             </button>
           </div>
         </div>
@@ -894,10 +897,10 @@ export default function Idea2VideoPage() {
           <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
             <div className="flex-shrink-0 overflow-y-auto border-b px-3.5 py-3 md:w-[240px] md:border-b-0 md:border-r md:py-[22px]" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)", background: "rgba(0,0,0,.2)" }}>
               <div className="mb-3.5 text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: "var(--vf-m2)" }}>
-                Fases del pipeline
+                {t("idea2video.pipelinePhases")}
               </div>
               {PHASE_ORDER.map((p) => (
-                <PhaseRow key={p} label={PHASE_LABELS[p]} status={status?.phases?.[p] || "pending"} />
+                <PhaseRow key={p} label={t(PHASE_LABEL_KEYS[p])} status={status?.phases?.[p] || "pending"} />
               ))}
             </div>
 
@@ -909,10 +912,10 @@ export default function Idea2VideoPage() {
                 <div className="flex-shrink-0 text-xl">⚡</div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13.5px] font-bold" style={{ color: "var(--vf-text)" }}>
-                    {title || "Autopilot"}
+                    {title || t("idea2video.autopilotFallback")}
                   </div>
                   <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]" style={{ color: "var(--vf-m)" }}>
-                    {status?.current_detail || "Procesando…"}
+                    {status?.current_detail || t("idea2video.processingFallback")}
                   </div>
                 </div>
                 <div
@@ -924,12 +927,12 @@ export default function Idea2VideoPage() {
               </div>
 
               <div className="flex-shrink-0 text-[11.5px] font-bold" style={{ color: "var(--vf-m)" }}>
-                Imágenes ({status?.images?.length || 0}/{scenesInfo?.scenes || 0})
+                {t("idea2video.imagesCount", { count: status?.images?.length || 0, total: scenesInfo?.scenes || 0 })}
               </div>
 
               {!status?.images?.length ? (
                 <div className="flex-shrink-0 py-3 text-[12.5px] italic" style={{ color: "var(--vf-m2)" }}>
-                  Las imágenes aparecerán conforme se generen...
+                  {t("idea2video.imagesWillAppear")}
                 </div>
               ) : (
                 <div className="grid flex-1 gap-2 overflow-y-auto" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))" }}>
@@ -960,7 +963,7 @@ export default function Idea2VideoPage() {
                   )}
                   <div className="flex w-full items-center gap-2.5">
                     <span className="flex-1 text-xs font-bold" style={{ color: "#4ade80" }}>
-                      ✓ Video listo
+                      {t("idea2video.videoReady")}
                     </span>
                     {status.video_dl && (
                       <a
@@ -969,7 +972,7 @@ export default function Idea2VideoPage() {
                         className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold text-white no-underline"
                         style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)" }}
                       >
-                        ↓ Descargar
+                        {t("idea2video.download")}
                       </a>
                     )}
                     <button
@@ -978,7 +981,7 @@ export default function Idea2VideoPage() {
                       className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
                       style={{ background: "rgba(var(--vf-fg-rgb),.06)", border: "1px solid rgba(var(--vf-fg-rgb),.12)", color: "var(--vf-text)" }}
                     >
-                      📁 Abrir carpeta
+                      {t("idea2video.openFolder")}
                     </button>
                     <button
                       type="button"
@@ -986,7 +989,7 @@ export default function Idea2VideoPage() {
                       className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold"
                       style={{ background: "rgba(var(--vf-fg-rgb),.06)", border: "1px solid rgba(var(--vf-fg-rgb),.12)", color: "var(--vf-text)" }}
                     >
-                      + Nueva idea
+                      {t("idea2video.newIdea")}
                     </button>
                   </div>
                 </div>
@@ -994,14 +997,14 @@ export default function Idea2VideoPage() {
 
               {status?.status === "error" && (
                 <p className="flex-shrink-0 text-sm" style={{ color: "var(--vf-danger)" }}>
-                  {status.error || "El autopilot falló."}
+                  {status.error || t("idea2video.autopilotFailed")}
                 </p>
               )}
 
               {status && status.log?.length > 0 && (
                 <details className="flex-shrink-0 border-t pt-2.5" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
                   <summary className="cursor-pointer text-[11px]" style={{ color: "var(--vf-m2)" }}>
-                    Registro de ejecución
+                    {t("idea2video.executionLog")}
                   </summary>
                   <div className="max-h-[100px] overflow-y-auto pt-1.5">
                     {status.log.map((l, i) => (
