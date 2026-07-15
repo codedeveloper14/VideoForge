@@ -104,7 +104,7 @@ export default function SceneCard({
             <span
               className="ml-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
               style={{ background: "var(--vf-c5)" }}
-              title="Tiene imagen de referencia"
+              title={t("editorTool.hasReferenceImage") || ""}
             />
           )}
         </div>

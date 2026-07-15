@@ -88,7 +88,8 @@
     "pipelineImages": "Generación de imágenes",
     "pipelineVoice": "Generación de voz",
     "pipelineVideo": "Generación de video",
-    "pipelineRender": "Renderizado"
+    "pipelineRender": "Renderizado",
+    "stepOfTotal": "Paso {{n}} de {{total}}"
   },
   "topbar": {
     "openProject": "Abrir proyecto",
@@ -898,7 +899,8 @@
     "tipoIconEmphasis": "✍️",
     "tipoIconSplit": "⬛⬜",
     "tipoIconBroll": "🌄",
-    "tipoIconIntro": "⚡"
+    "tipoIconIntro": "⚡",
+    "hasReferenceImage": "Tiene imagen de referencia"
   },
   "vozTool": {
     "writeOrLoadScript": "Escribe o carga un guión primero.",
@@ -979,7 +981,28 @@
     "title": "Render",
     "subtitle": "Ensambla guión, audio e imágenes/escenas en el video final.",
     "projectRender": "Render de proyecto",
-    "quickMode": "Modo rápido"
+    "quickMode": "Modo rápido",
+    "selectProjectTopbar": "Selecciona un proyecto en la barra superior.",
+    "uploadAudioFile": "Sube un archivo de audio.",
+    "uploadAtLeastOneImage": "Sube al menos una imagen.",
+    "writeScriptOneLinePerScene": "Escribe el guión (una línea por escena).",
+    "renderStartError": "Ocurrió un error al iniciar el render.",
+    "startingJob": "Iniciando...",
+    "motionPanLeftArrow": "Pan ←",
+    "motionPanRightArrow": "Pan →",
+    "transitionDissolveShort": "Dissolve",
+    "transitionSlideLeftArrow": "Slide ←",
+    "transitionSlideRightArrow": "Slide →",
+    "transitionZoomShort": "Zoom",
+    "transitionFadeShort": "Fade",
+    "pillImages": "📸 {{count}} imágenes",
+    "pillAudioProject": "🎵 Proyecto",
+    "pillAudioUnknown": "🎵 ?",
+    "pillScenes": "📄 {{count}} escenas",
+    "pillResolution": "🖥 {{res}}",
+    "pillMotion": "🎥 {{motion}}",
+    "pillTransition": "✨ {{trans}}",
+    "pillWhisper": "🤖 Whisper {{model}}"
   },
   "videoTool": {
     "moduleLabel": "Módulo 05 · Video Animator",
