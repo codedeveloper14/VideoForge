@@ -69,17 +69,17 @@ export default function QwenPanel({ project }: QwenPanelProps) {
           </label>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 {t("qwenPanel.sizeAspectRatio")}
               </label>
               <Select
                 value={options.size as string}
-                onChange={(v) => {
-                  setOption("size", v);
-                  const match = SIZE_OPTIONS.find((s) => s.value === v);
+                onChange={(value) => {
+                  setOption("size", value);
+                  const match = SIZE_OPTIONS.find((s) => s.value === value);
                   if (match) setOption("aspect_ratio", match.aspect);
                 }}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {SIZE_OPTIONS.map((s) => (
                   <SelectOption key={s.value} value={s.value}>
@@ -89,14 +89,14 @@ export default function QwenPanel({ project }: QwenPanelProps) {
               </Select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 {t("providerPanel.timeoutLabel")}
               </label>
               <input
                 type="number"
                 value={options.timeout as number}
                 onChange={(e) => setOption("timeout", Number(e.target.value))}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               />
             </div>
           </div>

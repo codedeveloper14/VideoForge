@@ -63,48 +63,59 @@ export default function ImageSearchModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5"
+        className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)] p-5"
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
+        <div className="mb-3.5 flex items-center justify-between">
+          <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[.09em] text-[var(--vf-c2)]">
             {t("editorTool.searchImageForScene", { n: sceneIndex + 1 })}
           </h3>
           <button
             onClick={onClose}
-            className="rounded-md px-2 py-1 font-mono text-xs text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
+            className="rounded-md p-1 text-[var(--vf-m2)] transition-colors hover:text-[var(--vf-text)]"
           >
             ✕
           </button>
         </div>
 
-        <div className="mb-3 flex gap-2">
+        <div className="mb-3.5 flex gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder={t("editorTool.searchQueryPlaceholder") || ""}
-            className="flex-1 rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none"
+            className="flex-1 rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           />
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="rounded-lg border-none px-4 py-2 font-mono text-xs font-bold text-white disabled:opacity-50"
-            style={{ background: "var(--vf-c1)" }}
+            className="inline-flex items-center gap-1.5 rounded-lg border-none px-4 py-2.5 font-mono text-xs font-bold text-white transition-all disabled:opacity-50"
+            style={{
+              background: "linear-gradient(135deg, var(--vf-c5), var(--vf-c1))",
+              boxShadow: "0 6px 22px rgba(34,211,160,.3)",
+            }}
           >
+            <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             {loading ? t("editorTool.searching") : t("editorTool.search")}
           </button>
         </div>
 
-        {error && <p className="mb-2 text-xs text-[var(--vf-danger)]">{error}</p>}
+        {error && (
+          <p className="mb-2 rounded-lg border border-[var(--vf-danger)]/30 bg-[var(--vf-danger)]/10 px-3 py-2 text-xs text-[var(--vf-danger)]">
+            {error}
+          </p>
+        )}
 
         {urls.length > 0 && (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
             {urls.map((url) => (
               <button
                 key={url}
                 onClick={() => handlePick(url)}
                 disabled={pickingUrl === url}
-                className="group relative aspect-video overflow-hidden rounded-lg border border-[var(--vf-border)] bg-black/30 disabled:opacity-50"
+                className="group relative aspect-video overflow-hidden rounded-lg border-2 border-transparent bg-black/30 transition-colors hover:border-[var(--vf-c5)] disabled:opacity-50"
               >
                 <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -118,7 +129,7 @@ export default function ImageSearchModal({
         )}
 
         {!loading && urls.length === 0 && !error && (
-          <p className="py-8 text-center font-mono text-xs text-[var(--vf-muted)]">
+          <p className="py-8 text-center font-mono text-xs text-[var(--vf-m2)]">
             {t("editorTool.typeSearchAndPress")}
           </p>
         )}

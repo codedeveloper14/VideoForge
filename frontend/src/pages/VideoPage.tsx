@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { listProjects } from "../api/projects";
-import type { Project } from "../types";
-import { Select, SelectOption } from "../components/Select";
+import { PipelineStepper } from "../components/PipelineStepper";
+import { HeaderArt } from "../components/HeaderArt";
 import GrokPanel from "./video/GrokPanel";
 import QwenPanel from "./video/QwenPanel";
 import MetaPanel from "./video/MetaPanel";
@@ -15,18 +13,9 @@ const TABS = [
 ];
 
 export default function VideoPage() {
-  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
-  const [error, setError] = useState("");
   const [tab, setTab] = useState(searchParams.get("tab") || "grok");
-
-  useEffect(() => {
-    listProjects()
-      .then(setProjects)
-      .catch((err) => setError((err as Error).message));
-  }, []);
 
   useEffect(() => {
     setSearchParams((prev) => {
@@ -39,67 +28,65 @@ export default function VideoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, tab]);
 
+  // The project is now selected exclusively via the workspace tabs/sidebar in
+  // AppLayout, which navigate with a new ?project= value — keep local state
+  // in sync when that happens.
+  useEffect(() => {
+    const fromUrl = searchParams.get("project") || "";
+    setProject((prev) => (fromUrl && fromUrl !== prev ? fromUrl : prev));
+  }, [searchParams]);
+
   return (
     <div>
-      <div className="mb-5">
-        <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-m2)]">
-          <span
-            className="h-[5px] w-[5px] rounded-full"
-            style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-          />
-          {t("videoTool.moduleLabel")}
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--vf-text)] md:text-4xl">
-          {t("videoTool.titlePart1")}{" "}
-          <span
-            style={{
-              background:
-                "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            {t("videoTool.titlePart2")}
-          </span>
-        </h1>
-        <p className="mt-2 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-          {t("videoTool.subtitle")}
-        </p>
-      </div>
+      {project && <PipelineStepper project={project} current="video" />}
 
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] px-4 py-3">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-          {t("tools.project")}
-        </span>
-        <Select
-          value={project}
-          onChange={(v) => setProject(v)}
-          className="min-w-[200px] rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
-        >
-          <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
-          {projects.map((p) => (
-            <SelectOption key={p.nombre} value={p.nombre}>
-              {p.nombre}
-            </SelectOption>
-          ))}
-        </Select>
-        {error && <span className="text-xs text-[var(--vf-danger)]">{error}</span>}
+      <div
+        className="relative mb-9 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
+        style={{ background: "var(--vf-surface)" }}
+      >
+        <div className="flex items-center gap-5">
+          <div className="min-w-0 max-w-2xl flex-1">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+              <span
+                className="h-[5px] w-[5px] rounded-full"
+                style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
+              />
+              Módulo 05 · Video Animator
+            </div>
+            <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
+              Video{" "}
+              <span
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
+                }}
+              >
+                Animator
+              </span>
+            </h1>
+            <p className="font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
+              Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok,
+              Qwen o Meta AI.
+            </p>
+          </div>
+          <HeaderArt />
+        </div>
       </div>
 
       <div className="mb-4 inline-flex rounded-full border border-[var(--vf-border)] bg-[var(--vf-surface)] p-1 font-mono text-xs">
-        {TABS.map((tabItem) => (
+        {TABS.map((t) => (
           <button
-            key={tabItem.id}
-            onClick={() => setTab(tabItem.id)}
+            key={t.id}
+            onClick={() => setTab(t.id)}
             className={
               "rounded-full px-4 py-1.5 transition-colors " +
-              (tab === tabItem.id
+              (tab === t.id
                 ? "bg-[var(--vf-c1)] text-white"
                 : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]")
             }
           >
-            {tabItem.label}
+            {t.label}
           </button>
         ))}
       </div>

@@ -5,6 +5,7 @@ import {
   SectionCard,
   ProgressBar,
   LogConsole,
+  TerminalCard,
   PrimaryButton,
   StopButton,
   GhostButton,
@@ -341,7 +342,16 @@ export default function ProviderPanel({
   return (
     <div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title={t("providerPanel.images")}>
+        <SectionCard
+          title={t("providerPanel.images")}
+          right={
+            images.length > 0 ? (
+              <span className="font-mono text-[10px] text-[var(--vf-c5)]">
+                {images.length} cargada{images.length !== 1 ? "s" : ""}
+              </span>
+            ) : undefined
+          }
+        >
           <ImageSlots files={images} onChange={setImages} />
         </SectionCard>
 
@@ -350,7 +360,7 @@ export default function ProviderPanel({
             <label className="mb-1 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
               {t("providerPanel.activeProject")}
             </label>
-            <div className="font-mono text-xs font-semibold text-[var(--vf-c2)]">
+            <div className="py-1 font-mono text-xs font-semibold text-[var(--vf-c2)]">
               {project || t("providerPanel.selectInTopbar")}
             </div>
           </div>
@@ -363,7 +373,7 @@ export default function ProviderPanel({
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
             placeholder={t("providerPanel.animationPromptPlaceholder") || ""}
-            className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-3 py-2 font-mono text-xs text-[var(--vf-text)] outline-none focus:border-[var(--vf-c1)]"
+            className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-2.5 font-mono text-xs text-[var(--vf-text)] outline-none transition-colors placeholder:text-[var(--vf-m2)] focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
           />
 
           <div className="mt-4">
@@ -395,16 +405,20 @@ export default function ProviderPanel({
         </SectionCard>
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4 flex flex-wrap items-center gap-4">
         <PrimaryButton
           onClick={handleStart}
           disabled={!running && images.length === 0}
-          className={running ? "flex-none" : "flex-1"}
+          className={
+            (running ? "flex-none" : "flex-1 sm:flex-none") +
+            " inline-flex items-center justify-center gap-2 !rounded-[10px] !px-7 !py-3 text-[11.5px] uppercase tracking-[.06em] shadow-[0_4px_18px_rgba(124,106,255,.4)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_8px_28px_rgba(124,106,255,.55)]" +
+            (running ? " !bg-gradient-to-br !from-[#ef4444] !to-[#dc2626] !shadow-[0_4px_18px_rgba(239,68,68,.4)]" : "")
+          }
         >
           {running ? t("providerPanel.processing") : t("providerPanel.startAnimation", { label: providerLabel })}
         </PrimaryButton>
         {running && <StopButton onClick={handleStart} />}
-        <div className="font-mono text-[10px] text-[var(--vf-muted)]">
+        <div className="font-mono text-[10px] leading-[1.6] text-[var(--vf-muted)]">
           {images.length === 0
             ? t("providerPanel.uploadImagesToStart")
             : t("providerPanel.imagesReadyCount", { count: images.length })}
@@ -428,25 +442,16 @@ export default function ProviderPanel({
         </div>
       )}
 
-      <div className="mt-4">
-        <SectionCard
-          title={t("providerPanel.liveOutputTitle", { label: providerLabel.toLowerCase() })}
-          right={
-            <button
-              onClick={clearLog}
-              className="font-mono text-[9px] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
-            >
-              {t("providerPanel.clearLog")}
-            </button>
-          }
-        >
-          <LogConsole lines={logLines} />
-        </SectionCard>
-      </div>
+      <TerminalCard
+        title={t("providerPanel.liveOutputTitle", { label: providerLabel.toLowerCase() })}
+        onClear={clearLog}
+      >
+        <LogConsole lines={logLines} />
+      </TerminalCard>
 
       <div className="mt-6">
         <div className="mb-3 flex items-center justify-between">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--vf-text)]">
+          <span className="font-mono text-[10px] uppercase tracking-[.12em] text-[var(--vf-muted)]">
             {t("providerPanel.generatedVideos")}
           </span>
           <div className="flex items-center gap-2">

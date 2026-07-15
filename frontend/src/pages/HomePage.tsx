@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { createProject, deleteProject, listProjects } from "../api/projects";
+import { useWorkspace } from "../context/WorkspaceContext";
 import type { Project } from "../types";
 
 function IconClapper() {
@@ -91,7 +91,7 @@ function formatDate(creado: number, locale: string) {
 
 export default function HomePage() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
+  const { openProject } = useWorkspace();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -137,10 +137,6 @@ export default function HomePage() {
     } catch (err) {
       setError((err as Error).message);
     }
-  }
-
-  function openProject(name: string) {
-    navigate(`/app/proyectos/${encodeURIComponent(name)}`);
   }
 
   return (

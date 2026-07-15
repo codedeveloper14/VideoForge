@@ -64,13 +64,13 @@ export default function GrokPanel({ project }: GrokPanelProps) {
           </label>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 {t("grokPanel.aspectRatio")}
               </label>
               <Select
                 value={options.aspect_ratio as string}
-                onChange={(v) => setOption("aspect_ratio", v)}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                onChange={(value) => setOption("aspect_ratio", value)}
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {ASPECT_OPTIONS.map((o) => (
                   <SelectOption key={o.value} value={o.value}>
@@ -80,13 +80,13 @@ export default function GrokPanel({ project }: GrokPanelProps) {
               </Select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 {t("grokPanel.duration")}
               </label>
               <Select
                 value={options.video_length as number}
-                onChange={(v) => setOption("video_length", Number(v))}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                onChange={(value) => setOption("video_length", Number(value))}
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {DURATION_OPTIONS.map((d) => (
                   <SelectOption key={d} value={d}>
@@ -96,13 +96,13 @@ export default function GrokPanel({ project }: GrokPanelProps) {
               </Select>
             </div>
             <div>
-              <label className="mb-1 block font-mono text-[9px] text-[var(--vf-m2)]">
+              <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
                 {t("grokPanel.resolution")}
               </label>
               <Select
                 value={options.resolution as string}
-                onChange={(v) => setOption("resolution", v)}
-                className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-s)] px-2 py-1.5 font-mono text-[10px] text-[var(--vf-text)] outline-none"
+                onChange={(value) => setOption("resolution", value)}
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {RES_OPTIONS.map((r) => (
                   <SelectOption key={r} value={r}>
