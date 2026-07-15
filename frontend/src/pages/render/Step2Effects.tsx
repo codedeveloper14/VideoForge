@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Select, SelectOption } from "../../components/Select";
 import {
   Card,
   MODELOS,
@@ -105,49 +106,49 @@ export default function Step2Effects({
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
                 {t("projectRenderPanel.resolutionUpper")}
               </label>
-              <select
+              <Select
                 value={resolucion}
-                onChange={(e) => onResolucionChange(e.target.value)}
+                onChange={onResolucionChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {RESOLUCIONES.map((r) => (
-                  <option key={r.value} value={r.value}>
+                  <SelectOption key={r.value} value={r.value}>
                     {t(r.labelKey)}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
                 {t("projectRenderPanel.whisperModelUpper")}
               </label>
-              <select
+              <Select
                 value={modelo}
-                onChange={(e) => onModeloChange(e.target.value)}
+                onChange={onModeloChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {MODELOS.map((m) => (
-                  <option key={m.value} value={m.value}>
+                  <SelectOption key={m.value} value={m.value}>
                     {t(m.labelKey)}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
                 {t("projectRenderPanel.whisperEngineUpper")}
               </label>
-              <select
+              <Select
                 value={whisperBackend}
-                onChange={(e) => onWhisperBackendChange(e.target.value)}
+                onChange={onWhisperBackendChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {WHISPER_BACKENDS.map((w) => (
-                  <option key={w.value} value={w.value}>
+                  <SelectOption key={w.value} value={w.value}>
                     {t(w.labelKey)}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </Card>

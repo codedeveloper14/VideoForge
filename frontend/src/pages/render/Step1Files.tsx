@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Project } from "../../types";
 import { loadScript } from "../../api/script";
+import { Select, SelectOption } from "../../components/Select";
 import { Card, DropZone, RENDER_MODES, WizardPageHeader, formatSize } from "./wizardShared";
 
 export interface ImageEntry {
@@ -143,18 +144,18 @@ export default function Step1Files({
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
                   {t("projectRenderPanel.activeProject")}
                 </span>
-                <select
+                <Select
                   value={project}
-                  onChange={(e) => onProjectChange(e.target.value)}
+                  onChange={onProjectChange}
                   className="rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
                 >
-                  <option value="">{t("tools.noProjectSelected")}</option>
+                  <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
                   {projects.map((p) => (
-                    <option key={p.nombre} value={p.nombre}>
+                    <SelectOption key={p.nombre} value={p.nombre}>
                       {p.nombre}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
             {!project && (

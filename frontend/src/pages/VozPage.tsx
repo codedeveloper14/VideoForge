@@ -94,6 +94,10 @@ export default function VozPage() {
 
   const [existingAudio, setExistingAudio] = useState<LoadAudioResult | null>(null);
 
+  const [quickLang, setQuickLang] = useState("es");
+  const [quickSpeed, setQuickSpeed] = useState("normal");
+  const [quickStyle, setQuickStyle] = useState("neutral");
+
   const [cloneName, setCloneName] = useState("");
   const [cloneFile, setCloneFile] = useState<File | null>(null);
   const [cloneLang, setCloneLang] = useState("AUTO");
@@ -400,34 +404,34 @@ export default function VozPage() {
                   </div>
 
                   {provider === "ivr" ? (
-                    <select
+                    <Select
                       value={voiceId}
-                      onChange={(e) => setVoiceId(e.target.value)}
+                      onChange={setVoiceId}
                       disabled={voicesLoading}
                       className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                     >
-                      {voicesLoading && <option>{t("vozTool.loadingVoices")}</option>}
-                      {!voicesLoading && voices.length === 0 && <option value="">{t("vozTool.noVoicesAvailable")}</option>}
+                      {voicesLoading && <SelectOption value="">{t("vozTool.loadingVoices")}</SelectOption>}
+                      {!voicesLoading && voices.length === 0 && <SelectOption value="">{t("vozTool.noVoicesAvailable")}</SelectOption>}
                       {voices.map((v) => {
-                        const id = v["ID Voz"] || v.id || v.voice_id;
+                        const id = v["ID Voz"] || v.id || v.voice_id || "";
                         const name = v["Nombre Voz"] || v.name || id;
                         return (
-                          <option key={id} value={id}>
+                          <SelectOption key={id} value={id}>
                             {name}
-                          </option>
+                          </SelectOption>
                         );
                       })}
-                    </select>
+                    </Select>
                   ) : (
-                    <select
+                    <Select
                       value={xttsVoice}
-                      onChange={(e) => setXttsVoice(e.target.value)}
+                      onChange={setXttsVoice}
                       className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                     >
                       {XTTS_VOICES.map((v) => (
-                        <option key={v}>{v}</option>
+                        <SelectOption key={v} value={v}>{v}</SelectOption>
                       ))}
-                    </select>
+                    </Select>
                   )}
 
                   {provider === "ivr" ? (
@@ -457,17 +461,17 @@ export default function VozPage() {
                       <label className="mb-1.5 mt-2 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
                         {t("vozTool.language")}
                       </label>
-                      <select
+                      <Select
                         value={xttsLang}
-                        onChange={(e) => setXttsLang(e.target.value)}
+                        onChange={setXttsLang}
                         className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                       >
                         {XTTS_LANGS.map((l) => (
-                          <option key={l.value} value={l.value}>
+                          <SelectOption key={l.value} value={l.value}>
                             {l.label}
-                          </option>
+                          </SelectOption>
                         ))}
-                      </select>
+                      </Select>
                     </>
                   )}
                 </div>
@@ -520,29 +524,29 @@ export default function VozPage() {
                   <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">{t("vozTool.quickSettingsLabel")}</div>
                   <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
                     {t("vozTool.language")}
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>{t("vozTool.spanish")}</option>
-                      <option>{t("vozTool.english")}</option>
-                      <option>{t("vozTool.portuguese")}</option>
-                      <option>{t("vozTool.french")}</option>
-                    </select>
+                    <Select value={quickLang} onChange={setQuickLang} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="es">{t("vozTool.spanish")}</SelectOption>
+                      <SelectOption value="en">{t("vozTool.english")}</SelectOption>
+                      <SelectOption value="pt">{t("vozTool.portuguese")}</SelectOption>
+                      <SelectOption value="fr">{t("vozTool.french")}</SelectOption>
+                    </Select>
                   </label>
                   <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
                     {t("vozTool.speed")}
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>{t("vozTool.speedNormal")}</option>
-                      <option>{t("vozTool.speedSlow")}</option>
-                      <option>{t("vozTool.speedFast")}</option>
-                    </select>
+                    <Select value={quickSpeed} onChange={setQuickSpeed} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="normal">{t("vozTool.speedNormal")}</SelectOption>
+                      <SelectOption value="slow">{t("vozTool.speedSlow")}</SelectOption>
+                      <SelectOption value="fast">{t("vozTool.speedFast")}</SelectOption>
+                    </Select>
                   </label>
                   <label className="flex items-center justify-between py-2 text-[12px] text-[var(--vf-m)]">
                     {t("vozTool.style")}
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>{t("vozTool.styleNeutral")}</option>
-                      <option>{t("vozTool.styleExpressive")}</option>
-                      <option>{t("vozTool.styleNarrative")}</option>
-                      <option>{t("vozTool.styleFormal")}</option>
-                    </select>
+                    <Select value={quickStyle} onChange={setQuickStyle} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="neutral">{t("vozTool.styleNeutral")}</SelectOption>
+                      <SelectOption value="expressive">{t("vozTool.styleExpressive")}</SelectOption>
+                      <SelectOption value="narrative">{t("vozTool.styleNarrative")}</SelectOption>
+                      <SelectOption value="formal">{t("vozTool.styleFormal")}</SelectOption>
+                    </Select>
                   </label>
                 </div>
               </div>

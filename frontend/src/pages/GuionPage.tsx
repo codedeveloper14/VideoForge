@@ -6,15 +6,10 @@ import { analyzeImage, loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { GuionHeaderArt } from "../components/GuionHeaderArt";
+import { Select, SelectOption } from "../components/Select";
 
 type ActivePanel = "prompts" | "guion";
 type PromptMode = "general" | "stick" | "ultrarealismo";
-
-const PROMPT_MODE_LABELS: Record<PromptMode, string> = {
-  general: "General",
-  stick: "Stick Animado",
-  ultrarealismo: "Ultrarrealismo",
-};
 
 export default function GuionPage() {
   const { t } = useTranslation();
@@ -26,6 +21,9 @@ export default function GuionPage() {
   const [outputMode, setOutputMode] = useState("con_prompts");
   const [promptMode, setPromptMode] = useState<PromptMode>("general");
   const [promptStyle, setPromptStyle] = useState<"default" | "history">("default");
+  const [scriptLang, setScriptLang] = useState("es");
+  const [scriptTone, setScriptTone] = useState("inspiring");
+  const [scriptAudience, setScriptAudience] = useState("general");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -574,59 +572,56 @@ export default function GuionPage() {
             </div>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
               {t("guionTool.language")}
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>{t("guionTool.langSpanish")}</option>
-                <option>{t("guionTool.langEnglish")}</option>
-                <option>{t("guionTool.langPortuguese")}</option>
-                <option>{t("guionTool.langFrench")}</option>
-                <option>{t("guionTool.langGerman")}</option>
-              </select>
+              <Select value={scriptLang} onChange={setScriptLang} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="es">{t("guionTool.langSpanish")}</SelectOption>
+                <SelectOption value="en">{t("guionTool.langEnglish")}</SelectOption>
+                <SelectOption value="pt">{t("guionTool.langPortuguese")}</SelectOption>
+                <SelectOption value="fr">{t("guionTool.langFrench")}</SelectOption>
+                <SelectOption value="de">{t("guionTool.langGerman")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
               {t("guionTool.tone")}
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>{t("guionTool.toneInspiring")}</option>
-                <option>{t("guionTool.toneFormal")}</option>
-                <option>{t("guionTool.toneCasual")}</option>
-                <option>{t("guionTool.toneEducational")}</option>
-                <option>{t("guionTool.toneDramatic")}</option>
-              </select>
+              <Select value={scriptTone} onChange={setScriptTone} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="inspiring">{t("guionTool.toneInspiring")}</SelectOption>
+                <SelectOption value="formal">{t("guionTool.toneFormal")}</SelectOption>
+                <SelectOption value="casual">{t("guionTool.toneCasual")}</SelectOption>
+                <SelectOption value="educational">{t("guionTool.toneEducational")}</SelectOption>
+                <SelectOption value="dramatic">{t("guionTool.toneDramatic")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
               {t("guionTool.targetAudience")}
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>{t("guionTool.audienceGeneral")}</option>
-                <option>{t("guionTool.audienceProfessional")}</option>
-                <option>{t("guionTool.audienceYouth")}</option>
-                <option>{t("guionTool.audienceBusiness")}</option>
-              </select>
+              <Select value={scriptAudience} onChange={setScriptAudience} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="general">{t("guionTool.audienceGeneral")}</SelectOption>
+                <SelectOption value="professional">{t("guionTool.audienceProfessional")}</SelectOption>
+                <SelectOption value="youth">{t("guionTool.audienceYouth")}</SelectOption>
+                <SelectOption value="business">{t("guionTool.audienceBusiness")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
               {t("guionTool.promptModeLabel")}
-              <select
-                value={PROMPT_MODE_LABELS[promptMode]}
-                onChange={(e) => {
-                  const entry = Object.entries(PROMPT_MODE_LABELS).find(([, label]) => label === e.target.value);
-                  setPromptMode((entry?.[0] as PromptMode) || "general");
-                }}
+              <Select
+                value={promptMode}
+                onChange={(v) => setPromptMode(v as PromptMode)}
                 className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none"
               >
-                <option>General</option>
-                <option>Stick Animado</option>
-                <option>Ultrarrealismo</option>
-              </select>
+                <SelectOption value="general">{t("guionTool.general")}</SelectOption>
+                <SelectOption value="stick">{t("guionTool.stickFigures")}</SelectOption>
+                <SelectOption value="ultrarealismo">{t("guionTool.ultraRealism")}</SelectOption>
+              </Select>
             </label>
             {promptMode === "stick" && (
               <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
                 {t("guionTool.styles")}
-                <select
-                  value={promptStyle === "history" ? "History Telling" : "Default"}
-                  onChange={(e) => setPromptStyle(e.target.value === "History Telling" ? "history" : "default")}
+                <Select
+                  value={promptStyle}
+                  onChange={(v) => setPromptStyle(v as "default" | "history")}
                   className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none"
                 >
-                  <option>Default</option>
-                  <option>History Telling</option>
-                </select>
+                  <SelectOption value="default">Default</SelectOption>
+                  <SelectOption value="history">History Telling</SelectOption>
+                </Select>
               </label>
             )}
             <div className="flex items-center justify-between border-t border-[rgba(var(--vf-fg-rgb),.05)] px-3.5 py-2 text-[12.5px] font-medium text-[var(--vf-m)]">

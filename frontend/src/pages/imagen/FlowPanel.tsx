@@ -444,10 +444,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
                   {t("flowPanel.model")}
                 </label>
-                <select value={model} onChange={(e) => setModel(e.target.value)} className="flow-select">
-                  <option value="NANO_BANANA_2">{t("flowPanel.modelQuality")}</option>
-                  <option value="IMAGE_GENERATION_001_IMAGEN4">{t("flowPanel.modelSpeed")}</option>
-                </select>
+                <Select value={model} onChange={setModel} className="flow-select">
+                  <SelectOption value="NANO_BANANA_2">{t("flowPanel.modelQuality")}</SelectOption>
+                  <SelectOption value="IMAGE_GENERATION_001_IMAGEN4">{t("flowPanel.modelSpeed")}</SelectOption>
+                </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">

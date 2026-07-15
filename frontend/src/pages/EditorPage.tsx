@@ -650,17 +650,17 @@ export default function EditorPage() {
                     className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                   />
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <select
+                    <Select
                       value={(selectedScene.texto_overlay_pos as string) || "bottom_center"}
-                      onChange={(e) => updateScene(selectedIdx, { texto_overlay_pos: e.target.value })}
+                      onChange={(v) => updateScene(selectedIdx, { texto_overlay_pos: v })}
                       className="flex-1 min-w-[120px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     >
                       {OVERLAY_POS_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
+                        <SelectOption key={o.value} value={o.value}>
                           {t(o.labelKey)}
-                        </option>
+                        </SelectOption>
                       ))}
-                    </select>
+                    </Select>
                     <input
                       type="color"
                       title={t("editorTool.textColorTitle") || ""}
