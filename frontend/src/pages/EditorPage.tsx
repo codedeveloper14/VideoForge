@@ -363,8 +363,8 @@ export default function EditorPage() {
             Editor IA
           </div>
           <div className="font-mono text-[13px] text-[var(--vf-m2)]">→</div>
-          <div className="flex items-center gap-1.5 rounded-full border border-[var(--vf-b)] bg-white/[0.03] px-3.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-m2)]">
-            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-white/[0.08] text-[9px] font-bold">
+          <div className="flex items-center gap-1.5 rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-m2)]">
+            <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[rgba(var(--vf-fg-rgb),.08)] text-[9px] font-bold">
               3
             </span>
             Render Enriquecido
@@ -380,7 +380,7 @@ export default function EditorPage() {
         <Select
           value={project}
           onChange={(value) => handleSelectProject(value)}
-          className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-white/[0.05] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+          className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
           <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
           {projects.map((p) => (
@@ -393,7 +393,7 @@ export default function EditorPage() {
         <button
           onClick={handleTranscribir}
           disabled={transcribing || !project}
-          className="rounded-lg border border-[var(--vf-b2)] bg-white/[0.04] px-3.5 py-2 font-mono text-xs text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)] disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-2 font-mono text-xs text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {transcribing ? "Transcribiendo…" : "Transcribir audio"}
         </button>
@@ -409,7 +409,7 @@ export default function EditorPage() {
           <Select
             value={resolucion}
             onChange={(value) => setResolucion(value)}
-            className="w-[150px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+            className="w-[150px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
             {RESOLUCIONES.map((r) => (
               <SelectOption key={r.value} value={r.value}>
@@ -425,7 +425,7 @@ export default function EditorPage() {
           <Select
             value={transicion}
             onChange={(value) => setTransicion(value)}
-            className="w-[130px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+            className="w-[130px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
             {TRANSICIONES.map((t) => (
               <SelectOption key={t.value} value={t.value}>
@@ -444,7 +444,7 @@ export default function EditorPage() {
             min="0"
             value={transDur}
             onChange={(e) => setTransDur(parseFloat(e.target.value) || 0)}
-            className="w-[90px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-center text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+            className="w-[90px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-center text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           />
         </div>
         <button
@@ -503,7 +503,7 @@ export default function EditorPage() {
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[.09em] text-[var(--vf-c2)]">
                 Timeline de Escenas
               </span>
-              <span className="rounded-full border border-[var(--vf-b)] bg-white/5 px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-m2)]">
+              <span className="rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-m2)]">
                 {escenas.length} escenas
               </span>
             </div>
@@ -511,7 +511,7 @@ export default function EditorPage() {
             {analyzed && (
               <div className="flex flex-wrap gap-3 border-b border-white/[0.04] px-[18px] py-2.5">
                 <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--vf-m2)]">
-                  <span className="rounded-full bg-white/[0.08] px-[7px] py-[2px] font-mono text-[8.5px] font-bold uppercase tracking-wide text-[var(--vf-m2)]">
+                  <span className="rounded-full bg-[rgba(var(--vf-fg-rgb),.08)] px-[7px] py-[2px] font-mono text-[8.5px] font-bold uppercase tracking-wide text-[var(--vf-m2)]">
                     N
                   </span>
                   Normal
@@ -604,7 +604,7 @@ export default function EditorPage() {
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
                     Texto narración
                   </label>
-                  <div className="min-h-[40px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.03] px-3 py-2.5 text-[12.5px] italic leading-relaxed text-[var(--vf-m)]">
+                  <div className="min-h-[40px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-2.5 text-[12.5px] italic leading-relaxed text-[var(--vf-m)]">
                     {selectedScene.texto}
                   </div>
                 </div>
@@ -625,7 +625,7 @@ export default function EditorPage() {
                             "flex flex-col items-center gap-1 rounded-[10px] border px-1 py-2 font-mono text-[9px] transition-all " +
                             (active
                               ? "border-[var(--vf-c5)] bg-[var(--vf-c5)]/10 text-[var(--vf-c5)]"
-                              : "border-[var(--vf-b)] bg-white/[0.03] text-[var(--vf-m)] hover:border-[var(--vf-c5)]/40 hover:text-[var(--vf-c5)]")
+                              : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)] hover:border-[var(--vf-c5)]/40 hover:text-[var(--vf-c5)]")
                           }
                         >
                           <span className="text-base leading-none">{opt.icon}</span>
@@ -650,13 +650,13 @@ export default function EditorPage() {
                     value={selectedScene.texto_overlay || ""}
                     onChange={(e) => updateScene(selectedIdx, { texto_overlay: e.target.value })}
                     placeholder="Texto impactante…"
-                    className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                    className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                   />
                   <div className="mt-2 flex flex-wrap gap-2">
                     <select
                       value={(selectedScene.texto_overlay_pos as string) || "bottom_center"}
                       onChange={(e) => updateScene(selectedIdx, { texto_overlay_pos: e.target.value })}
-                      className="flex-1 min-w-[120px] rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                      className="flex-1 min-w-[120px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     >
                       {OVERLAY_POS_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -684,7 +684,7 @@ export default function EditorPage() {
                       type="text"
                       value={selectedScene.texto_secundario || ""}
                       onChange={(e) => updateScene(selectedIdx, { texto_secundario: e.target.value })}
-                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     />
                   </div>
                   <div>
@@ -695,7 +695,7 @@ export default function EditorPage() {
                       type="number"
                       value={selectedScene.numero_capitulo ?? ""}
                       onChange={(e) => updateScene(selectedIdx, { numero_capitulo: e.target.value })}
-                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                      className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     />
                   </div>
                 </div>
@@ -710,9 +710,9 @@ export default function EditorPage() {
                     value={selectedScene.ref_label || ""}
                     onChange={(e) => updateScene(selectedIdx, { ref_label: e.target.value })}
                     placeholder="Etiqueta de referencia…"
-                    className="mb-2 w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2 text-[11.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                    className="mb-2 w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-[11.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                   />
-                  <div className="relative flex h-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-[var(--vf-b)] bg-white/[0.04]">
+                  <div className="relative flex h-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)]">
                     {selectedScene.imagen_url ? (
                       <img
                         src={selectedScene.imagen_url}
@@ -733,7 +733,7 @@ export default function EditorPage() {
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <button
                       onClick={() => setSearchModalIdx(selectedIdx)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vf-b2)] bg-white/[0.04] px-3 py-1.5 font-mono text-[11px] text-[var(--vf-text)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-1.5 font-mono text-[11px] text-[var(--vf-text)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
                     >
                       <svg width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <circle cx="11" cy="11" r="8" />
@@ -743,7 +743,7 @@ export default function EditorPage() {
                     </button>
                     <button
                       onClick={() => handleQuitarRef(selectedIdx)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vf-b2)] bg-white/[0.04] px-3 py-1.5 font-mono text-[11px] text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-1.5 font-mono text-[11px] text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
                     >
                       Quitar
                     </button>
@@ -754,7 +754,7 @@ export default function EditorPage() {
                       value={selectedScene.google_query || ""}
                       onChange={(e) => updateScene(selectedIdx, { google_query: e.target.value })}
                       placeholder="Query de búsqueda…"
-                      className="flex-1 rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                      className="flex-1 rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     />
                   </div>
 
@@ -770,7 +770,7 @@ export default function EditorPage() {
                             "flex-1 rounded-lg border px-2 py-1.5 font-mono text-[10.5px] transition-all " +
                             (selectedScene.lado_ia === "left"
                               ? "border-[var(--vf-c1)] bg-[var(--vf-c1)]/10 text-[var(--vf-c2)]"
-                              : "border-[var(--vf-b)] bg-white/[0.03] text-[var(--vf-m)]")
+                              : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)]")
                           }
                         >
                           ← Izquierda
@@ -781,7 +781,7 @@ export default function EditorPage() {
                             "flex-1 rounded-lg border px-2 py-1.5 font-mono text-[10.5px] transition-all " +
                             (selectedScene.lado_ia === "right"
                               ? "border-[var(--vf-c1)] bg-[var(--vf-c1)]/10 text-[var(--vf-c2)]"
-                              : "border-[var(--vf-b)] bg-white/[0.03] text-[var(--vf-m)]")
+                              : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)]")
                           }
                         >
                           Derecha →
@@ -793,14 +793,14 @@ export default function EditorPage() {
                           value={selectedScene.split_label_1 || ""}
                           onChange={(e) => updateScene(selectedIdx, { split_label_1: e.target.value })}
                           placeholder="Etiqueta lado 1"
-                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                         />
                         <input
                           type="text"
                           value={selectedScene.split_label_2 || ""}
                           onChange={(e) => updateScene(selectedIdx, { split_label_2: e.target.value })}
                           placeholder="Etiqueta lado 2"
-                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.05] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
+                          className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                         />
                       </div>
                     </div>
@@ -833,7 +833,7 @@ export default function EditorPage() {
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
                     Imagen IA generada
                   </label>
-                  <div className="flex h-[90px] items-center justify-center overflow-hidden rounded-[10px] border border-[var(--vf-b)] bg-white/[0.04]">
+                  <div className="flex h-[90px] items-center justify-center overflow-hidden rounded-[10px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)]">
                     {selectedScene.imagen_ia_url ? (
                       <img
                         src={selectedScene.imagen_ia_url as string}
@@ -865,13 +865,13 @@ export default function EditorPage() {
             <button
               onClick={handleGuardarPlan}
               disabled={saving}
-              className="rounded-[10px] border border-[var(--vf-b2)] bg-white/[0.03] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-white/20 hover:text-[var(--vf-text)] disabled:opacity-50"
+              className="rounded-[10px] border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.03)] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-[rgba(var(--vf-fg-rgb),.2)] hover:text-[var(--vf-text)] disabled:opacity-50"
             >
               💾 {saving ? "Guardando…" : "Guardar plan"}
             </button>
             <button
               onClick={handleCargarPlan}
-              className="rounded-[10px] border border-[var(--vf-b2)] bg-white/[0.03] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-white/20 hover:text-[var(--vf-text)]"
+              className="rounded-[10px] border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.03)] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-[rgba(var(--vf-fg-rgb),.2)] hover:text-[var(--vf-text)]"
             >
               📂 Cargar plan guardado
             </button>

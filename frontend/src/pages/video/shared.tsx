@@ -229,7 +229,7 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
   return (
     <div>
       <label
-        className="relative block cursor-pointer rounded-xl border-[1.5px] border-dashed border-[var(--vf-b2)] bg-white/[0.015] p-7 text-center transition-all hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--vf-c1)_5%,transparent)]"
+        className="relative block cursor-pointer rounded-xl border-[1.5px] border-dashed border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.015)] p-7 text-center transition-all hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--vf-c1)_5%,transparent)]"
       >
         <input
           type="file"

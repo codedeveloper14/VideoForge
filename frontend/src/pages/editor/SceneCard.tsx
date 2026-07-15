@@ -1,7 +1,7 @@
 import type { EditorScene, TimestampEntry } from "../../api/editor";
 
 const TIPO_PILL: Record<string, { bg: string; color: string; letter: string }> = {
-  normal: { bg: "rgba(255,255,255,.08)", color: "var(--vf-m2)", letter: "N" },
+  normal: { bg: "rgba(var(--vf-fg-rgb),.08)", color: "var(--vf-m2)", letter: "N" },
   texto_enfasis: { bg: "rgba(255,195,0,.18)", color: "#FFD700", letter: "T" },
   split_screen: { bg: "rgba(124,106,255,.22)", color: "#a78bfa", letter: "S" },
   broll: { bg: "rgba(34,211,160,.18)", color: "var(--vf-c5)", letter: "B" },
@@ -52,7 +52,7 @@ export default function SceneCard({
         "mb-1.5 grid cursor-pointer grid-cols-[36px_80px_1fr_auto] items-center gap-2.5 rounded-xl border p-2.5 transition-colors " +
         (selected
           ? "border-[var(--vf-c5)]/30 bg-[var(--vf-c5)]/[0.07]"
-          : "border-transparent bg-white/[0.025] hover:border-white/[0.08] hover:bg-white/[0.045]") +
+          : "border-transparent bg-[rgba(var(--vf-fg-rgb),.025)] hover:border-[rgba(var(--vf-fg-rgb),.08)] hover:bg-[rgba(var(--vf-fg-rgb),.045)]") +
         (disabled ? " opacity-[0.38]" : "")
       }
     >
@@ -60,7 +60,7 @@ export default function SceneCard({
         {index + 1}
       </div>
 
-      <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-[7px] bg-white/[0.06]">
+      <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-[7px] bg-[rgba(var(--vf-fg-rgb),.06)]">
         {scene.imagen_url ? (
           <img
             src={scene.imagen_url}
@@ -69,7 +69,7 @@ export default function SceneCard({
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-[7px] border border-dashed border-[var(--vf-b)] bg-white/[0.05] font-mono text-[8px] text-[var(--vf-m2)]">
+          <div className="flex h-full w-full items-center justify-center rounded-[7px] border border-dashed border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] font-mono text-[8px] text-[var(--vf-m2)]">
             sin img
           </div>
         )}

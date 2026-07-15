@@ -42,11 +42,11 @@ export default function VideoPage() {
 
       <div
         className="relative mb-9 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
-        style={{ background: "linear-gradient(165deg,rgba(18,22,34,.9),rgba(10,14,24,.95))" }}
+        style={{ background: "var(--vf-surface)" }}
       >
         <div className="flex items-center gap-5">
           <div className="min-w-0 max-w-2xl flex-1">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
               <span
                 className="h-[5px] w-[5px] rounded-full"
                 style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}

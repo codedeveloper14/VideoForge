@@ -375,7 +375,7 @@ export default function ProviderPanel({
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
             placeholder="Cinematic slow zoom with natural motion..."
-            className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-3.5 py-2.5 font-mono text-xs text-[var(--vf-text)] outline-none transition-colors placeholder:text-[var(--vf-m2)] focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
+            className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-2.5 font-mono text-xs text-[var(--vf-text)] outline-none transition-colors placeholder:text-[var(--vf-m2)] focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
           />
 
           <div className="mt-4">

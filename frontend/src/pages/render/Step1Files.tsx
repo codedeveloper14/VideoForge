@@ -156,7 +156,7 @@ export default function Step1Files({
               </div>
             )}
             {!project && (
-              <p className="rounded-lg border border-[var(--vf-border)] bg-white/5 p-3 text-sm text-[var(--vf-muted)]">
+              <p className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.05)] p-3 text-sm text-[var(--vf-muted)]">
                 Selecciona un proyecto para continuar en este modo.
               </p>
             )}

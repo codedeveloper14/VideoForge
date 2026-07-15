@@ -77,7 +77,7 @@ export default function QwenPanel({ project }: QwenPanelProps) {
                   const match = SIZE_OPTIONS.find((s) => s.value === value);
                   if (match) setOption("aspect_ratio", match.aspect);
                 }}
-                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               >
                 {SIZE_OPTIONS.map((s) => (
                   <SelectOption key={s.value} value={s.value}>
@@ -94,7 +94,7 @@ export default function QwenPanel({ project }: QwenPanelProps) {
                 type="number"
                 value={options.timeout as number}
                 onChange={(e) => setOption("timeout", Number(e.target.value))}
-                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-white/[0.04] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
+                className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2.5 py-2 font-mono text-[10.5px] text-[var(--vf-text)] outline-none transition-colors focus:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]"
               />
             </div>
           </div>

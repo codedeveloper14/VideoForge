@@ -154,22 +154,22 @@ function CreateProjectModal({
       <form
         onSubmit={handleSubmit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[380px] rounded-2xl border border-[rgba(255,255,255,.08)] bg-[#0f0f1e] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
+        className="w-full max-w-[380px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),.08)] bg-[var(--vf-s)] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
       >
-        <h2 className="mb-3 text-lg font-bold text-[#eeeef5]">Nuevo Proyecto</h2>
+        <h2 className="mb-3 text-lg font-bold text-[var(--vf-text)]">Nuevo Proyecto</h2>
         <input
           autoFocus
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           placeholder="Nombre del proyecto"
-          className="mb-3 w-full rounded-lg border border-[rgba(255,255,255,.1)] bg-white/[0.04] px-3 py-2 text-sm text-[#eeeef5] outline-none focus:border-[#7c6aff]"
+          className="mb-3 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none focus:border-[#7c6aff]"
         />
-        {error && <p className="mb-3 text-xs text-[#ff5566]">{error}</p>}
+        {error && <p className="mb-3 text-xs text-[var(--vf-danger)]">{error}</p>}
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-[rgba(255,255,255,.1)] px-4 py-2 text-sm text-[#a0a0b8] hover:bg-white/[0.04]"
+            className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] px-4 py-2 text-sm text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.04)]"
           >
             Cancelar
           </button>
@@ -209,24 +209,24 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-[52px] z-[960] w-[300px] rounded-xl border border-[rgba(255,255,255,.1)] bg-[#0d0d1c] p-2 shadow-[0_16px_44px_rgba(0,0,0,.6)]"
+      className="absolute left-0 top-[52px] z-[960] w-[300px] rounded-xl border border-[rgba(var(--vf-fg-rgb),.1)] bg-[var(--vf-p)] p-2 shadow-[0_16px_44px_rgba(0,0,0,.6)]"
     >
       <input
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Buscar proyectos…"
-        className="mb-1.5 w-full rounded-lg border border-[rgba(255,255,255,.08)] bg-white/[0.04] px-3 py-2 text-sm text-[#eeeef5] outline-none"
+        className="mb-1.5 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none"
       />
       <div className="max-h-[260px] overflow-y-auto">
         {filtered.length === 0 && (
-          <p className="px-2 py-3 text-center text-xs text-[#5a5a75]">Sin proyectos</p>
+          <p className="px-2 py-3 text-center text-xs text-[var(--vf-m)]">Sin proyectos</p>
         )}
         {filtered.map((p) => (
           <button
             key={p.nombre}
             onClick={() => onPick(p.nombre)}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-[#c8c8d8] hover:bg-white/[0.06]"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] text-[var(--vf-text)] hover:bg-[rgba(var(--vf-fg-rgb),.06)]"
           >
             {p.nombre}
           </button>
@@ -249,7 +249,7 @@ function TopBar() {
 
   return (
     <header
-      className="fixed left-[220px] right-0 top-0 z-[910] flex h-12 items-center gap-2.5 border-b border-[rgba(255,255,255,.06)] bg-[rgba(6,6,12,.92)] px-4 backdrop-blur-[16px]"
+      className="fixed left-[220px] right-0 top-0 z-[910] flex h-12 items-center gap-2.5 border-b border-[rgba(var(--vf-fg-rgb),.06)] bg-[rgba(var(--vf-bg-rgb),.92)] px-4 backdrop-blur-[16px]"
     >
       <button
         onClick={() => navigate("/app/home")}
@@ -258,7 +258,7 @@ function TopBar() {
           "flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-lg border transition-colors " +
           (onHome
             ? "border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.15)] text-[#a78bfa]"
-            : "border-[rgba(255,255,255,.1)] bg-white/[0.06] text-[#7a7a96] hover:border-[rgba(124,106,255,.35)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]")
+            : "border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.06)] text-[var(--vf-m)] hover:border-[rgba(124,106,255,.35)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]")
         }
       >
         <IconHome />
@@ -275,10 +275,10 @@ function TopBar() {
               className={
                 "flex h-9 min-w-[80px] max-w-[180px] items-center gap-1.5 overflow-hidden rounded-t-lg border border-b-0 px-2.5 text-[12px] font-medium transition-colors " +
                 (isActive
-                  ? "border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.15)] text-[#eeeef5]"
-                  : "border-[rgba(255,255,255,.09)] bg-white/[0.04] text-[#5a5a75] hover:bg-white/[0.08] hover:text-[#eeeef5]")
+                  ? "border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.15)] text-[var(--vf-text)]"
+                  : "border-[rgba(var(--vf-fg-rgb),.09)] bg-[rgba(var(--vf-fg-rgb),.04)] text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.08)] hover:text-[var(--vf-text)]")
               }
-              style={isActive ? { borderTopColor: "#7c6aff", borderTopWidth: 2 } : undefined}
+              style={isActive ? { borderTopColor: "#7c6aff" } : undefined}
             >
               <span className="truncate">{name}</span>
               <span
@@ -287,7 +287,7 @@ function TopBar() {
                   closeTab(name);
                   if (isActive) navigate("/app/home");
                 }}
-                className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded text-[9.5px] text-white/25 hover:bg-white/10 hover:text-[#eeeef5]"
+                className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center rounded text-[9.5px] text-[rgba(var(--vf-fg-rgb),.35)] hover:bg-[rgba(var(--vf-fg-rgb),.1)] hover:text-[var(--vf-text)]"
               >
                 ✕
               </span>
@@ -297,7 +297,7 @@ function TopBar() {
         <button
           onClick={() => setShowCreate(true)}
           title="Nueva pestaña"
-          className="mb-[3px] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-[rgba(255,255,255,.22)] bg-white/[0.05] text-[#7a7a96] hover:border-[rgba(124,106,255,.55)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]"
+          className="mb-[3px] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-[rgba(var(--vf-fg-rgb),.22)] bg-[rgba(var(--vf-fg-rgb),.05)] text-[var(--vf-m)] hover:border-[rgba(124,106,255,.55)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]"
         >
           +
         </button>
@@ -308,11 +308,11 @@ function TopBar() {
       <div className="relative">
         <button
           onClick={() => setShowSearch((v) => !v)}
-          className="flex min-w-[200px] items-center gap-2 rounded-lg border border-[rgba(255,255,255,.08)] bg-white/[0.05] px-3 py-1.5 text-[#5a5a75] hover:border-[rgba(124,106,255,.25)] hover:bg-white/[0.08]"
+          className="flex min-w-[200px] items-center gap-2 rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-1.5 text-[var(--vf-m)] hover:border-[rgba(124,106,255,.25)] hover:bg-[rgba(var(--vf-fg-rgb),.08)]"
         >
           <IconSearch />
           <span className="flex-1 text-left text-[11.5px]">Buscar proyectos...</span>
-          <kbd className="rounded border border-[rgba(255,255,255,.08)] bg-white/[0.06] px-1 py-0.5 text-[9px] text-[#38384e]">⌘K</kbd>
+          <kbd className="rounded border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.06)] px-1 py-0.5 text-[9px] text-[var(--vf-m2)]">⌘K</kbd>
         </button>
         {showSearch && (
           <ProjectSearch
@@ -335,13 +335,13 @@ function TopBar() {
 
       <button
         onClick={() => navigate("/app/tareas")}
-        className="flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-[#5a5a75] hover:bg-white/[0.06] hover:text-[#eeeef5]"
+        className="flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.06)] hover:text-[var(--vf-text)]"
       >
         <IconTasks /> Tareas
       </button>
 
       <button
-        className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[#5a5a75] hover:bg-white/[0.07] hover:text-[#eeeef5]"
+        className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.07)] hover:text-[var(--vf-text)]"
         title="Notificaciones"
       >
         <IconBell />
@@ -484,8 +484,8 @@ function AppLayoutInner() {
         </nav>
 
         {showPipeline && (
-          <div className="mt-1 flex-shrink-0 border-t border-[rgba(255,255,255,.06)] px-2.5 pb-2 pt-3">
-            <span className="mb-2 block px-px text-[9.5px] font-bold uppercase tracking-[0.12em] text-[#4a4a63]">
+          <div className="mt-1 flex-shrink-0 border-t border-[rgba(var(--vf-fg-rgb),.06)] px-2.5 pb-2 pt-3">
+            <span className="mb-2 block px-px text-[9.5px] font-bold uppercase tracking-[0.12em] text-[var(--vf-m2)]">
               Pipeline
             </span>
             {PIPELINE_STEPS.map((step, i) => {
@@ -496,13 +496,13 @@ function AppLayoutInner() {
                   onClick={() => navigate(`/app/${step.page}?project=${encodeURIComponent(activeProject)}`)}
                   className={
                     "flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-left text-[13px] font-medium transition-colors " +
-                    (isOn ? "bg-gradient-to-r from-[rgba(124,106,255,.18)] to-[rgba(124,106,255,.06)] text-[#eeeef5]" : "text-[#5a5a7a] hover:bg-white/[0.05] hover:text-[#eeeef5]")
+                    (isOn ? "bg-gradient-to-r from-[rgba(124,106,255,.18)] to-[rgba(124,106,255,.06)] text-[var(--vf-text)]" : "text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.05)] hover:text-[var(--vf-text)]")
                   }
                 >
                   <span
                     className={
                       "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-[6px] border text-[11px] font-bold " +
-                      (isOn ? "border-[rgba(124,106,255,.4)] bg-[rgba(124,106,255,.3)] text-[#a78bfa]" : "border-[rgba(255,255,255,.08)] bg-white/[0.07] text-[#5a5a7a]")
+                      (isOn ? "border-[rgba(124,106,255,.4)] bg-[rgba(124,106,255,.3)] text-[#a78bfa]" : "border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.07)] text-[var(--vf-m)]")
                     }
                   >
                     {i + 1}
@@ -664,7 +664,7 @@ function AppLayoutInner() {
 
       <TopBar />
 
-      <main className="ml-[220px] mt-12 flex-1 overflow-y-auto p-8" style={{ background: "#06060c" }}>
+      <main className="ml-[220px] mt-12 flex-1 overflow-y-auto p-8" style={{ background: "var(--vf-bg)" }}>
         <Outlet />
       </main>
     </div>

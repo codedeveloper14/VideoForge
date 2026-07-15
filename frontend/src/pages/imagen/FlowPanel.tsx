@@ -239,13 +239,13 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
     <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-2">
       <div
         className="relative mb-0.5 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
-        style={{ background: "linear-gradient(165deg,rgba(18,22,34,.9),rgba(10,14,24,.95))" }}
+        style={{ background: "var(--vf-surface)" }}
       >
         <div className="flex flex-shrink-0 gap-1.5 sm:absolute sm:right-5 sm:top-5">
-          <span className="rounded-md border border-[rgba(124,106,255,.22)] bg-[rgba(124,106,255,.1)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[#a78bfa]">
+          <span className="rounded-md border border-[rgba(124,106,255,.22)] bg-[rgba(124,106,255,.1)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--vf-c2)]">
             Módulo 03
           </span>
-          <span className="rounded-md border border-[rgba(255,255,255,.08)] bg-white/[0.04] px-2 py-1 text-[9px] font-semibold tracking-[0.06em] text-[#4a4a63]">
+          <span className="rounded-md border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2 py-1 text-[9px] font-semibold tracking-[0.06em] text-[var(--vf-m2)]">
             Labs
           </span>
         </div>
@@ -253,7 +253,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           <div className="min-w-0 flex-1">
             <div className="mb-2.5 flex items-center gap-3.5">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] border border-[rgba(124,106,255,.3)]" style={{ background: "linear-gradient(135deg,rgba(124,106,255,.22),rgba(192,38,211,.12))" }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--vf-c2)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <polyline points="21 15 16 10 5 21" />
@@ -265,14 +265,14 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   Imágenes con{" "}
                   <span
                     className="bg-clip-text text-transparent"
-                    style={{ backgroundImage: "linear-gradient(90deg,#a78bfa,#f472b6)" }}
+                    style={{ backgroundImage: "linear-gradient(90deg,var(--vf-c2),var(--vf-c3))" }}
                   >
                     Google Flow
                   </span>
                 </h1>
               </div>
             </div>
-            <p className="mb-3.5 max-w-[560px] text-[13.5px] leading-[1.55] text-[#6a6a90]">
+            <p className="mb-3.5 max-w-[560px] text-[13.5px] leading-[1.55] text-[var(--vf-m)]">
               Generación por lotes con Google Labs. Las imágenes se guardan en la carpeta de imágenes
               del proyecto activo. Ajusta slots, ratio y modelo a la derecha.
             </p>
@@ -282,8 +282,8 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   key={chip}
                   className={
                     i === 0
-                      ? "rounded-[7px] border border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.16)] px-[11px] py-1 text-[11px] text-[#c0bef5]"
-                      : "rounded-[7px] border border-[rgba(124,106,255,.16)] bg-[rgba(124,106,255,.05)] px-[11px] py-1 text-[11px] text-[#6060a0]"
+                      ? "rounded-[7px] border border-[rgba(124,106,255,.35)] bg-[rgba(124,106,255,.16)] px-[11px] py-1 text-[11px] text-[var(--vf-c2)]"
+                      : "rounded-[7px] border border-[rgba(124,106,255,.16)] bg-[rgba(124,106,255,.05)] px-[11px] py-1 text-[11px] text-[var(--vf-m)]"
                   }
                 >
                   {chip}
@@ -365,7 +365,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     <img
                       src={referenceImage}
                       alt={referenceImageName}
-                      className="mx-auto block max-h-[104px] max-w-[min(200px,42vw)] rounded-xl border border-white/10 object-contain shadow-[0_10px_28px_rgba(0,0,0,.4)]"
+                      className="mx-auto block max-h-[104px] max-w-[min(200px,42vw)] rounded-xl border border-[rgba(var(--vf-fg-rgb),.1)] object-contain shadow-[0_10px_28px_rgba(0,0,0,.4)]"
                     />
                     <button
                       onClick={(e) => {

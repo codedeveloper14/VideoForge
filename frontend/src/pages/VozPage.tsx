@@ -248,11 +248,11 @@ export default function VozPage() {
       {/* Header */}
       <div
         className="relative mb-5 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] p-5"
-        style={{ background: "linear-gradient(165deg,rgba(18,22,34,.9),rgba(10,14,24,.95))" }}
+        style={{ background: "var(--vf-surface)" }}
       >
         <div className="flex items-center gap-5">
           <div className="min-w-0 flex-1">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
               <span className="h-[5px] w-[5px] rounded-full" style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }} />
               Módulo 02 · Pipeline
             </div>
@@ -270,7 +270,7 @@ export default function VozPage() {
             </p>
             <div className="flex flex-wrap gap-2">
               {["🎚 Generación TTS", "☰ Multi-fragmento", "🎙 Clonación de Voz"].map((pill) => (
-                <span key={pill} className="rounded-full border border-[var(--vf-border)] bg-white/[0.03] px-3 py-1 font-mono text-[10px] text-[var(--vf-muted)]">
+                <span key={pill} className="rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[10px] text-[var(--vf-muted)]">
                   {pill}
                 </span>
               ))}
@@ -498,25 +498,25 @@ export default function VozPage() {
 
               {/* Side column */}
               <div className="flex w-[260px] flex-shrink-0 flex-col gap-3">
-                <div className="rounded-xl border border-[rgba(124,106,255,.14)] bg-[rgba(11,11,24,.8)] p-4">
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#4a4a63]">Consejo</div>
-                  <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-[#8a8aa8]">
+                <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Consejo</div>
+                  <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-[var(--vf-m)]">
                     <span>💡</span>
                     Usa Fragmentación Automática para obtener mejores resultados y evitar cortes innecesarios.
                   </p>
                 </div>
-                <div className="rounded-xl border border-[rgba(124,106,255,.14)] bg-[rgba(11,11,24,.8)] p-4">
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#4a4a63]">Vista previa de voz</div>
-                  <div className="flex flex-col items-center gap-1.5 py-4 text-center text-[10.5px] text-[#5a5a7a]">
+                <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Vista previa de voz</div>
+                  <div className="flex flex-col items-center gap-1.5 py-4 text-center text-[10.5px] text-[var(--vf-m)]">
                     <span className="opacity-40">🔊</span>
                     Genera audio para
                     <br />
                     previsualizar aquí
                   </div>
                 </div>
-                <div className="rounded-xl border border-[rgba(124,106,255,.14)] bg-[rgba(11,11,24,.8)] p-4">
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#4a4a63]">Ajustes rápidos</div>
-                  <label className="flex items-center justify-between border-b border-[rgba(255,255,255,.05)] py-2 text-[12px] text-[#6a6a88]">
+                <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Ajustes rápidos</div>
+                  <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
                     Idioma
                     <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
                       <option>Español</option>
@@ -525,7 +525,7 @@ export default function VozPage() {
                       <option>Francés</option>
                     </select>
                   </label>
-                  <label className="flex items-center justify-between border-b border-[rgba(255,255,255,.05)] py-2 text-[12px] text-[#6a6a88]">
+                  <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
                     Velocidad
                     <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
                       <option>Normal (1×)</option>
@@ -533,7 +533,7 @@ export default function VozPage() {
                       <option>Rápido (1.2×)</option>
                     </select>
                   </label>
-                  <label className="flex items-center justify-between py-2 text-[12px] text-[#6a6a88]">
+                  <label className="flex items-center justify-between py-2 text-[12px] text-[var(--vf-m)]">
                     Estilo
                     <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
                       <option>Neutral</option>
@@ -608,15 +608,15 @@ export default function VozPage() {
           )}
 
           {!master && (
-            <div className="mt-5 flex items-center justify-between border-t border-[rgba(255,255,255,.06)] pt-4">
+            <div className="mt-5 flex items-center justify-between border-t border-[rgba(var(--vf-fg-rgb),.06)] pt-4">
               <button
                 type="button"
                 onClick={() => navigate(`/app/guion?project=${encodeURIComponent(project)}`)}
-                className="rounded-lg border border-[rgba(255,255,255,.1)] bg-white/[0.05] px-4 py-2 text-[13px] font-medium text-[#7a7a96] hover:bg-white/[0.08] hover:text-[#eeeef5]"
+                className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.05)] px-4 py-2 text-[13px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.08)] hover:text-[var(--vf-text)]"
               >
                 ← Volver al guión
               </button>
-              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[#38384e]">
+              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--vf-m2)]">
                 Paso 2 de 5
               </span>
               {!fragments && (
