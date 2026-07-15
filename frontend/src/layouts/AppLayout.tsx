@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { WorkspaceProvider, useWorkspace, type PipelinePage } from "../context/WorkspaceContext";
 import { createProject, listProjects } from "../api/projects";
 import type { Project } from "../types";
+import ActiveJobsPopup from "../components/ActiveJobsPopup";
+
+const NO_SIDEBAR_ROUTES = [
+  "/app/idea2video",
+  "/app/tareas",
+  "/app/ajustes",
+  "/app/planes",
+  "/app/documentacion",
+  "/app/ayuda",
+];
 
 function IconHome() {
   return (
@@ -244,7 +255,7 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
   );
 }
 
-function TopBar() {
+function TopBar({ leftOffset }: { leftOffset: number }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -257,7 +268,8 @@ function TopBar() {
 
   return (
     <header
-      className="fixed left-[220px] right-0 top-0 z-[910] flex h-12 items-center gap-2.5 border-b border-[rgba(var(--vf-fg-rgb),.06)] bg-[rgba(var(--vf-bg-rgb),.92)] px-4 backdrop-blur-[16px]"
+      className="fixed right-0 top-0 z-[910] flex h-12 items-center gap-2.5 border-b border-[rgba(var(--vf-fg-rgb),.06)] bg-[rgba(var(--vf-bg-rgb),.92)] px-4 backdrop-blur-[16px] transition-[left] duration-200"
+      style={{ left: leftOffset }}
     >
       <button
         onClick={() => navigate("/app/home")}
@@ -341,12 +353,7 @@ function TopBar() {
         <IconPlus /> Nuevo Proyecto
       </button>
 
-      <button
-        onClick={() => navigate("/app/tareas")}
-        className="flex h-[30px] flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.06)] hover:text-[var(--vf-text)]"
-      >
-        <IconTasks /> Tareas
-      </button>
+      <ActiveJobsPopup />
 
       <button
         className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.07)] hover:text-[var(--vf-text)]"
@@ -735,9 +742,21 @@ function AppLayoutInner() {
       </>
       )}
 
-      <TopBar />
+      <TopBar leftOffset={hideSidebar ? 0 : collapsed ? 64 : 220} />
 
-      <main className="ml-[220px] mt-12 flex-1 overflow-y-auto p-8" style={{ background: "var(--vf-bg)" }}>
+      <main
+        className="mt-12 flex-1 overflow-y-auto p-8 transition-[margin] duration-200"
+        style={{ background: "var(--vf-bg)", marginLeft: hideSidebar ? 0 : collapsed ? 64 : 220 }}
+      >
+        {hideSidebar && (
+          <button
+            onClick={() => navigate("/app/home")}
+            className="mb-4 flex items-center gap-1.5 text-sm text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
+          >
+            <IconBack />
+            Volver
+          </button>
+        )}
         <Outlet />
       </main>
     </div>
