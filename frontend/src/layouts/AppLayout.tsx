@@ -134,12 +134,12 @@ function xiClass({ isActive }: { isActive: boolean }) {
   );
 }
 
-const PIPELINE_STEPS: { page: PipelinePage; label: string }[] = [
-  { page: "guion", label: "Guión escrito" },
-  { page: "imagen", label: "Generación de imágenes" },
-  { page: "voz", label: "Generación de voz" },
-  { page: "video", label: "Generación de video" },
-  { page: "render", label: "Renderizado" },
+const PIPELINE_STEPS: { page: PipelinePage; labelKey: string }[] = [
+  { page: "guion", labelKey: "sidebar.pipelineScript" },
+  { page: "imagen", labelKey: "sidebar.pipelineImages" },
+  { page: "voz", labelKey: "sidebar.pipelineVoice" },
+  { page: "video", labelKey: "sidebar.pipelineVideo" },
+  { page: "render", labelKey: "sidebar.pipelineRender" },
 ];
 
 function CreateProjectModal({
@@ -149,6 +149,7 @@ function CreateProjectModal({
   onClose: () => void;
   onCreated: (name: string) => void;
 }) {
+  const { t } = useTranslation();
   const [nombre, setNombre] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
@@ -177,12 +178,12 @@ function CreateProjectModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[380px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),.08)] bg-[var(--vf-s)] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
       >
-        <h2 className="mb-3 text-lg font-bold text-[var(--vf-text)]">Nuevo Proyecto</h2>
+        <h2 className="mb-3 text-lg font-bold text-[var(--vf-text)]">{t("topbar.newProjectPlain")}</h2>
         <input
           autoFocus
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
-          placeholder="Nombre del proyecto"
+          placeholder={t("topbar.newProjectNamePlaceholderAlt") || ""}
           className="mb-3 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none focus:border-[#7c6aff]"
         />
         {error && <p className="mb-3 text-xs text-[var(--vf-danger)]">{error}</p>}
@@ -192,7 +193,7 @@ function CreateProjectModal({
             onClick={onClose}
             className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] px-4 py-2 text-sm text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.04)]"
           >
-            Cancelar
+            {t("topbar.cancel")}
           </button>
           <button
             type="submit"
@@ -200,7 +201,7 @@ function CreateProjectModal({
             className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
           >
-            {creating ? "Creando…" : "Crear proyecto →"}
+            {creating ? t("topbar.creating") : t("topbar.createProjectArrow")}
           </button>
         </div>
       </form>
@@ -209,6 +210,7 @@ function CreateProjectModal({
 }
 
 function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name: string) => void }) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement | null>(null);
@@ -236,12 +238,12 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar proyectos…"
+        placeholder={t("topbar.searchProjects") || ""}
         className="mb-1.5 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none"
       />
       <div className="max-h-[260px] overflow-y-auto">
         {filtered.length === 0 && (
-          <p className="px-2 py-3 text-center text-xs text-[var(--vf-m)]">Sin proyectos</p>
+          <p className="px-2 py-3 text-center text-xs text-[var(--vf-m)]">{t("topbar.noProjects")}</p>
         )}
         {filtered.map((p) => (
           <button
@@ -258,6 +260,7 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
 }
 
 function TopBar({ leftOffset }: { leftOffset: number }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -275,7 +278,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
     >
       <button
         onClick={() => navigate("/app/home")}
-        title="Inicio"
+        title={t("topbar.home") || ""}
         className={
           "flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-lg border transition-colors " +
           (onHome
@@ -318,7 +321,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
         })}
         <button
           onClick={() => setShowCreate(true)}
-          title="Nueva pestaña"
+          title={t("topbar.newTab") || ""}
           className="mb-[3px] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-[rgba(var(--vf-fg-rgb),.22)] bg-[rgba(var(--vf-fg-rgb),.05)] text-[var(--vf-m)] hover:border-[rgba(124,106,255,.55)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]"
         >
           +
@@ -333,7 +336,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
           className="flex min-w-[200px] items-center gap-2 rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-1.5 text-[var(--vf-m)] hover:border-[rgba(124,106,255,.25)] hover:bg-[rgba(var(--vf-fg-rgb),.08)]"
         >
           <IconSearch />
-          <span className="flex-1 text-left text-[11.5px]">Buscar proyectos...</span>
+          <span className="flex-1 text-left text-[11.5px]">{t("topbar.searchProjects")}</span>
           <kbd className="rounded border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.06)] px-1 py-0.5 text-[9px] text-[var(--vf-m2)]">⌘K</kbd>
         </button>
         {showSearch && (
@@ -352,14 +355,14 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
         className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-[15px] py-1.5 text-[12.5px] font-semibold text-white shadow-[0_4px_14px_rgba(124,106,255,.38)] transition-all hover:-translate-y-px hover:opacity-90"
         style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
       >
-        <IconPlus /> Nuevo Proyecto
+        <IconPlus /> {t("topbar.newProjectPlain")}
       </button>
 
       <ActiveJobsPopup />
 
       <button
         className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.07)] hover:text-[var(--vf-text)]"
-        title="Notificaciones"
+        title={t("topbar.notifications") || ""}
       >
         <IconBell />
       </button>
@@ -542,7 +545,7 @@ function AppLayoutInner() {
         {showPipeline && (
           <div className="mt-1 flex-shrink-0 border-t border-[rgba(var(--vf-fg-rgb),.06)] px-2.5 pb-2 pt-3">
             <span className="mb-2 block px-px text-[9.5px] font-bold uppercase tracking-[0.12em] text-[var(--vf-m2)]">
-              Pipeline
+              {t("sidebar.pipelineLabel")}
             </span>
             {PIPELINE_STEPS.map((step, i) => {
               const isOn = step.page === currentPage;
@@ -563,7 +566,7 @@ function AppLayoutInner() {
                   >
                     {i + 1}
                   </span>
-                  {step.label}
+                  {t(step.labelKey)}
                 </button>
               );
             })}

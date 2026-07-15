@@ -82,7 +82,13 @@
     "expandMenu": "Expand menu",
     "configuration": "Settings",
     "logout": "Log out",
-    "back": "Back"
+    "back": "Back",
+    "pipelineLabel": "Pipeline",
+    "pipelineScript": "Script written",
+    "pipelineImages": "Image generation",
+    "pipelineVoice": "Voice generation",
+    "pipelineVideo": "Video generation",
+    "pipelineRender": "Render"
   },
   "topbar": {
     "openProject": "Open project",
@@ -96,7 +102,14 @@
     "videosCount": "{{count}} videos",
     "newProjectNamePlaceholder": "New project name",
     "create": "Create",
-    "creating": "Creating…"
+    "creating": "Creating…",
+    "home": "Home",
+    "newTab": "New tab",
+    "newProjectPlain": "New Project",
+    "cancel": "Cancel",
+    "createProjectArrow": "Create project →",
+    "newProjectNamePlaceholderAlt": "Project name",
+    "noProjects": "No projects"
   },
   "home": {
     "eyebrow": "IVR Pipeline",
@@ -569,7 +582,8 @@
     "login": "🔑 Login",
     "noVideosYetForProject": "No videos generated for this project yet.",
     "download": "⬇ Download",
-    "regen": "↺ Regen"
+    "regen": "↺ Regen",
+    "clearLower": "clear"
   },
   "idea2video": {
     "stepIdea": "Your Idea",

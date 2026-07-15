@@ -109,6 +109,7 @@ export interface TerminalCardProps {
 }
 
 export function TerminalCard({ title, onClear, children }: TerminalCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-[rgba(124,106,255,.15)] bg-[#0a0a0f]">
       <div
@@ -130,7 +131,7 @@ export function TerminalCard({ title, onClear, children }: TerminalCardProps) {
             onClick={onClear}
             className="rounded px-1.5 py-0.5 font-mono text-[9px] text-white/25 hover:text-white/50"
           >
-            limpiar
+            {t("videoShared.clearLower")}
           </button>
         )}
       </div>
