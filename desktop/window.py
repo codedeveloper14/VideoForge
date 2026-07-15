@@ -11,47 +11,102 @@ React. Se deja que pywebview auto-detecte el mejor motor disponible (EdgeChromiu
 Windows 10/11, que trae el runtime WebView2 instalado por defecto).
 """
 
+import json
 import os
 import sys
+import tempfile
 import threading
-import time
-import urllib.request
 import webbrowser
 from collections.abc import Callable
+from pathlib import Path
 
 from src.core.config import config
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-
-def _wait_for_backend(health_url: str, max_wait: float = 20.0, interval: float = 0.25) -> bool:
-    """Espera (polling) a que el backend Flask responda antes de abrir la ventana."""
-    deadline = time.time() + max_wait
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(health_url, timeout=1)
-            return True
-        except Exception:
-            time.sleep(interval)
-    return False
+# create_app() corre ensure_tables/ensure_stripe_table/docs.ensure_tables contra el
+# MySQL remoto de Contabo antes de que Flask abra el puerto -- en un arranque en frio
+# con la red lenta esto se observo tardando ~90-100s. 200s deja margen de sobra.
+_LOADING_TIMEOUT_MS = 200_000
+_LOADING_POLL_MS = 700
 
 
-def _reload_when_ready(window, url: str, health_url: str) -> None:
-    """Red de seguridad para cuando create_app() tarda mas que el timeout inicial
-    (ensure_tables/ensure_stripe_table/docs.ensure_tables contra una DB remota
-    pueden tardar mucho si la red esta lenta ese momento): la ventana ya se abrio
-    apuntando a un puerto que todavia no escuchaba y quedo en blanco para siempre,
-    porque WebKit no reintenta un load fallido por su cuenta. Sigue el polling en
-    segundo plano (hasta 3 min mas) y fuerza un reload en cuanto el backend responda."""
-    if _wait_for_backend(health_url, max_wait=180.0, interval=1.0):
-        logger.info("Backend listo (tarde) -- recargando la ventana.")
-        try:
-            window.load_url(url)
-        except Exception:
-            logger.exception("No se pudo recargar la ventana tras esperar el backend")
-    else:
-        logger.error("El backend no respondio tras 200s -- la ventana puede haber quedado en blanco.")
+def _loading_html(target_url: str, health_url: str, title: str) -> str:
+    """Pagina de espera autocontenida (sin depender del backend, que todavia no
+    escucha) que hace polling a `health_url` en JS y recien navega a `target_url`
+    cuando el backend contesta.
+
+    Usa `fetch(..., {mode: 'no-cors'})`: no necesitamos leer la respuesta, solo
+    saber si la conexion se pudo establecer -- eso evita depender de que el backend
+    mande headers CORS, y funciona igual desde el origen null/file:// de la ventana
+    nativa que desde el file:// del navegador de respaldo.
+
+    Reemplaza el reintento anterior (`_reload_when_ready`), que vivia en Python y
+    solo aplicaba a la ventana nativa de pywebview -- el navegador de respaldo
+    (cuando WebView2 no esta disponible en la maquina) abria la URL una sola vez
+    sin reintento alguno, y si el backend todavia no escuchaba quedaba con
+    ERR_CONNECTION_REFUSED para siempre. Un mismo mecanismo para los dos caminos.
+    """
+    return f"""<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>{title}</title>
+<style>
+  html, body {{ height: 100%; margin: 0; }}
+  body {{
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0f1115; color: #e6e6e6; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }}
+  .spinner {{
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid #2a2d34; border-top-color: #6c8cff;
+    animation: spin 0.8s linear infinite; margin-bottom: 20px;
+  }}
+  @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
+  #error {{ display: none; margin-top: 16px; text-align: center; }}
+  button {{
+    background: #6c8cff; color: #0f1115; border: none; padding: 10px 20px;
+    border-radius: 6px; font-size: 14px; cursor: pointer; margin-top: 12px;
+  }}
+</style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <div>Iniciando {title}...</div>
+  <div id="error">
+    <div>Esta tardando mas de lo normal.</div>
+    <button onclick="location.reload()">Reintentar</button>
+  </div>
+  <script>
+    var deadline = Date.now() + {_LOADING_TIMEOUT_MS};
+    var healthUrl = {json.dumps(health_url)};
+    var targetUrl = {json.dumps(target_url)};
+    function poll() {{
+      fetch(healthUrl, {{ mode: 'no-cors', cache: 'no-store' }})
+        .then(function () {{ location.replace(targetUrl); }})
+        .catch(function () {{
+          if (Date.now() > deadline) {{
+            document.getElementById('error').style.display = 'block';
+            return;
+          }}
+          setTimeout(poll, {_LOADING_POLL_MS});
+        }});
+    }}
+    poll();
+  </script>
+</body>
+</html>"""
+
+
+def _write_loading_page(html: str) -> Path:
+    """Escribe la pagina de espera a un archivo temporal (webbrowser.open no acepta
+    HTML inline como si permite pywebview via create_window(html=...))."""
+    fd, path = tempfile.mkstemp(prefix="videoforge_loading_", suffix=".html")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(html)
+    return Path(path)
 
 
 def _screen_size() -> tuple[int, int]:
@@ -69,10 +124,11 @@ def _screen_size() -> tuple[int, int]:
 
 def run(start_backend: Callable[[], None], url: str | None = None, title: str | None = None) -> None:
     """Arranca `start_backend` (una funcion sin argumentos que corre app.run(), debe
-    bloquear) en un hilo de fondo, y abre la ventana nativa apuntando a `url` en el
-    hilo principal (pywebview lo requiere ahi). Si pywebview no esta instalado, falla,
-    o se pasa --browser / la variable VF_NO_WEBVIEW, cae a abrir el navegador por
-    defecto del sistema en su lugar."""
+    bloquear) en un hilo de fondo, y abre la ventana nativa en el hilo principal
+    (pywebview lo requiere ahi) mostrando una pagina de espera que navega sola a
+    `url` apenas el backend contesta. Si pywebview no esta instalado, falla, o se
+    pasa --browser / la variable VF_NO_WEBVIEW, cae a abrir el navegador por
+    defecto del sistema en su lugar (misma pagina de espera)."""
     url = url or f"http://127.0.0.1:{config.flask_port}/"
     health_url = f"http://127.0.0.1:{config.flask_port}/api/health"
     title = title or config.app_name
@@ -80,12 +136,7 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
     backend_thread = threading.Thread(target=start_backend, daemon=True, name="VF-Backend")
     backend_thread.start()
 
-    logger.info("Esperando a que el backend responda...")
-    backend_ready = _wait_for_backend(health_url)
-    if backend_ready:
-        logger.info("Backend listo.")
-    else:
-        logger.warning("Timeout esperando al backend -- se abre la ventana/navegador igual.")
+    loading_html = _loading_html(url, health_url, title)
 
     use_native = "--browser" not in sys.argv and not os.environ.get("VF_NO_WEBVIEW")
     if use_native:
@@ -98,7 +149,7 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
             )
 
     if not use_native:
-        webbrowser.open(url)
+        webbrowser.open(_write_loading_page(loading_html).as_uri())
         backend_thread.join()
         return
 
@@ -107,7 +158,7 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
     screen_w, screen_h = _screen_size()
     window_kwargs = dict(
         title=title,
-        url=url,
+        html=loading_html,
         width=screen_w,
         height=screen_h,
         resizable=True,
@@ -128,18 +179,11 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
             window = webview.create_window(**window_kwargs)
 
         window.events.closed += events.on_closed
-        if not backend_ready:
-            threading.Thread(
-                target=_reload_when_ready,
-                args=(window, url, health_url),
-                daemon=True,
-                name="VF-BackendReload",
-            ).start()
         try:
             webview.start(debug=config.debug, http_server=False, func=lambda: events.on_shown(window))
         except TypeError:
             webview.start(debug=config.debug, http_server=False)
     except Exception as exc:
         logger.error("Error iniciando pywebview (%s) -- cae a navegador.", exc)
-        webbrowser.open(url)
+        webbrowser.open(_write_loading_page(loading_html).as_uri())
         backend_thread.join()
