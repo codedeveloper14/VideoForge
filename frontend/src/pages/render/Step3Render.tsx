@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { formatDur } from "./wizardShared";
 
 export interface RenderJobState {
@@ -34,6 +35,7 @@ const BADGE_STYLES: Record<string, string> = {
 };
 
 export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNewVideo }: Step3RenderProps) {
+  const { t } = useTranslation();
   const estado = job?.estado || "procesando";
   const isDone = estado === "completado";
   const isError = estado === "error";
@@ -52,9 +54,9 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
               backgroundClip: "text",
             }}
           >
-            ¡Video listo! 🎉
+            {t("projectRenderPanel.videoReadyExcited")}
           </h2>
-          <p className="font-mono text-sm text-[var(--vf-muted)]">Tu video ha sido generado exitosamente</p>
+          <p className="font-mono text-sm text-[var(--vf-muted)]">{t("projectRenderPanel.videoGeneratedSuccess")}</p>
         </div>
 
         <div
@@ -67,8 +69,8 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
           <div className="mb-5 flex items-center gap-3.5 text-left">
             <div className="text-[38px]">🎉</div>
             <div>
-              <div className="text-xl font-extrabold text-[var(--vf-text)]">¡Video listo!</div>
-              <div className="font-mono text-xs text-[var(--vf-muted)]">Job ID: {job?.id || "—"}</div>
+              <div className="text-xl font-extrabold text-[var(--vf-text)]">{t("projectRenderPanel.videoReadyBang")}</div>
+              <div className="font-mono text-xs text-[var(--vf-muted)]">{t("projectRenderPanel.jobIdLabel", { id: job?.id || "—" })}</div>
             </div>
           </div>
           <div className="mb-5 grid grid-cols-3 gap-3">
@@ -76,19 +78,19 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
               <div className="font-mono text-xl font-extrabold text-[var(--vf-c2)]">
                 {job?.size_mb ? `${job.size_mb} MB` : "—"}
               </div>
-              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">Tamaño</div>
+              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.sizeLabel")}</div>
             </div>
             <div className="rounded-xl bg-black/30 p-3.5 text-center">
               <div className="font-mono text-xl font-extrabold text-[var(--vf-c2)]">
                 {job?.duracion ? formatDur(job.duracion) : "—"}
               </div>
-              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">Duración</div>
+              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.durationLabel")}</div>
             </div>
             <div className="rounded-xl bg-black/30 p-3.5 text-center">
               <div className="font-mono text-xl font-extrabold text-[var(--vf-c2)]">
                 {job?.escenas ?? sceneCount ?? "—"}
               </div>
-              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">Escenas</div>
+              <div className="mt-0.5 text-[11px] text-[var(--vf-muted)]">{t("projectRenderPanel.scenesLabel")}</div>
             </div>
           </div>
           <a
@@ -96,14 +98,14 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
             download
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vf-success)] py-3.5 text-[15px] font-bold text-black transition-transform hover:-translate-y-px"
           >
-            ⬇️ Descargar Video
+            {t("projectRenderPanel.downloadVideoButton")}
           </a>
           <button
             type="button"
             onClick={onNewVideo}
             className="mx-auto mt-3.5 block rounded-lg border-[1.5px] border-[var(--vf-b2)] px-6 py-2.5 font-mono text-xs uppercase tracking-wide text-[var(--vf-muted)] transition-colors hover:border-[var(--vf-c2)] hover:text-[var(--vf-text)]"
           >
-            + Generar otro video
+            {t("projectRenderPanel.generateAnotherVideo")}
           </button>
         </div>
       </div>
@@ -122,10 +124,10 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
             backgroundClip: "text",
           }}
         >
-          Renderizando video
+          {t("projectRenderPanel.renderingVideoTitle")}
         </h2>
         <p className="font-mono text-sm text-[var(--vf-muted)]">
-          Esto puede tomar unos minutos según la duración y calidad
+          {t("projectRenderPanel.renderingVideoSub")}
         </p>
       </div>
 
@@ -166,7 +168,7 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
           style={{ boxShadow: "0 0 40px rgba(124,106,255,.15)" }}
         >
           <div className="animate-pulse text-[36px]">🎬</div>
-          <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--vf-muted)]">Procesando</div>
+          <div className="font-mono text-[10px] uppercase tracking-wide text-[var(--vf-muted)]">{t("projectRenderPanel.processingLabel")}</div>
         </div>
       </div>
       <style>{"@keyframes vf-spin{to{transform:rotate(360deg)}}"}</style>
@@ -216,13 +218,13 @@ export default function Step3Render({ job, pills, sceneCount, downloadUrl, onNew
         <div className="mx-auto mt-2 max-w-[560px] rounded-lg border border-[var(--vf-c4)]/40 bg-[var(--vf-c4)]/10 p-4 text-sm">
           <p className="mb-2 text-[var(--vf-c4)]">{job?.error}</p>
           <Link to="/app/planes" className="text-[var(--vf-accent)] hover:underline">
-            Mejora tu plan →
+            {t("projectRenderPanel.upgradePlan")}
           </Link>
         </div>
       )}
       {isError && !job?.limit_reached && (
         <p className="mx-auto max-w-[560px] text-sm text-[var(--vf-danger)]">
-          {job?.error || "Ocurrió un error durante el render."}
+          {job?.error || t("projectRenderPanel.renderErrorGeneric")}
         </p>
       )}
     </div>

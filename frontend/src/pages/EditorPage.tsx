@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import { Select, SelectOption } from "../components/Select";
@@ -18,32 +19,33 @@ import ImageSearchModal from "./editor/ImageSearchModal";
 import type { ImageSearchPick } from "./editor/ImageSearchModal";
 
 const RESOLUCIONES = [
-  { value: "1920x1080", label: "1920×1080 (FHD)" },
-  { value: "1280x720", label: "1280×720 (HD)" },
-  { value: "1080x1920", label: "1080×1920 (Vertical)" },
+  { value: "1920x1080", labelKey: "editorTool.resolutionFhd" },
+  { value: "1280x720", labelKey: "editorTool.resolutionHd" },
+  { value: "1080x1920", labelKey: "editorTool.resolutionVertical" },
 ];
 const TRANSICIONES = [
-  { value: "none", label: "Corte directo" },
-  { value: "xfade", label: "Crossfade" },
-  { value: "fade", label: "Fade negro" },
+  { value: "none", labelKey: "editorTool.transNoneDirect" },
+  { value: "xfade", labelKey: "editorTool.transXfade" },
+  { value: "fade", labelKey: "editorTool.transFadeBlack" },
 ];
 
-const TIPO_OPTIONS: { value: string; icon: string; label: string }[] = [
-  { value: "normal", icon: "🎬", label: "Normal" },
-  { value: "texto_enfasis", icon: "✍️", label: "Énfasis" },
-  { value: "split_screen", icon: "⬛⬜", label: "Split" },
-  { value: "broll", icon: "🌄", label: "B-Roll" },
-  { value: "intro_dinamica", icon: "⚡", label: "Intro" },
+const TIPO_OPTIONS: { value: string; iconKey: string; labelKey: string }[] = [
+  { value: "normal", iconKey: "editorTool.tipoIconNormal", labelKey: "editorTool.typeNormal" },
+  { value: "texto_enfasis", iconKey: "editorTool.tipoIconEmphasis", labelKey: "editorTool.typeEmphasis" },
+  { value: "split_screen", iconKey: "editorTool.tipoIconSplit", labelKey: "editorTool.typeSplit" },
+  { value: "broll", iconKey: "editorTool.tipoIconBroll", labelKey: "editorTool.typeBroll" },
+  { value: "intro_dinamica", iconKey: "editorTool.tipoIconIntro", labelKey: "editorTool.typeIntro" },
 ];
 
 const OVERLAY_POS_OPTIONS = [
-  { value: "bottom_center", label: "Abajo centro" },
-  { value: "top_center", label: "Arriba centro" },
-  { value: "center", label: "Centro" },
-  { value: "bottom_left", label: "Abajo izquierda" },
+  { value: "bottom_center", labelKey: "editorTool.posBottomCenter" },
+  { value: "top_center", labelKey: "editorTool.posTopCenter" },
+  { value: "center", labelKey: "editorTool.posCenter" },
+  { value: "bottom_left", labelKey: "editorTool.posBottomLeft" },
 ];
 
 export default function EditorPage() {
+  const { t } = useTranslation();
   const { proyecto: routeProject } = useParams<{ proyecto?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -142,11 +144,11 @@ export default function EditorPage() {
 
   async function handleAnalizar() {
     if (!project) {
-      setError("Selecciona un proyecto primero.");
+      setError(t("editorTool.selectProjectFirst"));
       return;
     }
     if (!escenas.length) {
-      setError("El proyecto no tiene escenas para analizar.");
+      setError(t("editorTool.noScenesToAnalyze"));
       return;
     }
     setAnalyzing(true);
@@ -160,7 +162,7 @@ export default function EditorPage() {
         imagen_url: escenas[i]?.imagen_url ?? null,
       }));
       setEscenas(enriched);
-      setNotice(`Análisis completo — ${enriched.length} escenas clasificadas.`);
+      setNotice(t("editorTool.analysisComplete", { count: enriched.length }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -170,7 +172,7 @@ export default function EditorPage() {
 
   async function handleTranscribir() {
     if (!project) {
-      setError("Selecciona un proyecto primero.");
+      setError(t("editorTool.selectProjectFirst"));
       return;
     }
     setTranscribing(true);
@@ -182,7 +184,7 @@ export default function EditorPage() {
       setTimestamps(
         segs.map((s) => ({ escena: s.seg_idx + 1, inicio: s.start, fin: s.end, texto: s.text })),
       );
-      setNotice(`Transcripción lista (${segs.length} segmentos, fuente: ${data.source || "?"}).`);
+      setNotice(t("editorTool.transcriptionReady", { count: segs.length, source: data.source || "?" }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -192,14 +194,14 @@ export default function EditorPage() {
 
   async function handleGuardarPlan() {
     if (!project || !escenas.length) {
-      setError("Sin escenas para guardar.");
+      setError(t("editorTool.noScenesToSave"));
       return;
     }
     setSaving(true);
     setError("");
     try {
       await guardarPlan({ project_name: project, escenas });
-      setNotice("Plan guardado.");
+      setNotice(t("editorTool.planSaved"));
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -213,11 +215,11 @@ export default function EditorPage() {
     try {
       const data = await cargarPlan(project);
       if (!data.existe) {
-        setNotice("No hay un plan guardado para este proyecto.");
+        setNotice(t("editorTool.noSavedPlan"));
         return;
       }
       setEscenas(data.escenas || []);
-      setNotice(`Plan cargado (${(data.escenas || []).length} escenas).`);
+      setNotice(t("editorTool.planLoaded", { count: (data.escenas || []).length }));
     } catch (err) {
       setError((err as Error).message);
     }
@@ -248,7 +250,7 @@ export default function EditorPage() {
 
   async function handleRenderizar() {
     if (!project || !escenas.length) {
-      setError("Sin escenas para renderizar.");
+      setError(t("editorTool.noScenesToRender"));
       return;
     }
     setError("");
@@ -264,7 +266,7 @@ export default function EditorPage() {
         transicion,
         trans_dur: transDur,
       });
-      if (!result.job_id) throw new Error(result.error || "No se recibió job_id del render.");
+      if (!result.job_id) throw new Error(result.error || t("editorTool.noJobId"));
       setRenderJobId(result.job_id);
       startPolling(result.job_id);
     } catch (err) {
@@ -290,8 +292,8 @@ export default function EditorPage() {
 
   const selectedScene = selectedIdx >= 0 ? escenas[selectedIdx] : null;
   const tsLookup: Record<number, TimestampEntry> = {};
-  timestamps.forEach((t) => {
-    tsLookup[(t.escena || 1) - 1] = t;
+  timestamps.forEach((ts) => {
+    tsLookup[(ts.escena || 1) - 1] = ts;
   });
   const analyzed = escenas.some((e) => e.tipo || e.texto_overlay);
   const rendering = !!renderJobId && renderJob?.estado === "procesando";
@@ -311,21 +313,19 @@ export default function EditorPage() {
         <div>
           <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[.18em] text-[var(--vf-c5)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--vf-c5)]" />
-            Editor Dinámico · IA + FFmpeg
+            {t("editorTool.heroLabel")}
           </p>
           <h1 className="m-0 text-[clamp(1.4rem,2.8vw,1.9rem)] font-bold text-[var(--vf-text)]">
-            Enriquece tu{" "}
+            {t("editorTool.heroTitlePart1")}{" "}
             <em
               className="not-italic bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(90deg, var(--vf-c5), var(--vf-c1))" }}
             >
-              video automáticamente
+              {t("editorTool.heroTitlePart2")}
             </em>
           </h1>
           <p className="mt-2.5 max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--vf-m)]">
-            La IA analiza tu guion escena por escena: asigna tipos de plano, busca imágenes de
-            referencia reales, genera texto de énfasis y configura split-screen. Luego FFmpeg lo
-            renderiza todo con efectos profesionales.
+            {t("editorTool.heroDescription")}
           </p>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-2.5">
@@ -343,7 +343,7 @@ export default function EditorPage() {
             >
               1
             </span>
-            Guion + Imágenes
+            {t("editorTool.stepScriptImages")}
           </div>
           <div className="font-mono text-[13px] text-[var(--vf-m2)]">→</div>
           <div
@@ -360,14 +360,14 @@ export default function EditorPage() {
             >
               2
             </span>
-            Editor IA
+            {t("editorTool.stepEditorAI")}
           </div>
           <div className="font-mono text-[13px] text-[var(--vf-m2)]">→</div>
           <div className="flex items-center gap-1.5 rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3.5 py-1.5 font-mono text-[10.5px] text-[var(--vf-m2)]">
             <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[rgba(var(--vf-fg-rgb),.08)] text-[9px] font-bold">
               3
             </span>
-            Render Enriquecido
+            {t("editorTool.renderEnrichedButton")}
           </div>
         </div>
       </div>
@@ -375,27 +375,27 @@ export default function EditorPage() {
       {/* PROJECT SELECTOR */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--vf-b)] bg-[var(--vf-s)] px-4 py-3">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-m2)]">
-          Proyecto
+          {t("tools.project")}
         </span>
         <Select
           value={project}
           onChange={(value) => handleSelectProject(value)}
           className="min-w-[220px] rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
         >
-          <SelectOption value="">— Sin proyecto seleccionado —</SelectOption>
+          <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
           {projects.map((p) => (
             <SelectOption key={p.nombre} value={p.nombre}>
               {p.nombre}
             </SelectOption>
           ))}
         </Select>
-        {loading && <span className="font-mono text-xs text-[var(--vf-m2)]">Cargando…</span>}
+        {loading && <span className="font-mono text-xs text-[var(--vf-m2)]">{t("editorTool.loading")}</span>}
         <button
           onClick={handleTranscribir}
           disabled={transcribing || !project}
           className="rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-2 font-mono text-xs text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {transcribing ? "Transcribiendo…" : "Transcribir audio"}
+          {transcribing ? t("editorTool.transcribing") : t("editorTool.transcribeAudio")}
         </button>
         {audioUrl && <audio controls src={audioUrl} className="ml-auto h-8 max-w-[260px]" />}
       </div>
@@ -404,7 +404,7 @@ export default function EditorPage() {
       <div className="mb-5 flex flex-wrap items-end gap-4 rounded-[14px] border border-[var(--vf-b)] bg-[var(--vf-s)] px-5 py-4">
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
-            Resolución
+            {t("editorTool.resolution")}
           </label>
           <Select
             value={resolucion}
@@ -413,30 +413,30 @@ export default function EditorPage() {
           >
             {RESOLUCIONES.map((r) => (
               <SelectOption key={r.value} value={r.value}>
-                {r.label}
+                {t(r.labelKey)}
               </SelectOption>
             ))}
           </Select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
-            Transición
+            {t("editorTool.transition")}
           </label>
           <Select
             value={transicion}
             onChange={(value) => setTransicion(value)}
             className="w-[130px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
           >
-            {TRANSICIONES.map((t) => (
-              <SelectOption key={t.value} value={t.value}>
-                {t.label}
+            {TRANSICIONES.map((trans) => (
+              <SelectOption key={trans.value} value={trans.value}>
+                {t(trans.labelKey)}
               </SelectOption>
             ))}
           </Select>
         </div>
         <div className="flex flex-col gap-1">
           <label className="font-mono text-[9px] uppercase tracking-[.08em] text-[var(--vf-m2)]">
-            Dur. trans (s)
+            {t("editorTool.transDurLabel")}
           </label>
           <input
             type="number"
@@ -460,7 +460,7 @@ export default function EditorPage() {
             <circle cx="12" cy="12" r="10" />
             <path d="M12 8v4l3 3" />
           </svg>
-          {analyzing ? "Analizando…" : "Analizar con IA"}
+          {analyzing ? t("editorTool.analyzing") : t("editorTool.analyzeWithAI")}
         </button>
       </div>
 
@@ -481,8 +481,8 @@ export default function EditorPage() {
             <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
           </svg>
           <p>
-            Selecciona un proyecto con imágenes generadas
-            <br />y pulsa <strong className="text-[var(--vf-m)]">Analizar con IA</strong>
+            {t("editorTool.emptyNoProjectLine1")}
+            <br />{t("editorTool.emptyNoProjectLine2")} <strong className="text-[var(--vf-m)]">{t("editorTool.analyzeWithAI")}</strong>
           </p>
         </div>
       ) : escenas.length === 0 && !loading ? (
@@ -490,10 +490,7 @@ export default function EditorPage() {
           <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1" viewBox="0 0 24 24" opacity="0.3">
             <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.894L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" />
           </svg>
-          <p>
-            Este proyecto no tiene escenas todavía. Genera guion e imágenes primero,
-            <br />o carga un plan guardado.
-          </p>
+          <p>{t("editorTool.noScenesYet")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_360px]">
@@ -501,10 +498,10 @@ export default function EditorPage() {
           <div className="overflow-hidden rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)]">
             <div className="flex items-center justify-between border-b border-[var(--vf-b)] px-[18px] py-3.5">
               <span className="font-mono text-[11px] font-semibold uppercase tracking-[.09em] text-[var(--vf-c2)]">
-                Timeline de Escenas
+                {t("editorTool.timelineTitle")}
               </span>
               <span className="rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--vf-m2)]">
-                {escenas.length} escenas
+                {t("editorTool.scenesCount", { count: escenas.length })}
               </span>
             </div>
 
@@ -514,7 +511,7 @@ export default function EditorPage() {
                   <span className="rounded-full bg-[rgba(var(--vf-fg-rgb),.08)] px-[7px] py-[2px] font-mono text-[8.5px] font-bold uppercase tracking-wide text-[var(--vf-m2)]">
                     N
                   </span>
-                  Normal
+                  {t("editorTool.typeNormal")}
                 </span>
                 <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--vf-m2)]">
                   <span
@@ -523,7 +520,7 @@ export default function EditorPage() {
                   >
                     T
                   </span>
-                  Énfasis
+                  {t("editorTool.typeEmphasis")}
                 </span>
                 <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--vf-m2)]">
                   <span
@@ -532,7 +529,7 @@ export default function EditorPage() {
                   >
                     S
                   </span>
-                  Split
+                  {t("editorTool.typeSplit")}
                 </span>
                 <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--vf-m2)]">
                   <span
@@ -541,7 +538,7 @@ export default function EditorPage() {
                   >
                     B
                   </span>
-                  B-Roll
+                  {t("editorTool.typeBroll")}
                 </span>
                 <span className="flex items-center gap-1.5 font-mono text-[9.5px] text-[var(--vf-m2)]">
                   <span
@@ -550,7 +547,7 @@ export default function EditorPage() {
                   >
                     I
                   </span>
-                  Intro
+                  {t("editorTool.typeIntro")}
                 </span>
               </div>
             )}
@@ -579,16 +576,16 @@ export default function EditorPage() {
                   <rect x="3" y="3" width="18" height="18" rx="3" />
                   <path d="M3 9h18M9 21V9" />
                 </svg>
-                <p>Selecciona una escena para editar sus propiedades</p>
+                <p>{t("editorTool.selectSceneToEdit")}</p>
               </div>
             ) : (
               <div className="p-[18px]">
                 <div className="mb-3.5 flex items-center justify-between">
                   <span className="font-mono text-[11px] font-semibold uppercase tracking-[.09em] text-[var(--vf-c2)]">
-                    Escena {selectedIdx + 1}
+                    {t("editorTool.sceneNumber", { n: selectedIdx + 1 })}
                   </span>
                   <button
-                    title={selectedScene.habilitado === false ? "Habilitar escena" : "Deshabilitar escena"}
+                    title={selectedScene.habilitado === false ? t("editorTool.enableScene") : t("editorTool.disableScene")}
                     onClick={() => handleToggleEnabled(selectedIdx)}
                     className="rounded-md p-1 text-[var(--vf-m2)] transition-colors hover:text-[var(--vf-text)]"
                   >
@@ -602,7 +599,7 @@ export default function EditorPage() {
                 {/* Texto narración */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Texto narración
+                    {t("editorTool.narrationText")}
                   </label>
                   <div className="min-h-[40px] rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-2.5 text-[12.5px] italic leading-relaxed text-[var(--vf-m)]">
                     {selectedScene.texto}
@@ -612,7 +609,7 @@ export default function EditorPage() {
                 {/* Tipo de plano */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Tipo de plano
+                    {t("editorTool.shotType")}
                   </label>
                   <div className="grid grid-cols-5 gap-[5px]">
                     {TIPO_OPTIONS.map((opt) => {
@@ -628,8 +625,8 @@ export default function EditorPage() {
                               : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)] hover:border-[var(--vf-c5)]/40 hover:text-[var(--vf-c5)]")
                           }
                         >
-                          <span className="text-base leading-none">{opt.icon}</span>
-                          <span>{opt.label}</span>
+                          <span className="text-base leading-none">{t(opt.iconKey)}</span>
+                          <span>{t(opt.labelKey)}</span>
                         </button>
                       );
                     })}
@@ -639,9 +636,9 @@ export default function EditorPage() {
                 {/* Texto overlay */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Texto en pantalla{" "}
+                    {t("editorTool.onScreenText")}{" "}
                     <span className="font-mono text-[9px] font-normal normal-case text-[var(--vf-m2)] opacity-70">
-                      (máx 6 palabras)
+                      {t("editorTool.maxSixWords")}
                     </span>
                   </label>
                   <input
@@ -649,7 +646,7 @@ export default function EditorPage() {
                     maxLength={50}
                     value={selectedScene.texto_overlay || ""}
                     onChange={(e) => updateScene(selectedIdx, { texto_overlay: e.target.value })}
-                    placeholder="Texto impactante…"
+                    placeholder={t("editorTool.overlayTextPlaceholder") || ""}
                     className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                   />
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -660,13 +657,13 @@ export default function EditorPage() {
                     >
                       {OVERLAY_POS_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
-                          {o.label}
+                          {t(o.labelKey)}
                         </option>
                       ))}
                     </select>
                     <input
                       type="color"
-                      title="Color del texto"
+                      title={t("editorTool.textColorTitle") || ""}
                       value={(selectedScene.color_accent as string) || "#ffffff"}
                       onChange={(e) => updateScene(selectedIdx, { color_accent: e.target.value })}
                       className="h-9 w-11 cursor-pointer rounded-lg border-none bg-transparent"
@@ -678,7 +675,7 @@ export default function EditorPage() {
                 <div className="mb-4 grid grid-cols-2 gap-2">
                   <div>
                     <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                      Texto secundario
+                      {t("editorTool.secondaryText")}
                     </label>
                     <input
                       type="text"
@@ -689,7 +686,7 @@ export default function EditorPage() {
                   </div>
                   <div>
                     <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                      N.º capítulo
+                      {t("editorTool.chapterNumberLabel")}
                     </label>
                     <input
                       type="number"
@@ -703,13 +700,13 @@ export default function EditorPage() {
                 {/* Imagen de referencia */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Imagen de referencia
+                    {t("editorTool.refImageLabel2")}
                   </label>
                   <input
                     type="text"
                     value={selectedScene.ref_label || ""}
                     onChange={(e) => updateScene(selectedIdx, { ref_label: e.target.value })}
-                    placeholder="Etiqueta de referencia…"
+                    placeholder={t("editorTool.refLabelPlaceholder") || ""}
                     className="mb-2 w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2 text-[11.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                   />
                   <div className="relative flex h-[110px] items-center justify-center overflow-hidden rounded-[10px] border border-dashed border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)]">
@@ -726,7 +723,7 @@ export default function EditorPage() {
                           <circle cx="8.5" cy="8.5" r="1.5" />
                           <polyline points="21 15 16 10 5 21" />
                         </svg>
-                        <span>Sin imagen de referencia</span>
+                        <span>{t("editorTool.noRefImage")}</span>
                       </div>
                     )}
                   </div>
@@ -739,13 +736,13 @@ export default function EditorPage() {
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                       </svg>
-                      Buscar en Google
+                      {t("editorTool.searchInGoogle")}
                     </button>
                     <button
                       onClick={() => handleQuitarRef(selectedIdx)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-1.5 font-mono text-[11px] text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
                     >
-                      Quitar
+                      {t("editorTool.removeLabel")}
                     </button>
                   </div>
                   <div className="mt-2 flex gap-1.5">
@@ -753,7 +750,7 @@ export default function EditorPage() {
                       type="text"
                       value={selectedScene.google_query || ""}
                       onChange={(e) => updateScene(selectedIdx, { google_query: e.target.value })}
-                      placeholder="Query de búsqueda…"
+                      placeholder={t("editorTool.searchQueryPlaceholder") || ""}
                       className="flex-1 rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-2.5 text-[12.5px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                     />
                   </div>
@@ -761,7 +758,7 @@ export default function EditorPage() {
                   {selectedScene.tipo === "split_screen" && (
                     <div className="mt-2">
                       <label className="mb-1 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                        Lado de imagen IA
+                        {t("editorTool.aiImageSide")}
                       </label>
                       <div className="flex gap-1.5">
                         <button
@@ -773,7 +770,7 @@ export default function EditorPage() {
                               : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)]")
                           }
                         >
-                          ← Izquierda
+                          {t("editorTool.leftArrow")}
                         </button>
                         <button
                           onClick={() => updateScene(selectedIdx, { lado_ia: "right" })}
@@ -784,7 +781,7 @@ export default function EditorPage() {
                               : "border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.03)] text-[var(--vf-m)]")
                           }
                         >
-                          Derecha →
+                          {t("editorTool.rightArrow")}
                         </button>
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -792,14 +789,14 @@ export default function EditorPage() {
                           type="text"
                           value={selectedScene.split_label_1 || ""}
                           onChange={(e) => updateScene(selectedIdx, { split_label_1: e.target.value })}
-                          placeholder="Etiqueta lado 1"
+                          placeholder={t("editorTool.splitLabel1Placeholder") || ""}
                           className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                         />
                         <input
                           type="text"
                           value={selectedScene.split_label_2 || ""}
                           onChange={(e) => updateScene(selectedIdx, { split_label_2: e.target.value })}
-                          placeholder="Etiqueta lado 2"
+                          placeholder={t("editorTool.splitLabel2Placeholder") || ""}
                           className="w-full rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] px-2.5 py-2 text-[11px] text-[var(--vf-text)] outline-none focus:border-[var(--vf-c5)]/50"
                         />
                       </div>
@@ -810,7 +807,7 @@ export default function EditorPage() {
                 {/* Duración extra */}
                 <div className="mb-4">
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Duración extra{" "}
+                    {t("editorTool.extraDuration")}{" "}
                     <span className="font-mono text-[9px] font-normal normal-case text-[var(--vf-m2)] opacity-70">
                       +{(selectedScene.duracion_extra as number) || 0}s
                     </span>
@@ -831,7 +828,7 @@ export default function EditorPage() {
                 {/* Imagen IA generada */}
                 <div>
                   <label className="mb-1.5 block font-mono text-[9.5px] font-semibold uppercase tracking-[.07em] text-[var(--vf-m2)]">
-                    Imagen IA generada
+                    {t("editorTool.aiGeneratedImage")}
                   </label>
                   <div className="flex h-[90px] items-center justify-center overflow-hidden rounded-[10px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)]">
                     {selectedScene.imagen_ia_url ? (
@@ -847,7 +844,7 @@ export default function EditorPage() {
                           <circle cx="8.5" cy="8.5" r="1.5" />
                           <polyline points="21 15 16 10 5 21" />
                         </svg>
-                        <span>Sin imagen IA</span>
+                        <span>{t("editorTool.noAiImage")}</span>
                       </div>
                     )}
                   </div>
@@ -867,13 +864,13 @@ export default function EditorPage() {
               disabled={saving}
               className="rounded-[10px] border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.03)] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-[rgba(var(--vf-fg-rgb),.2)] hover:text-[var(--vf-text)] disabled:opacity-50"
             >
-              💾 {saving ? "Guardando…" : "Guardar plan"}
+              💾 {saving ? t("editorTool.saving") : t("editorTool.savePlan")}
             </button>
             <button
               onClick={handleCargarPlan}
               className="rounded-[10px] border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.03)] px-4 py-2.5 font-mono text-xs text-[var(--vf-m)] transition-colors hover:border-[rgba(var(--vf-fg-rgb),.2)] hover:text-[var(--vf-text)]"
             >
-              📂 Cargar plan guardado
+              📂 {t("editorTool.loadSavedPlan")}
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -892,7 +889,7 @@ export default function EditorPage() {
               <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <polygon points="5 3 19 12 5 21 5 3" />
               </svg>
-              Render Enriquecido
+              {t("editorTool.renderEnrichedButton")}
             </button>
           </div>
         </div>
@@ -903,7 +900,7 @@ export default function EditorPage() {
         <div className="mt-5 rounded-2xl border border-[var(--vf-b)] bg-[var(--vf-s)] p-5">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-[.09em] text-[var(--vf-c2)]">
-              Progreso del render
+              {t("editorTool.renderProgress")}
             </span>
           </div>
           <div className="my-3 h-1.5 overflow-hidden rounded-full bg-[var(--vf-b)]">
@@ -916,7 +913,7 @@ export default function EditorPage() {
             />
           </div>
           <p className="mb-2 font-mono text-[11px] text-[var(--vf-c5)]">
-            {renderJob.mensaje || "Iniciando..."}
+            {renderJob.mensaje || t("editorTool.startingEllipsis")}
           </p>
           {renderJob.estado === "completado" && renderJob.video_url && (
             <a
@@ -925,12 +922,12 @@ export default function EditorPage() {
               className="mt-3.5 flex items-center justify-center rounded-xl px-4 py-3.5 font-mono text-[12.5px] font-bold text-[#06130f] transition-all hover:-translate-y-px"
               style={{ background: "var(--vf-c5)" }}
             >
-              ⬇️ Descargar video enriquecido
+              ⬇️ {t("editorTool.downloadEnrichedVideo")}
             </a>
           )}
           {renderJob.estado === "error" && (
             <p className="text-xs text-[var(--vf-danger)]">
-              {renderJob.error || "El render falló."}
+              {renderJob.error || t("editorTool.renderFailed")}
             </p>
           )}
         </div>

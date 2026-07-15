@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
 import GrokPanel from "./video/GrokPanel";
@@ -13,6 +14,7 @@ const TABS = [
 ];
 
 export default function VideoPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(searchParams.get("project") || "");
   const [tab, setTab] = useState(searchParams.get("tab") || "grok");
@@ -51,10 +53,10 @@ export default function VideoPage() {
                 className="h-[5px] w-[5px] rounded-full"
                 style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
               />
-              Módulo 05 · Video Animator
+              {t("videoTool.moduleLabel")}
             </div>
             <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Video{" "}
+              {t("videoTool.titlePart1")}{" "}
               <span
                 className="bg-clip-text text-transparent"
                 style={{
@@ -62,12 +64,11 @@ export default function VideoPage() {
                     "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
                 }}
               >
-                Animator
+                {t("videoTool.titlePart2")}
               </span>
             </h1>
             <p className="font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
-              Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok,
-              Qwen o Meta AI.
+              {t("videoTool.subtitle")}
             </p>
           </div>
           <HeaderArt />
@@ -75,18 +76,18 @@ export default function VideoPage() {
       </div>
 
       <div className="mb-4 inline-flex rounded-full border border-[var(--vf-border)] bg-[var(--vf-surface)] p-1 font-mono text-xs">
-        {TABS.map((t) => (
+        {TABS.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
             className={
               "rounded-full px-4 py-1.5 transition-colors " +
-              (tab === t.id
+              (tab === tabItem.id
                 ? "bg-[var(--vf-c1)] text-white"
                 : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]")
             }
           >
-            {t.label}
+            {tabItem.label}
           </button>
         ))}
       </div>

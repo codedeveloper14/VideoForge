@@ -201,7 +201,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
           className="h-[5px] w-[5px] rounded-full"
           style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
         />
-        Módulo 03 · GenTube
+        {t("gentubePanel.moduleLabel")}
         <span
           className="rounded-full border px-1.5 py-[1px] font-mono text-[8px] font-semibold normal-case tracking-wider"
           style={{
@@ -210,11 +210,11 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
             borderColor: "rgba(34,197,94,.3)",
           }}
         >
-          Chromium
+          {t("gentubePanel.chromiumTag")}
         </span>
       </div>
       <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-        Generación de{" "}
+        {t("gentubePanel.titlePart1")}{" "}
         <span
           className="bg-clip-text text-transparent"
           style={{
@@ -222,13 +222,12 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)",
           }}
         >
-          Imágenes
+          {t("gentubePanel.titlePart2")}
         </span>{" "}
-        con GenTube
+        {t("gentubePanel.titleSuffix")}
       </h1>
       <p className="mb-6 max-w-xl font-mono text-xs leading-relaxed text-[var(--vf-muted)]">
-        Genera imágenes con GenTube (perfiles Chromium) y guárdalas directamente en la carpeta del
-        proyecto.
+        {t("gentubePanel.headerSubtitle")}
       </p>
 
       <div className="mb-4 grid grid-cols-[260px_1fr] gap-4 max-lg:grid-cols-1">
