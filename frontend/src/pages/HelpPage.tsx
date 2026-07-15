@@ -303,7 +303,7 @@ export default function HelpPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-1 text-[34px] font-extrabold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
+      <h1 className="mb-1 text-[34px] font-bold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
         Centro de Ayuda
       </h1>
       <p className="mb-8 text-[11.5px] text-[var(--vf-muted)]">

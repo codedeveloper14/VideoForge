@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { abrirVideoFinal, listFinalVideos } from "../api/projects";
-import TopTabBar from "../components/TopTabBar";
 
 export default function ProjectDetailPage() {
   const { nombre = "" } = useParams<{ nombre: string }>();
@@ -29,7 +28,6 @@ export default function ProjectDetailPage() {
 
   return (
     <div>
-      <TopTabBar />
       <Link to="/app/home" className="text-sm text-[var(--vf-muted)] hover:underline">
         ← Proyectos
       </Link>

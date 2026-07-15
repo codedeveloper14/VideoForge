@@ -139,46 +139,29 @@ export default function HomePage() {
 
   return (
     <div className="max-w-6xl" onClick={() => openMenu && setOpenMenu(null)}>
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
-            style={{ fontFamily: "var(--vf-mono)" }}
-          >
-            <span
-              className="h-[5px] w-[5px] rounded-full"
-              style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
-            />
-            IVR Pipeline
-          </div>
-          <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-extrabold leading-[1.05] tracking-[-2px]">
-            Mis{" "}
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2), var(--vf-c1), var(--vf-c3))" }}
-            >
-              Proyectos
-            </span>
-          </h1>
-          <p className="max-w-[380px] text-xs leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
-            Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.
-          </p>
-        </div>
-        <button
-          onClick={() => setShowCreate((v) => !v)}
-          className="inline-flex flex-shrink-0 items-center gap-2 rounded-[10px] border-none px-[22px] py-3 text-xs font-semibold tracking-[0.03em] text-white transition-all hover:-translate-y-0.5"
-          style={{
-            fontFamily: "var(--vf-mono)",
-            background: "linear-gradient(135deg, var(--vf-c1), #9f7aea)",
-            boxShadow: "0 4px 20px rgba(124,106,255,.38)",
-          }}
+      <div className="mb-8">
+        <div
+          className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),0.03)] px-3 py-1 text-[9.5px] font-medium uppercase tracking-[0.18em] text-[var(--vf-m)]"
+          style={{ fontFamily: "var(--vf-mono)" }}
         >
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Nuevo Proyecto
-        </button>
+          <span
+            className="h-[5px] w-[5px] rounded-full"
+            style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }}
+          />
+          IVR Pipeline
+        </div>
+        <h1 className="mb-2 text-[clamp(28px,3vw,42px)] font-bold leading-[1.05] tracking-[-1px]">
+          Mis{" "}
+          <span
+            className="bg-clip-text text-transparent"
+            style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2), var(--vf-c1), var(--vf-c3))" }}
+          >
+            Proyectos
+          </span>
+        </h1>
+        <p className="max-w-[380px] text-xs leading-relaxed text-[var(--vf-m)]" style={{ fontFamily: "var(--vf-mono)" }}>
+          Crea un proyecto para organizar todo el pipeline: guión, voz, imágenes y renderizado en un solo lugar.
+        </p>
       </div>
 
       {showCreate && (

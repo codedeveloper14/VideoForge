@@ -96,6 +96,14 @@ function IconPlus() {
   );
 }
 
+function IconBack() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15,18 9,12 15,6" />
+    </svg>
+  );
+}
+
 function IconMenu() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -366,25 +374,77 @@ function AppLayoutInner() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<{ bottom: number; left: number } | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const accountTriggerRef = useRef<HTMLDivElement>(null);
+  const accountPopupRef = useRef<HTMLDivElement>(null);
 
   const initial = (user || "?").charAt(0).toUpperCase();
+  const hideSidebar = NO_SIDEBAR_ROUTES.some((r) => location.pathname.startsWith(r));
+  // On the mobile drawer, always show full labels regardless of the desktop collapse toggle.
+  const effectiveCollapsed = collapsed && !mobileNavOpen;
 
   const activeProject = searchParams.get("project") || "";
   const currentPage = PIPELINE_STEPS.find((s) => location.pathname === `/app/${s.page}`)?.page;
   const showPipeline = !!activeProject && !!currentPage;
 
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!dropdownOpen || !accountTriggerRef.current) return;
+    const r = accountTriggerRef.current.getBoundingClientRect();
+    setDropdownRect({
+      bottom: window.innerHeight - r.top + 6,
+      left: effectiveCollapsed ? r.right + 8 : r.left + 8,
+    });
+  }, [dropdownOpen, effectiveCollapsed]);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (accountTriggerRef.current?.contains(target)) return;
+      if (accountPopupRef.current?.contains(target)) return;
+      setDropdownOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [dropdownOpen]);
+
   return (
     <div className="flex min-h-screen" style={{ background: "var(--vf-bg)", color: "var(--vf-text)" }}>
+      {!hideSidebar && (
+      <>
+      <button
+        onClick={() => setMobileNavOpen(true)}
+        title="Abrir menú"
+        className="fixed left-3 top-3 z-[905] flex h-9 w-9 items-center justify-center rounded-lg md:hidden"
+        style={{ background: "var(--vf-s)", border: "1px solid rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-m)" }}
+      >
+        <IconMenu />
+      </button>
+      {mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 z-[915] bg-black/50 md:hidden"
+        />
+      )}
       <aside
-        className={`fixed left-0 top-0 bottom-0 z-[920] flex flex-col overflow-y-auto transition-[width] duration-200 ${collapsed ? "w-[64px]" : "w-[220px]"}`}
+        className={`fixed left-0 top-0 bottom-0 z-[920] flex w-[220px] flex-col overflow-y-auto overflow-x-hidden transition-transform duration-200 md:transition-[width] ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${collapsed ? "md:w-[64px]" : "md:w-[220px]"}`}
         style={{ background: "var(--vf-s)", borderRight: "1px solid rgba(var(--vf-fg-rgb),.06)" }}
       >
         <div
-          className="flex flex-shrink-0 items-center gap-[11px] px-[15px] pb-[15px] pt-[18px]"
+          className={`flex flex-shrink-0 items-center gap-[11px] pb-[15px] pt-[18px] ${
+            effectiveCollapsed ? "justify-center px-2" : "px-[15px]"
+          }`}
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
-          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={collapsed ? "Studio IVR" : undefined}>
+          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
             <div
               className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
               style={{
@@ -400,7 +460,7 @@ function AppLayoutInner() {
                 <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
               </svg>
             </div>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <div>
                 <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
                 <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
@@ -409,7 +469,7 @@ function AppLayoutInner() {
               </div>
             )}
           </NavLink>
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <button
               onClick={() => setCollapsed(true)}
               title="Colapsar menú"
@@ -420,7 +480,7 @@ function AppLayoutInner() {
           )}
         </div>
 
-        {collapsed && (
+        {effectiveCollapsed && (
           <div className="flex flex-shrink-0 justify-center px-2 pt-2">
             <button
               onClick={() => setCollapsed(false)}
@@ -437,49 +497,49 @@ function AppLayoutInner() {
             <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
-            {!collapsed && "Inicio"}
+            {!effectiveCollapsed && "Inicio"}
           </NavLink>
 
-          {!collapsed && (
+          {!effectiveCollapsed && (
             <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
               General
             </span>
           )}
 
-          <NavLink to="/app/home" className={xiClass} title={collapsed ? "Proyectos" : undefined}>
+          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? "Proyectos" : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
-            {!collapsed && "Proyectos"}
+            {!effectiveCollapsed && "Proyectos"}
           </NavLink>
 
           <button
             onClick={() => navigate("/app/idea2video")}
-            title={collapsed ? "Idea → Video" : undefined}
+            title={effectiveCollapsed ? "Idea → Video" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
-            {!collapsed && <>Idea &rarr; Video</>}
+            {!effectiveCollapsed && <>Idea &rarr; Video</>}
           </button>
 
           <button
             onClick={() => navigate("/app/tareas")}
-            title={collapsed ? "Tareas" : undefined}
+            title={effectiveCollapsed ? "Tareas" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
-            {!collapsed && "Tareas"}
+            {!effectiveCollapsed && "Tareas"}
           </button>
 
-          <NavLink to="/app/ajustes" className={xiClass} title={collapsed ? "Ajustes" : undefined}>
+          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? "Ajustes" : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
-            {!collapsed && "Ajustes"}
+            {!effectiveCollapsed && "Ajustes"}
           </NavLink>
         </nav>
 
@@ -557,31 +617,32 @@ function AppLayoutInner() {
         <div className="flex flex-shrink-0 flex-col gap-px px-2 pb-1 pt-[5px]">
           <button
             onClick={() => navigate("/app/documentacion")}
-            title={collapsed ? "Documentación" : undefined}
+            title={effectiveCollapsed ? "Documentación" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
-            {!collapsed && "Documentación"}
+            {!effectiveCollapsed && "Documentación"}
           </button>
           <button
             onClick={() => navigate("/app/ayuda")}
-            title={collapsed ? "Centro de ayuda" : undefined}
+            title={effectiveCollapsed ? "Centro de ayuda" : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
-            {!collapsed && "Centro de ayuda"}
+            {!effectiveCollapsed && "Centro de ayuda"}
           </button>
         </div>
 
         <div className="relative flex-shrink-0">
           <div
+            ref={accountTriggerRef}
             onClick={() => setDropdownOpen((v) => !v)}
-            title={collapsed ? user || undefined : undefined}
-            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${collapsed ? "justify-center px-2" : "px-[13px]"}`}
+            title={effectiveCollapsed ? user || undefined : undefined}
+            className={`flex cursor-pointer items-center gap-2.5 py-3 transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] ${effectiveCollapsed ? "justify-center px-2" : "px-[13px]"}`}
             style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
           >
             <div
@@ -590,7 +651,7 @@ function AppLayoutInner() {
             >
               {initial}
             </div>
-            {!collapsed && (
+            {!effectiveCollapsed && (
               <>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12.5px] font-semibold text-[var(--vf-text)]">{user}</div>
@@ -614,11 +675,20 @@ function AppLayoutInner() {
             )}
           </div>
 
-          {dropdownOpen && (
-            <div
-              className={`fixed bottom-[64px] z-[930] overflow-hidden rounded-xl ${collapsed ? "left-[72px] w-[200px]" : "left-2 w-[196px]"}`}
-              style={{ background: "var(--vf-p)", border: "1px solid rgba(var(--vf-fg-rgb),.08)", boxShadow: "0 12px 36px rgba(0,0,0,.6)" }}
-            >
+          {dropdownOpen &&
+            dropdownRect &&
+            createPortal(
+              <div
+                ref={accountPopupRef}
+                className="fixed z-[930] w-[200px] overflow-hidden rounded-xl"
+                style={{
+                  bottom: dropdownRect.bottom,
+                  left: dropdownRect.left,
+                  background: "var(--vf-p)",
+                  border: "1px solid rgba(var(--vf-fg-rgb),.08)",
+                  boxShadow: "0 12px 36px rgba(0,0,0,.6)",
+                }}
+              >
               <button
                 onClick={() => {
                   setDropdownOpen(false);
@@ -657,10 +727,13 @@ function AppLayoutInner() {
                 </span>
                 Cerrar sesión
               </button>
-            </div>
-          )}
+              </div>,
+              document.body,
+            )}
         </div>
       </aside>
+      </>
+      )}
 
       <TopBar />
 

@@ -128,7 +128,7 @@ function StepsBar({ step }: { step: number }) {
 function HeroDecoration() {
   return (
     <div
-      className="relative flex flex-1 flex-col justify-end overflow-hidden px-10 py-11"
+      className="relative hidden flex-col justify-end overflow-hidden px-10 py-11 md:flex"
       style={{
         flex: "0 0 38%",
         background: "linear-gradient(145deg,rgba(30,16,80,.95) 0%,rgba(10,6,30,.98) 100%)",
@@ -532,7 +532,7 @@ export default function Idea2VideoPage() {
   const barStep = step >= 3 ? 3 : step;
 
   return (
-    <div className="-m-6 flex min-h-[calc(100vh-0px)] flex-col overflow-hidden sm:-m-8" style={{ background: "var(--vf-bg)" }}>
+    <div className="-mx-6 -mb-6 flex min-h-[640px] flex-col overflow-y-auto sm:-mx-8 sm:-mb-8 md:overflow-hidden" style={{ background: "var(--vf-bg)" }}>
       <style>{`
         @keyframes xi2vPulse{0%,100%{opacity:.5;transform:translate(-50%,-50%) scale(.95)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
         @keyframes xi2vSpin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
@@ -550,15 +550,15 @@ export default function Idea2VideoPage() {
 
       {/* Top bar: back-style eyebrow + steps bar + badge */}
       <div
-        className="flex flex-shrink-0 items-center gap-4 border-b px-6 py-3.5"
+        className="flex flex-shrink-0 items-center gap-4 overflow-x-auto border-b px-4 py-3.5 md:px-6"
         style={{ borderColor: "rgba(124,106,255,.13)", background: "var(--vf-s)" }}
       >
-        <span className="font-mono text-[13px]" style={{ color: "var(--vf-m)" }}>
+        <span className="hidden flex-shrink-0 font-mono text-[13px] sm:inline" style={{ color: "var(--vf-m)" }}>
           Idea → Video
         </span>
         <StepsBar step={barStep} />
         <span
-          className="ml-auto text-[10px] font-bold uppercase tracking-[.15em]"
+          className="ml-auto hidden flex-shrink-0 text-[10px] font-bold uppercase tracking-[.15em] md:inline"
           style={{ color: "rgba(124,106,255,.6)" }}
         >
           Idea → Video
@@ -575,8 +575,8 @@ export default function Idea2VideoPage() {
       {step === 1 && (
         <div className="flex flex-1 overflow-hidden">
           <HeroDecoration />
-          <div className="flex-1 overflow-y-auto px-12 py-9">
-            <div className="mb-1 text-[21px] font-extrabold" style={{ color: "var(--vf-text)" }}>
+          <div className="flex-1 overflow-y-auto px-5 py-6 md:px-12 md:py-9">
+            <div className="mb-1 text-[21px] font-bold" style={{ color: "var(--vf-text)" }}>
               ¿Cuál es tu idea?
             </div>
             <p className="mb-6 text-[13px] leading-relaxed" style={{ color: "var(--vf-m)" }}>
@@ -716,15 +716,15 @@ export default function Idea2VideoPage() {
 
       {/* Step 3 — script review: editable script + meta column */}
       {step === 3 && (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex flex-1 flex-col overflow-hidden border-r px-8 py-7" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
+        <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+          <div className="flex flex-1 flex-col overflow-hidden border-b px-5 py-5 md:border-b-0 md:border-r md:px-8 md:py-7" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)" }}>
             <div className="mb-2.5 text-[10px] font-bold uppercase tracking-[.1em]" style={{ color: "var(--vf-m)" }}>
               Guión generado — puedes editarlo antes de continuar
             </div>
             <textarea
               value={script}
               onChange={(e) => setScript(e.target.value)}
-              className="flex-1 resize-none overflow-y-auto rounded-[10px] border p-[15px] text-[12.5px] leading-[1.75] outline-none"
+              className="min-h-[220px] flex-1 resize-none overflow-y-auto rounded-[10px] border p-[15px] text-[12.5px] leading-[1.75] outline-none md:min-h-0"
               style={{
                 background: "var(--vf-bg)",
                 borderColor: "rgba(var(--vf-fg-rgb),.06)",
@@ -734,7 +734,7 @@ export default function Idea2VideoPage() {
             />
           </div>
 
-          <div className="flex w-[300px] flex-shrink-0 flex-col gap-4 overflow-y-auto px-6 py-7">
+          <div className="flex w-full flex-shrink-0 flex-col gap-4 overflow-y-auto px-5 py-5 md:w-[300px] md:px-6 md:py-7">
             <div>
               <label className="mb-[7px] block text-[9.5px] font-bold uppercase tracking-[.12em]" style={{ color: "var(--vf-m2)" }}>
                 Título sugerido
@@ -890,9 +890,9 @@ export default function Idea2VideoPage() {
 
       {/* Step 4 — execution HUD: phases list, image gallery, video player, log */}
       {step === 4 && (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex flex-1 overflow-hidden">
-            <div className="w-[240px] flex-shrink-0 overflow-y-auto border-r px-3.5 py-[22px]" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)", background: "rgba(0,0,0,.2)" }}>
+        <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+          <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+            <div className="flex-shrink-0 overflow-y-auto border-b px-3.5 py-3 md:w-[240px] md:border-b-0 md:border-r md:py-[22px]" style={{ borderColor: "rgba(var(--vf-fg-rgb),.05)", background: "rgba(0,0,0,.2)" }}>
               <div className="mb-3.5 text-[9px] font-bold uppercase tracking-[.14em]" style={{ color: "var(--vf-m2)" }}>
                 Fases del pipeline
               </div>
@@ -901,7 +901,7 @@ export default function Idea2VideoPage() {
               ))}
             </div>
 
-            <div className="flex flex-1 flex-col gap-4 overflow-hidden px-6 py-[22px]">
+            <div className="flex flex-1 flex-col gap-4 overflow-hidden px-5 py-4 md:px-6 md:py-[22px]">
               <div
                 className="flex flex-shrink-0 items-center gap-3.5 rounded-xl border px-[17px] py-[13px]"
                 style={{ background: "rgba(124,106,255,.08)", borderColor: "rgba(124,106,255,.2)" }}
