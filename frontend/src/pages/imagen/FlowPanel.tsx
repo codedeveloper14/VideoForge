@@ -22,6 +22,7 @@ import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
 import ConfirmModal from "../../components/ConfirmModal";
+import { loadScript } from "../../api/script";
 
 const POLL_MS = 2000;
 
@@ -37,7 +38,7 @@ interface Progress {
   label: string;
 }
 
-export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
+export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPanelProps) {
   const { t } = useTranslation();
   const [prompts, setPrompts] = useState("");
   const [slots, setSlots] = useState(2);
@@ -228,6 +229,25 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
     }
   }
 
+  async function handleLoadFromScript() {
+    setError("");
+    if (!project) {
+      setError(t("flowPanel.selectActiveProject"));
+      return;
+    }
+    try {
+      const data = await loadScript(project);
+      const loaded = typeof data.prompts === "string" ? data.prompts.trim() : "";
+      if (!loaded) {
+        setError(t("flowPanel.noPromptsInScript"));
+        return;
+      }
+      setPrompts(loaded);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
   async function handleRetry(img: GalleryImage, index: number) {
     try {
       await flowRetry({
@@ -341,6 +361,13 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 {t("flowPanel.promptsTitle", { count: countPrompts(prompts) })}
               </span>
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleLoadFromScript}
+                  className="flow-btn flow-btn--ghost"
+                >
+                  {t("flowPanel.loadFromScript")}
+                </button>
                 <button
                   type="button"
                   onClick={() => setPrompts("")}

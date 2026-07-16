@@ -252,6 +252,8 @@
     "noBrowserConnected": "No browser is connected to the Flow bridge — open the accounts (\"Open all\") and sign in before generating. The job is queued but won't progress until an account connects.",
     "writeAtLeastOnePrompt": "Write at least one prompt.",
     "selectActiveProject": "Select an active project. Images are saved to the project's images folder.",
+    "loadFromScript": "Load from Script",
+    "noPromptsInScript": "This project has no prompts saved in the Script yet. Generate and save them in Step 1 first.",
     "confirmResetChromium": "Reset all Chromium profiles? This will close active sessions.",
     "confirmResetTitle": "Reset Chromium",
     "cancel": "Cancel",

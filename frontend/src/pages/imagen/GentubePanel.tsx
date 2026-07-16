@@ -27,6 +27,7 @@ import {
 } from "./shared";
 import type { GalleryImage } from "./shared";
 import ConfirmModal from "../../components/ConfirmModal";
+import { loadScript } from "../../api/script";
 
 const POLL_MS = 2000;
 
@@ -36,7 +37,7 @@ interface GentubePanelProps {
   resolvingDir: boolean;
 }
 
-export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelProps) {
+export default function GentubePanel({ project, outputDir, resolvingDir }: GentubePanelProps) {
   const { t } = useTranslation();
   const [prompts, setPrompts] = useState("");
   const [repeat, setRepeat] = useState<number | string>(1);
@@ -185,6 +186,25 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
     try {
       await gentubeClearImages();
       setImages([]);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleLoadFromScript() {
+    setError("");
+    if (!project) {
+      setError(t("flowPanel.selectActiveProject"));
+      return;
+    }
+    try {
+      const data = await loadScript(project);
+      const loaded = typeof data.prompts === "string" ? data.prompts.trim() : "";
+      if (!loaded) {
+        setError(t("flowPanel.noPromptsInScript"));
+        return;
+      }
+      setPrompts(loaded);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -343,9 +363,18 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
           <SectionCard
             title={t("gentubePanel.promptsTitleShort")}
             right={
-              <span className="font-mono text-[9px] text-[var(--vf-m2)]">
-                {t("gentubePanel.promptsCount", { count: countPrompts(prompts) })}
-              </span>
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleLoadFromScript}
+                  className="font-mono text-[9px] text-[var(--vf-c2)] underline"
+                >
+                  {t("flowPanel.loadFromScript")}
+                </button>
+                <span className="font-mono text-[9px] text-[var(--vf-m2)]">
+                  {t("gentubePanel.promptsCount", { count: countPrompts(prompts) })}
+                </span>
+              </div>
             }
           >
             <textarea

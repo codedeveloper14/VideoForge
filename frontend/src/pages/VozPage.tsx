@@ -625,7 +625,7 @@ export default function VozPage() {
                 {t("vozTool.backToScript")}
               </button>
               <span className="font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--vf-m2)]">
-                {t("vozTool.stepOf5", { n: 2 })}
+                {t("vozTool.stepOf5", { n: 3 })}
               </span>
               {!fragments && (
                 <button

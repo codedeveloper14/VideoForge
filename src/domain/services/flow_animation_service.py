@@ -29,11 +29,29 @@ state = {
     "log": [],
     "last_error": None,
     "output_dir": None,
+    "started_at": 0.0,
     "accounts": [
         {"index": i, "ok": False, "email": None, "jobs": 0} for i in range(flow_service.NUM_ACCOUNTS)
     ],
 }
 lock = threading.Lock()
+
+# Salvavidas: si un batch se cuelga (red caida, browser sin responder, etc.) sin
+# levantar excepcion, "running" quedaria en True para siempre y el usuario nunca
+# podria reintentar. Se libera solo tras este tope, sin necesidad de "Detener".
+MAX_RUN_SECONDS = 1800
+
+
+def _release_if_stale() -> None:
+    went_stale = False
+    with lock:
+        started = state.get("started_at") or 0.0
+        if state["running"] and started and (time.time() - started) > MAX_RUN_SECONDS:
+            state.update(running=False, step="idle", last_error="Tiempo de espera agotado")
+            _stop_event.set()
+            went_stale = True
+    if went_stale:
+        log("[Flow] Lock de generacion liberado automaticamente por timeout")
 
 
 def log(msg: str) -> None:
@@ -714,6 +732,7 @@ def start_run(
     if not out_dir:
         raise ValueError("output_dir requerido")
 
+    _release_if_stale()
     with lock:
         if state["running"]:
             raise RuntimeError("Ya hay una generacion en curso")
@@ -735,6 +754,7 @@ def start_run(
                 "output_dir": out_dir,
                 "log": [],
                 "batch_id": my_batch_id,
+                "started_at": time.time(),
             }
         )
 
@@ -808,6 +828,7 @@ def stop() -> None:
 
 
 def get_status(since: int) -> dict:
+    _release_if_stale()
     with lock:
         st = {k: v for k, v in state.items() if k != "log"}
         all_logs = state["log"]
