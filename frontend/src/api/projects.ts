@@ -54,6 +54,10 @@ export function getProjectContent(project: string) {
     .then((r) => r.data);
 }
 
+export function imagenFileUrl(project: string, file: string) {
+  return `/api/proyectos/imagen_file?project=${encodeURIComponent(project)}&file=${encodeURIComponent(file)}`;
+}
+
 export function listFinalVideos(project: string) {
   return api
     .get<{ videos: string[] }>("/proyectos/videos_final", {

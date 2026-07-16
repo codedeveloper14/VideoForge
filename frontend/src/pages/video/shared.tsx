@@ -1,8 +1,10 @@
 // Small shared UI bits reused across the Video sub-panels (Grok/Qwen/Meta).
 // Mirrors the pattern established in pages/imagen/shared.jsx for visual consistency.
 
+import { useEffect, useState } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { getProjectContent, imagenFileUrl } from "../../api/projects";
 
 export interface SectionCardProps {
   title?: ReactNode;
@@ -295,6 +297,104 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ── Project image picker — pulls images already generated in Paso 2 (Flow/
+// GenTube, saved under jobs/<project>/imagen) so they can be used as the
+// animation source without the user manually re-downloading and re-uploading
+// them. Fetched files are handed back as File objects so they flow through
+// the exact same multipart-upload path as a manual drag/drop. ──
+export interface ProjectImagePickerProps {
+  project: string;
+  selected: File[];
+  onAdd: (files: File[]) => void;
+}
+
+export function ProjectImagePicker({ project, selected, onAdd }: ProjectImagePickerProps) {
+  const { t } = useTranslation();
+  const [sceneImages, setSceneImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchingName, setFetchingName] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!project) {
+      setSceneImages([]);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    getProjectContent(project)
+      .then((data) => {
+        const names = (data.scenes || [])
+          .map((s) => s.image)
+          .filter((img): img is string => Boolean(img));
+        setSceneImages(names);
+      })
+      .catch(() => setSceneImages([]))
+      .finally(() => setLoading(false));
+  }, [project]);
+
+  const selectedNames = new Set(selected.map((f) => f.name));
+
+  async function addImage(name: string) {
+    if (selectedNames.has(name)) return;
+    setFetchingName(name);
+    setError("");
+    try {
+      const res = await fetch(imagenFileUrl(project, name));
+      if (!res.ok) throw new Error(t("videoShared.couldNotLoadImage") || "");
+      const blob = await res.blob();
+      const file = new File([blob], name, { type: blob.type || "image/png" });
+      onAdd([file]);
+    } catch {
+      setError(t("videoShared.couldNotLoadImage") || "");
+    } finally {
+      setFetchingName(null);
+    }
+  }
+
+  if (!project || (!loading && sceneImages.length === 0)) return null;
+
+  return (
+    <div className="mb-3 rounded-xl border border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.015)] p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
+          {t("videoShared.fromProjectImages")}
+        </span>
+        {loading && <span className="font-mono text-[9px] text-[var(--vf-m2)]">{t("videoShared.loadingAccounts")}</span>}
+      </div>
+      {sceneImages.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {sceneImages.map((name) => {
+            const isSelected = selectedNames.has(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                disabled={isSelected || fetchingName === name}
+                onClick={() => addImage(name)}
+                title={name}
+                className={
+                  "group relative h-[52px] w-[52px] flex-shrink-0 overflow-hidden rounded-[7px] border transition-opacity " +
+                  (isSelected ? "border-[var(--vf-c5)] opacity-50" : "border-[var(--vf-border)] hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)]")
+                }
+              >
+                <img src={imagenFileUrl(project, name)} alt="" className="h-full w-full object-cover" />
+                {isSelected && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[13px] text-white">✓</span>
+                )}
+                {fetchingName === name && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[9px] text-white">…</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <ErrorText message={error} />
     </div>
   );
 }

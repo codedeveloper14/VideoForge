@@ -11,6 +11,7 @@ import {
   GhostButton,
   ErrorText,
   ImageSlots,
+  ProjectImagePicker,
   AccountSessions,
   SlotPicker,
   VideoGallery,
@@ -375,6 +376,11 @@ export default function ProviderPanel({
               ) : undefined
             }
           >
+            <ProjectImagePicker
+              project={project}
+              selected={images}
+              onAdd={(files) => setImages((prev) => [...prev, ...files])}
+            />
             <ImageSlots files={images} onChange={setImages} />
           </SectionCard>
         )}

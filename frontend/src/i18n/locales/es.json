@@ -721,7 +721,9 @@
     "noVideosYetForProject": "Aún no hay videos generados para este proyecto.",
     "download": "⬇ Descargar",
     "regen": "↺ Regen",
-    "clearLower": "limpiar"
+    "clearLower": "limpiar",
+    "fromProjectImages": "Imágenes del proyecto (Paso 2)",
+    "couldNotLoadImage": "No se pudo cargar la imagen del proyecto."
   },
   "idea2video": {
     "stepIdea": "Tu Idea",
