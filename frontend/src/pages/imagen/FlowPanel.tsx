@@ -5,6 +5,7 @@ import { Select, SelectOption } from "../../components/Select";
 import {
   flowAbrirCarpeta,
   flowAccounts,
+  flowBridgeStatus,
   flowChromiumStatus,
   flowImages,
   flowImageUrl,
@@ -53,9 +54,16 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
 
   const [accounts, setAccounts] = useState<FlowAccount[]>([]);
   const [chromiumProfiles, setChromiumProfiles] = useState<FlowChromiumProfile[]>([]);
+  const [noBrowserConnected, setNoBrowserConnected] = useState(false);
 
   const sinceRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // El backend acepta el job y arranca el hilo de fondo al instante (siempre
+  // "responde bien"), pero _pick_account() se queda esperando en silencio si
+  // ningun navegador con la extension esta conectado al bridge -- sin este
+  // aviso, el usuario solo ve la barra de progreso quieta sin saber por que.
+  const disconnectedSinceRef = useRef<number | null>(null);
+  const NO_BROWSER_WARNING_MS = 15000;
   const dirRef = useRef(outputDir);
   const refInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -123,8 +131,24 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         if (!d.running && pollRef.current) {
           clearInterval(pollRef.current);
           pollRef.current = null;
+          disconnectedSinceRef.current = null;
+          setNoBrowserConnected(false);
         }
         refreshImages();
+      })
+      .catch(() => {});
+
+    if (!running) return;
+    flowBridgeStatus()
+      .then((d) => {
+        const connected = (d.ws_clients?.length ?? 0) > 0;
+        if (connected) {
+          disconnectedSinceRef.current = null;
+          setNoBrowserConnected(false);
+          return;
+        }
+        if (disconnectedSinceRef.current === null) disconnectedSinceRef.current = Date.now();
+        setNoBrowserConnected(Date.now() - disconnectedSinceRef.current > NO_BROWSER_WARNING_MS);
       })
       .catch(() => {});
   }
@@ -493,6 +517,18 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               </button>
             </div>
             <ErrorText message={error} />
+            {running && noBrowserConnected && (
+              <div
+                className="mt-2.5 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(245,158,11,.35)",
+                  background: "rgba(245,158,11,.1)",
+                  color: "#f5a623",
+                }}
+              >
+                {t("flowPanel.noBrowserConnected")}
+              </div>
+            )}
 
             <details className="mt-2.5 overflow-hidden rounded-[10px] border border-[var(--vf-border)] bg-[var(--vf-s)]">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">

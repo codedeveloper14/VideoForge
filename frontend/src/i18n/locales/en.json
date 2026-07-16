@@ -226,6 +226,7 @@
     "couldNotReadRefImage": "Couldn't read the reference image.",
     "generating": "Generating…",
     "completed": "Completed",
+    "noBrowserConnected": "No browser is connected to the Flow bridge — open the accounts (\"Open all\") and sign in before generating. The job is queued but won't progress until an account connects.",
     "writeAtLeastOnePrompt": "Write at least one prompt.",
     "selectActiveProject": "Select an active project. Images are saved to the project's images folder.",
     "confirmResetChromium": "Reset all Chromium profiles? This will close active sessions.",

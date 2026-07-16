@@ -133,6 +133,17 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
     health_url = f"http://127.0.0.1:{config.flask_port}/api/health"
     title = title or config.app_name
 
+    if sys.platform == "win32":
+        # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS es leida directamente por el runtime
+        # WebView2 (msedgewebview2.exe) al crear el entorno, no por pywebview -- hay
+        # que setearla antes de que se cree la ventana nativa. --disable-gpu fuerza
+        # renderizado por software: mitiga pantallas negras por crashes del proceso
+        # de GPU en ciertos drivers Intel/AMD integrados, un problema conocido de
+        # WebView2/Chromium. Esta app no tiene contenido grafico pesado (sin
+        # canvas/video en vivo), asi que perder aceleracion por hardware no afecta
+        # el uso real. No aplica en macOS (WKWebView, motor distinto).
+        os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--disable-gpu")
+
     backend_thread = threading.Thread(target=start_backend, daemon=True, name="VF-Backend")
     backend_thread.start()
 

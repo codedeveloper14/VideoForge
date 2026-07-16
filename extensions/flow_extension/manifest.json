@@ -23,6 +23,7 @@
     "https://*.dubvoice.ai/*",
     "https://*.supabase.co/*",
     "https://www.meta.ai/*",
+    "https://www.vibes.ai/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*",
@@ -130,6 +131,11 @@
     {
       "matches": ["https://www.meta.ai/*"],
       "js": ["meta_bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.vibes.ai/*"],
+      "js": ["vibes_content.js"],
       "run_at": "document_idle"
     }
   ],

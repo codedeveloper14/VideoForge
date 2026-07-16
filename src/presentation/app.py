@@ -1,3 +1,5 @@
+import threading
+
 from apiflask import APIFlask
 from flask import jsonify, request
 
@@ -48,13 +50,22 @@ def _register_docs_port_gate(app: APIFlask) -> None:
         return None
 
 
+def _ensure_db_schema() -> None:
+    """CREATE TABLE/ALTER TABLE contra el MySQL remoto (Contabo) -- idempotente,
+    solo hace falta una vez por cambio de schema, no en cada arranque de cada
+    usuario. Corre en un hilo de fondo para no bloquear app.run(): las tablas ya
+    existen en produccion, asi que ninguna ruta depende de que esto termine antes
+    de poder atender requests."""
+    ensure_tables()
+    ensure_stripe_table()
+    docs_repository.ensure_tables()
+
+
 def create_app() -> APIFlask:
     app = APIFlask(__name__, title=f"{config.app_name} API", version="0.1.0")
     app.config["DEBUG"] = config.debug
 
-    ensure_tables()
-    ensure_stripe_table()
-    docs_repository.ensure_tables()
+    threading.Thread(target=_ensure_db_schema, daemon=True, name="VF-DB-Schema").start()
 
     _register_docs_port_gate(app)
     register_auth_middleware(app)
@@ -87,4 +98,13 @@ def create_app() -> APIFlask:
 
     gentube_animation_service.sync_profiles_async()
     flow_bridge.start_ws_server(flow_animation_service.log)
+    # Antes solo se arrancaba el WS (5557) aqui -- el bridge HTTP (5556, el canal
+    # que background.js SIEMPRE usa para reportar resultados via sendResultHttp(),
+    # incluso cuando el WS esta activo) recien arrancaba de forma perezosa dentro
+    # de _run_batch/_bridge_generate, la primera vez que el usuario le daba a
+    # generar. En ese intervalo, pollBridge()/sendResultHttp() de la extension
+    # (activos desde que Chrome carga, no desde que se genera) pegaban contra un
+    # puerto cerrado. Arrancarlo aqui, simetrico al WS, lo deja listo desde el
+    # boot igual que 5557.
+    flow_bridge.start_bridge(flow_animation_service.log)
     return app

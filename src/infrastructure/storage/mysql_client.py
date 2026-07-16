@@ -23,7 +23,13 @@ def _build_pool(host: str):
         maxcached=5,
         maxconnections=10,
         blocking=True,
-        ping=1,  # revalida la conexion antes de entregarla; reconecta si se cayo
+        # ping=1 pingueaba el server remoto (Contabo) en cada get_connection(),
+        # duplicando el round-trip de TODA query de la app (ping + la query real).
+        # failures= (su default: OperationalError/InterfaceError/InternalError) ya
+        # hace que SteadyDB reconecte solo cuando una conexion realmente esta muerta
+        # -- ping=0 deja de pagar el chequeo proactivo en el camino feliz y solo paga
+        # el costo de reconectar en el caso raro (conexion cortada por wait_timeout).
+        ping=0,
         host=host,
         user=config.db_user,
         password=config.db_password,

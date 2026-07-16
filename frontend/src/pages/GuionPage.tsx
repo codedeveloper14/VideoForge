@@ -105,12 +105,26 @@ export default function GuionPage() {
     return JSON.stringify(res, null, 2);
   }
 
-  const promptsText = result
-    ? extractText(result, ["prompts", "prompts_texto", "output", "resultado", "texto_prompts"])
-    : "";
-  const guionOutText = result
-    ? extractText(result, ["guion", "guion_con_saltos", "guion_texto", "texto"])
-    : "";
+  // El backend real (scene_prompt_service.generate_prompts) devuelve
+  // { metadata: {...}, escenas: [{bloque_global_id, texto_original, prompt_imagen, ...}] },
+  // no los campos de texto plano del viejo flujo n8n -- armamos los paneles y los
+  // totales a partir de `escenas`, que es la forma que de verdad llega.
+  const scenes = Array.isArray(result?.escenas) ? (result!.escenas as Record<string, unknown>[]) : [];
+  const totalEscenas = result?.metadata?.total_escenas ?? scenes.length;
+  const totalPrompts =
+    result?.metadata?.total_prompts ?? scenes.filter((s) => (s.prompt_imagen as string | undefined)?.trim()).length;
+  const totalFragmentos = result?.metadata?.total_fragmentos ?? "—";
+
+  const promptsText = scenes.length
+    ? scenes.map((s) => `${s.bloque_global_id}. ${(s.prompt_imagen as string) || ""}`).join("\n\n")
+    : result
+      ? extractText(result, ["prompts", "prompts_texto", "output", "resultado", "texto_prompts"])
+      : "";
+  const guionOutText = scenes.length
+    ? scenes.map((s) => `${s.bloque_global_id}. ${(s.texto_original as string) || ""}`).join("\n")
+    : result
+      ? extractText(result, ["guion", "guion_con_saltos", "guion_texto", "texto"])
+      : "";
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -449,23 +463,19 @@ export default function GuionPage() {
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
                     {t("guionTool.promptsGenerated")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c1)]">
-                    {Array.isArray(result.prompts) ? result.prompts.length : "—"}
-                  </div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c1)]">{totalPrompts}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
                     {t("guionTool.totalScenes")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c2)]">
-                    {result.escenas ?? result.total_escenas ?? "—"}
-                  </div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c2)]">{totalEscenas}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
                     {t("guionTool.fragments")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c3)]">{result.fragmentos ?? "—"}</div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c3)]">{totalFragmentos}</div>
                 </div>
               </div>
 

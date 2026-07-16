@@ -63,8 +63,15 @@ export function flowSaveCookie(account: number, cookie: string) {
     .then((r) => r.data);
 }
 
+export interface FlowBridgeStatus {
+  pending?: number;
+  ws_clients?: string[];
+  bridge_ok?: boolean;
+  ws_ok?: boolean;
+}
+
 export function flowBridgeStatus() {
-  return api.get<{ ok: boolean }>("/flow/bridge-status").then((r) => r.data);
+  return api.get<FlowBridgeStatus>("/flow/bridge-status").then((r) => r.data);
 }
 
 export function flowChromiumStatus() {

@@ -119,8 +119,20 @@ def get_ws_clients() -> dict:
 
 
 def remove_ws_client(account_hash: str) -> None:
+    """Saca la cuenta del registro server-side. Ademas de popear el dict, cierra el
+    socket real -- si solo se borra la entrada, background.js sigue viendo
+    _ws.readyState===1 (conectado) y wsConnect() nunca reintenta registrar (arranca
+    con "if ya conectado, return"). Sin este close(), server y cliente quedan
+    desincronizados para siempre tras el primer timeout: funciona la primera
+    generacion, la segunda encuentra get_connected_accounts() vacio. close() dispara
+    el onclose real del lado extension, que si reconecta y re-registra solo."""
     with _ws_clients_lock:
-        _ws_clients.pop(account_hash, None)
+        ws = _ws_clients.pop(account_hash, None)
+    if ws is not None:
+        try:
+            ws.close()
+        except Exception:
+            pass
 
 
 def get_http_seen_accounts() -> set[str]:

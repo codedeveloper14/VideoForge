@@ -330,6 +330,7 @@
     "couldNotReadRefImage": "No se pudo leer la imagen de referencia.",
     "generating": "Generando…",
     "completed": "Completado",
+    "noBrowserConnected": "No hay ningún navegador conectado al bridge de Flow — abre las cuentas (\"Abrir todas\") e inicia sesión antes de generar. El trabajo está en cola pero no avanzará hasta que se conecte una cuenta.",
     "writeAtLeastOnePrompt": "Escribe al menos un prompt.",
     "selectActiveProject": "Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.",
     "confirmResetChromium": "¿Reiniciar todos los perfiles de Chromium? Esto cerrará sesiones activas.",

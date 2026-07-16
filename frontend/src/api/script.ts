@@ -35,8 +35,15 @@ export interface N8nProxyResult {
   guion_con_saltos?: string;
   guion_texto?: string;
   texto?: string;
-  escenas?: number;
-  total_escenas?: number;
+  // Forma real de la respuesta del backend (scene_prompt_service.generate_prompts):
+  // una lista de escenas, no un conteo -- ver GuionPage.tsx.
+  escenas?: Record<string, unknown>[];
+  metadata?: {
+    total_escenas?: number;
+    total_prompts?: number;
+    total_fragmentos?: number;
+    [key: string]: unknown;
+  };
   fragmentos?: number;
   [key: string]: unknown;
 }
