@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import WaveSurfer from "wavesurfer.js";
-import { audioFileUrl, loadAudio, loadScript } from "../api/script";
+import { audioFileUrl, deleteAudio, loadAudio, loadScript } from "../api/script";
 import type { LoadAudioResult } from "../api/script";
 import { cloneVoice, generateVoice, listVoices, mergeAudio } from "../api/voice";
 import { Select, SelectOption } from "../components/Select";
@@ -11,6 +11,7 @@ import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
 import ComingSoonToast from "../components/ComingSoonToast";
+import ConfirmModal from "../components/ConfirmModal";
 
 function WaveformPlayer({ src }: { src?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -95,6 +96,8 @@ export default function VozPage() {
   const [soonToast, setSoonToast] = useState(false);
 
   const [existingAudio, setExistingAudio] = useState<LoadAudioResult | null>(null);
+  const [audioToDelete, setAudioToDelete] = useState<string | null>(null);
+  const [deletingAudio, setDeletingAudio] = useState(false);
 
   const [quickLang, setQuickLang] = useState("es");
   const [quickSpeed, setQuickSpeed] = useState("normal");
@@ -206,6 +209,25 @@ export default function VozPage() {
     setMaster(null);
     setText("");
     setUseProjectScript(false);
+  }
+
+  async function handleDeleteAudio() {
+    if (!audioToDelete || !project) return;
+    setDeletingAudio(true);
+    setError("");
+    try {
+      await deleteAudio(project, audioToDelete);
+      setExistingAudio((prev) => {
+        if (!prev) return prev;
+        const archivos = (prev.archivos || []).filter((f) => f !== audioToDelete);
+        return { ...prev, archivos, existe: archivos.length > 0, principal: archivos[0] };
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeletingAudio(false);
+      setAudioToDelete(null);
+    }
   }
 
   function fileToBase64(file: File): Promise<string> {
@@ -329,9 +351,19 @@ export default function VozPage() {
               <ul className="space-y-2">
                 {(existingAudio.archivos || []).map((f) => (
                   <li key={f}>
-                    <div className="mb-1 truncate font-mono text-[11px] text-[var(--vf-muted)]">
-                      {f}
-                      {existingAudio.principal === f && <span className="ml-2 text-[var(--vf-success)]">{t("vozTool.principal")}</span>}
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <div className="min-w-0 truncate font-mono text-[11px] text-[var(--vf-muted)]">
+                        {f}
+                        {existingAudio.principal === f && <span className="ml-2 text-[var(--vf-success)]">{t("vozTool.principal")}</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAudioToDelete(f)}
+                        title={t("vozTool.deleteAudio") || ""}
+                        className="flex-shrink-0 rounded-md border border-[rgba(var(--vf-fg-rgb),.1)] px-2 py-0.5 font-mono text-[10px] text-[var(--vf-danger)] hover:bg-[rgba(var(--vf-fg-rgb),.06)]"
+                      >
+                        🗑
+                      </button>
                     </div>
                     <WaveformPlayer src={audioFileUrl(project, f)} />
                   </li>
@@ -717,6 +749,15 @@ export default function VozPage() {
         </div>
       )}
       <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
+      <ConfirmModal
+        visible={audioToDelete !== null}
+        title={t("vozTool.confirmDeleteTitle")}
+        message={t("vozTool.confirmDeleteMessage", { file: audioToDelete || "" })}
+        confirmLabel={deletingAudio ? t("vozTool.deleting") : t("vozTool.deleteAudio")}
+        cancelLabel={t("vozTool.cancel")}
+        onConfirm={handleDeleteAudio}
+        onCancel={() => setAudioToDelete(null)}
+      />
     </div>
   );
 }

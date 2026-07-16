@@ -107,3 +107,7 @@ export function loadAudio(project: string) {
 export function audioFileUrl(project: string, file: string) {
   return `/api/audio/archivo?project=${encodeURIComponent(project)}&file=${encodeURIComponent(file)}`;
 }
+
+export function deleteAudio(project: string, file: string) {
+  return api.post<{ ok: boolean }>("/audio/eliminar", { project, file }).then((r) => r.data);
+}

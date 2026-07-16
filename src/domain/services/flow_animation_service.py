@@ -771,7 +771,10 @@ def start_run(
     )
 
     threading.Thread(
-        target=_run_batch, args=(prompts, out_dir, slots, aspect, model, max_retries, ref_image), daemon=True
+        target=_run_batch,
+        args=(prompts, out_dir, slots, aspect, model, max_retries, ref_image),
+        kwargs={"auto_open": auto_open},
+        daemon=True,
     ).start()
     return {"ok": True, "total": len(prompts)}
 

@@ -9,6 +9,7 @@ from src.presentation.schemas.script import (
     AudioArchivoQuerySchema,
     AudioCargarOutSchema,
     AudioCargarQuerySchema,
+    AudioEliminarInSchema,
     GuionCargarOutSchema,
     GuionCargarQuerySchema,
     GuionGuardarInSchema,
@@ -94,3 +95,12 @@ def audio_archivo(query_data):
         download_name=query_data["file"],
         as_attachment=False,
     )
+
+
+@audio_bp.post("/eliminar")
+@audio_bp.input(AudioEliminarInSchema)
+def audio_eliminar(json_data):
+    try:
+        return jsonify(script_service.delete_audio(json_data["project"], json_data["file"]))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400

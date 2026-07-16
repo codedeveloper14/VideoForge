@@ -208,6 +208,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
         model,
         max_retries: maxRetries,
         reference_image: referenceImage || undefined,
+        auto_open: true,
       });
       setRunning(true);
       pollOnce();
