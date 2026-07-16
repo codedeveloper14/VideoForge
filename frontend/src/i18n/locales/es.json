@@ -135,7 +135,8 @@
     "delete": "Borrar",
     "createdOn": "Creado {{date}}",
     "openProject": "Abrir proyecto →",
-    "confirmDelete": "¿Borrar el proyecto \"{{name}}\"? Esta acción no se puede deshacer."
+    "confirmDelete": "¿Borrar el proyecto \"{{name}}\"? Esta acción no se puede deshacer.",
+    "confirmDeleteTitle": "Borrar proyecto"
   },
   "settings": {
     "language": "Idioma",
@@ -261,6 +262,9 @@
   "providerPanel": {
     "chromeOpenedFor": "Chrome abierto para {{account}} — inicia sesión y cierra la ventana.",
     "confirmDeleteSession": "¿Borrar sesión de {{account}}?",
+    "confirmDeleteSessionTitle": "Borrar sesión",
+    "deleteSessionButton": "Borrar",
+    "cancel": "Cancelar",
     "sessionDeleted": "Sesión de {{account}} eliminada.",
     "errorPrefix": "Error: {{message}}",
     "processCompleted": "Proceso completado.",
@@ -353,6 +357,8 @@
     "writeAtLeastOnePrompt": "Escribe al menos un prompt.",
     "selectActiveProject": "Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.",
     "confirmResetChromium": "¿Reiniciar todos los perfiles de Chromium? Esto cerrará sesiones activas.",
+    "confirmResetTitle": "Reiniciar Chromium",
+    "cancel": "Cancelar",
     "subtitle": "Generación por lotes con Google Labs. Las imágenes se guardan en la carpeta de imágenes del proyecto activo. Ajusta slots, ratio y modelo a la derecha.",
     "destination": "Destino:",
     "resolvingProjectFolder": "Resolviendo carpeta del proyecto…",
@@ -542,7 +548,9 @@
     "videosAndAudios": "{{videos}} videos · {{audios}} audios",
     "view": "Ver",
     "delete": "Borrar",
-    "confirmDelete": "¿Borrar el proyecto \"{{name}}\"? Esta acción no se puede deshacer."
+    "confirmDelete": "¿Borrar el proyecto \"{{name}}\"? Esta acción no se puede deshacer.",
+    "confirmDeleteTitle": "Borrar proyecto",
+    "cancel": "Cancelar"
   },
   "adminDocs": {
     "editDocument": "Editar documento",
@@ -567,6 +575,7 @@
     "cancel": "Cancelar",
     "noPermission": "No tienes permiso para ver esta página.",
     "confirmDelete": "¿Borrar \"{{title}}\"? Esta acción no se puede deshacer.",
+    "confirmDeleteTitle": "Borrar documento",
     "title": "Administrar Documentación",
     "subtitle": "Ruta interna, sin enlace en el menú — solo cuentas con rol admin.",
     "newDoc": "+ Nuevo doc",
@@ -678,6 +687,8 @@
     "estimatedTotal": "Total estimado",
     "resetButton": "↺ Reset",
     "confirmReset": "¿Reiniciar el estado de Gentube?",
+    "confirmResetTitle": "Reiniciar Gentube",
+    "cancel": "Cancelar",
     "processed": "Procesados",
     "images": "Imágenes",
     "total": "Total",
@@ -1085,6 +1096,7 @@
     "inProgress": "En progreso",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar esta tarea?",
+    "confirmDeleteTitle": "Eliminar tarea",
     "modalTitle": "Nueva tarea",
     "modalFieldTitle": "Título",
     "modalTitlePlaceholder": "Título de la tarea...",

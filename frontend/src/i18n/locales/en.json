@@ -135,7 +135,8 @@
     "delete": "Delete",
     "createdOn": "Created {{date}}",
     "openProject": "Open project →",
-    "confirmDelete": "Delete project \"{{name}}\"? This action cannot be undone."
+    "confirmDelete": "Delete project \"{{name}}\"? This action cannot be undone.",
+    "confirmDeleteTitle": "Delete project"
   },
   "settings": {
     "language": "Language",
@@ -157,6 +158,9 @@
   "providerPanel": {
     "chromeOpenedFor": "Chrome opened for {{account}} — sign in and close the window.",
     "confirmDeleteSession": "Delete session for {{account}}?",
+    "confirmDeleteSessionTitle": "Delete session",
+    "deleteSessionButton": "Delete",
+    "cancel": "Cancel",
     "sessionDeleted": "Session for {{account}} deleted.",
     "errorPrefix": "Error: {{message}}",
     "processCompleted": "Process complete.",
@@ -249,6 +253,8 @@
     "writeAtLeastOnePrompt": "Write at least one prompt.",
     "selectActiveProject": "Select an active project. Images are saved to the project's images folder.",
     "confirmResetChromium": "Reset all Chromium profiles? This will close active sessions.",
+    "confirmResetTitle": "Reset Chromium",
+    "cancel": "Cancel",
     "subtitle": "Batch generation with Google Labs. Images are saved to the active project's images folder. Adjust slots, ratio, and model on the right.",
     "destination": "Destination:",
     "resolvingProjectFolder": "Resolving project folder…",
@@ -438,7 +444,9 @@
     "videosAndAudios": "{{videos}} videos · {{audios}} audios",
     "view": "View",
     "delete": "Delete",
-    "confirmDelete": "Delete project \"{{name}}\"? This action cannot be undone."
+    "confirmDelete": "Delete project \"{{name}}\"? This action cannot be undone.",
+    "confirmDeleteTitle": "Delete project",
+    "cancel": "Cancel"
   },
   "adminDocs": {
     "editDocument": "Edit document",
@@ -463,6 +471,7 @@
     "cancel": "Cancel",
     "noPermission": "You don't have permission to view this page.",
     "confirmDelete": "Delete \"{{title}}\"? This action cannot be undone.",
+    "confirmDeleteTitle": "Delete document",
     "title": "Manage Documentation",
     "subtitle": "Internal route, no menu link — admin accounts only.",
     "newDoc": "+ New doc",
@@ -574,6 +583,8 @@
     "estimatedTotal": "Estimated total",
     "resetButton": "↺ Reset",
     "confirmReset": "Reset Gentube's state?",
+    "confirmResetTitle": "Reset Gentube",
+    "cancel": "Cancel",
     "processed": "Processed",
     "images": "Images",
     "total": "Total",
@@ -1085,6 +1096,7 @@
     "inProgress": "In progress",
     "delete": "Delete",
     "confirmDelete": "Delete this task?",
+    "confirmDeleteTitle": "Delete task",
     "modalTitle": "New task",
     "modalFieldTitle": "Title",
     "modalTitlePlaceholder": "Task title...",

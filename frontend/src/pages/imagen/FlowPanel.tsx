@@ -21,6 +21,7 @@ import type { FlowAccount, FlowChromiumProfile } from "../../api/flow";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const POLL_MS = 2000;
 
@@ -55,6 +56,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const [accounts, setAccounts] = useState<FlowAccount[]>([]);
   const [chromiumProfiles, setChromiumProfiles] = useState<FlowChromiumProfile[]>([]);
   const [noBrowserConnected, setNoBrowserConnected] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const sinceRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -250,7 +252,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   }
 
   async function handleResetChromium() {
-    if (!confirm(t("flowPanel.confirmResetChromium"))) return;
+    setConfirmResetOpen(false);
     try {
       await flowResetChromium();
       loadChromium();
@@ -584,7 +586,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={handleResetChromium}
+                    onClick={() => setConfirmResetOpen(true)}
                     className="flow-btn flow-btn--ghost flow-btn--xs flex-1"
                   >
                     {t("flowPanel.reset")}
@@ -651,6 +653,16 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           <LogConsole lines={logLines} />
         </div>
       </details>
+
+      <ConfirmModal
+        visible={confirmResetOpen}
+        title={t("flowPanel.confirmResetTitle")}
+        message={t("flowPanel.confirmResetChromium")}
+        confirmLabel={t("flowPanel.reset")}
+        cancelLabel={t("flowPanel.cancel")}
+        onConfirm={handleResetChromium}
+        onCancel={() => setConfirmResetOpen(false)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { createProject, deleteProject, listProjects } from "../api/projects";
 import { useWorkspace } from "../context/WorkspaceContext";
+import ConfirmModal from "../components/ConfirmModal";
 import type { Project } from "../types";
 
 function IconClapper() {
@@ -99,6 +100,7 @@ export default function HomePage() {
   const [nombre, setNombre] = useState("");
   const [creating, setCreating] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -127,9 +129,10 @@ export default function HomePage() {
     }
   }
 
-  async function handleDelete(name: string) {
-    setOpenMenu(null);
-    if (!confirm(t("home.confirmDelete", { name }))) return;
+  async function performDelete() {
+    const name = deleteTarget;
+    if (!name) return;
+    setDeleteTarget(null);
     setError("");
     try {
       await deleteProject(name);
@@ -260,7 +263,10 @@ export default function HomePage() {
                       className="absolute right-4 top-14 z-10 min-w-[150px] rounded-[10px] border border-[var(--vf-b2)] bg-[var(--vf-p)] p-1.5 shadow-[0_12px_36px_rgba(0,0,0,.5)]"
                     >
                       <button
-                        onClick={() => handleDelete(p.nombre)}
+                        onClick={() => {
+                          setOpenMenu(null);
+                          setDeleteTarget(p.nombre);
+                        }}
                         className="flex w-full items-center gap-2 rounded-[7px] border-none bg-transparent px-3 py-2 text-left text-[11px] text-[var(--vf-danger)] transition-colors hover:bg-[rgba(255,85,102,0.1)]"
                         style={{ fontFamily: "var(--vf-mono)" }}
                       >
@@ -288,6 +294,16 @@ export default function HomePage() {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title={t("home.confirmDeleteTitle")}
+        message={deleteTarget ? t("home.confirmDelete", { name: deleteTarget }) : ""}
+        confirmLabel={t("home.delete")}
+        cancelLabel={t("home.cancel")}
+        onConfirm={performDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

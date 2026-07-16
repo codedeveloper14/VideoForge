@@ -9,6 +9,7 @@ import {
   type AdminDocInput,
 } from "../api/adminDocs";
 import { Select, SelectOption } from "../components/Select";
+import ConfirmModal from "../components/ConfirmModal";
 
 const EMPTY_FORM: AdminDocInput = {
   type: "video",
@@ -223,6 +224,7 @@ export default function AdminDocsPage() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<AdminDoc | null>(null);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AdminDoc | null>(null);
 
   function load() {
     setLoading(true);
@@ -253,8 +255,10 @@ export default function AdminDocsPage() {
     }
   }
 
-  async function handleDelete(doc: AdminDoc) {
-    if (!confirm(t("adminDocs.confirmDelete", { title: doc.title }))) return;
+  async function performDelete() {
+    const doc = deleteTarget;
+    if (!doc) return;
+    setDeleteTarget(null);
     try {
       await deleteAdminDoc(doc.id);
       load();
@@ -325,7 +329,7 @@ export default function AdminDocsPage() {
                       {t("adminDocs.edit")}
                     </button>
                     <button
-                      onClick={() => handleDelete(doc)}
+                      onClick={() => setDeleteTarget(doc)}
                       className="text-[var(--vf-danger)] hover:underline"
                     >
                       {t("adminDocs.delete")}
@@ -366,6 +370,16 @@ export default function AdminDocsPage() {
           onSave={handleSave}
         />
       )}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title={t("adminDocs.confirmDeleteTitle")}
+        message={deleteTarget ? t("adminDocs.confirmDelete", { title: deleteTarget.title }) : ""}
+        confirmLabel={t("adminDocs.delete")}
+        cancelLabel={t("adminDocs.cancel")}
+        onConfirm={performDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { createProject, deleteProject, listProjects } from "../api/projects";
+import ConfirmModal from "../components/ConfirmModal";
 import type { Project } from "../types";
 
 export default function ProjectsPage() {
@@ -11,6 +12,7 @@ export default function ProjectsPage() {
   const [error, setError] = useState("");
   const [nombre, setNombre] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
@@ -38,8 +40,10 @@ export default function ProjectsPage() {
     }
   }
 
-  async function handleDelete(name: string) {
-    if (!confirm(t("projects.confirmDelete", { name }))) return;
+  async function performDelete() {
+    const name = deleteTarget;
+    if (!name) return;
+    setDeleteTarget(null);
     setError("");
     try {
       await deleteProject(name);
@@ -94,7 +98,7 @@ export default function ProjectsPage() {
                   {t("projects.view")}
                 </Link>
                 <button
-                  onClick={() => handleDelete(p.nombre)}
+                  onClick={() => setDeleteTarget(p.nombre)}
                   className="rounded-lg border border-[var(--vf-border)] px-3 py-1.5 text-sm text-[var(--vf-danger)] hover:bg-[var(--vf-surface-2)]"
                 >
                   {t("projects.delete")}
@@ -104,6 +108,16 @@ export default function ProjectsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title={t("projects.confirmDeleteTitle")}
+        message={deleteTarget ? t("projects.confirmDelete", { name: deleteTarget }) : ""}
+        confirmLabel={t("projects.delete")}
+        cancelLabel={t("projects.cancel")}
+        onConfirm={performDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

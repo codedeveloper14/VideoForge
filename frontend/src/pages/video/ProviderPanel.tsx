@@ -16,6 +16,7 @@ import {
   VideoGallery,
 } from "./shared";
 import type { AccountSessionInfo } from "./shared";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const LOG_POLL_MS = 1200;
 const GALLERY_POLL_MS = 4000;
@@ -134,6 +135,7 @@ export default function ProviderPanel({
   const [videos, setVideos] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [projectDir, setProjectDir] = useState("");
+  const [deleteSessionTarget, setDeleteSessionTarget] = useState<string | null>(null);
 
   const logOffsetRef = useRef<number>(0);
   const logTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -173,7 +175,13 @@ export default function ProviderPanel({
   }
 
   function handleDeleteSession(account: string) {
-    if (!window.confirm(t("providerPanel.confirmDeleteSession", { account }))) return;
+    setDeleteSessionTarget(account);
+  }
+
+  function performDeleteSession() {
+    const account = deleteSessionTarget;
+    if (!account) return;
+    setDeleteSessionTarget(null);
     api
       .borrarSesion(account)
       .then(() => {
@@ -499,6 +507,16 @@ export default function ProviderPanel({
           onRegenerate={supportsRegenerate ? handleRegenerate : undefined}
         />
       </div>
+
+      <ConfirmModal
+        visible={!!deleteSessionTarget}
+        title={t("providerPanel.confirmDeleteSessionTitle")}
+        message={deleteSessionTarget ? t("providerPanel.confirmDeleteSession", { account: deleteSessionTarget }) : ""}
+        confirmLabel={t("providerPanel.deleteSessionButton")}
+        cancelLabel={t("providerPanel.cancel")}
+        onConfirm={performDeleteSession}
+        onCancel={() => setDeleteSessionTarget(null)}
+      />
     </div>
   );
 }

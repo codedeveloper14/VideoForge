@@ -26,6 +26,7 @@ import {
   countPrompts,
 } from "./shared";
 import type { GalleryImage } from "./shared";
+import ConfirmModal from "../../components/ConfirmModal";
 
 const POLL_MS = 2000;
 
@@ -51,6 +52,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   const [logLines, setLogLines] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loggingIn, setLoggingIn] = useState<number | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -170,7 +172,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   }
 
   async function handleReset() {
-    if (!confirm(t("gentubePanel.confirmReset"))) return;
+    setConfirmResetOpen(false);
     try {
       await gentubeReset();
       pollStatus();
@@ -385,7 +387,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
               {t("flowPanel.stop")}
             </StopButton>
             <GhostButton onClick={handleClearImages}>🗑</GhostButton>
-            <GhostButton onClick={handleReset}>{t("gentubePanel.resetButton")}</GhostButton>
+            <GhostButton onClick={() => setConfirmResetOpen(true)}>{t("gentubePanel.resetButton")}</GhostButton>
           </div>
           <ErrorText message={error} />
         </div>
@@ -438,6 +440,16 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        visible={confirmResetOpen}
+        title={t("gentubePanel.confirmResetTitle")}
+        message={t("gentubePanel.confirmReset")}
+        confirmLabel={t("gentubePanel.resetButton")}
+        cancelLabel={t("gentubePanel.cancel")}
+        onConfirm={handleReset}
+        onCancel={() => setConfirmResetOpen(false)}
+      />
     </div>
   );
 }

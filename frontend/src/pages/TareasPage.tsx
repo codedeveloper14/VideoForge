@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../components/Select";
+import ConfirmModal from "../components/ConfirmModal";
 
 type TaskStatus = "todo" | "progress" | "done";
 type TaskPriority = "low" | "normal" | "high";
@@ -171,6 +172,7 @@ export default function TareasPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<FilterId>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     setTasks(loadTasks());
@@ -200,8 +202,10 @@ export default function TareasPage() {
     );
   }
 
-  function handleDelete(id: string) {
-    if (!confirm(tr("tasks.confirmDelete"))) return;
+  function performDelete() {
+    const id = deleteTarget;
+    if (!id) return;
+    setDeleteTarget(null);
     persist(tasks.filter((t) => t.id !== id));
   }
 
@@ -322,7 +326,7 @@ export default function TareasPage() {
                 <button
                   type="button"
                   title={tr("tasks.delete")}
-                  onClick={() => handleDelete(t.id)}
+                  onClick={() => setDeleteTarget(t.id)}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[rgba(var(--vf-fg-rgb),0.2)] transition-colors hover:bg-[var(--vf-danger)]/[0.08] hover:text-[var(--vf-danger)]/70"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -339,6 +343,16 @@ export default function TareasPage() {
       </div>
 
       {modalOpen && <NewTaskModal onClose={() => setModalOpen(false)} onSave={handleCreate} />}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title={tr("tasks.confirmDeleteTitle")}
+        message={tr("tasks.confirmDelete")}
+        confirmLabel={tr("tasks.delete")}
+        cancelLabel={tr("tasks.cancel")}
+        onConfirm={performDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
