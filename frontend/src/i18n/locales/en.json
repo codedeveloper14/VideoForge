@@ -35,7 +35,13 @@
     "reqUpper": "At least one uppercase letter",
     "newPassword": "New password",
     "saving": "Saving…",
-    "savePassword": "Save password →"
+    "savePassword": "Save password →",
+    "sessionExpiredNotice": "Your session expired due to inactivity. Please sign in again."
+  },
+  "sessionWarning": {
+    "title": "Your session is about to expire",
+    "message": "Due to inactivity, we'll sign you out in a few minutes.",
+    "stayButton": "Stay signed in"
   },
   "register": {
     "tagline": "AI Pipeline",

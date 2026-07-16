@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -57,6 +57,8 @@ export default function LoginPage() {
   const { login, changePassword } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get("expired") === "1";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -217,6 +219,15 @@ export default function LoginPage() {
                 <div className="mb-6 text-[12.5px] leading-[1.55] text-[rgba(var(--vf-fg-rgb),0.38)]">
                   {t("login.welcomeBackSubtitle")}
                 </div>
+
+                {sessionExpired && !error && (
+                  <div
+                    className="mb-3 rounded-[9px] px-3 py-2.5 text-[10.5px] leading-[1.5]"
+                    style={{ fontFamily: "var(--vf-mono)", background: "rgba(251,191,36,.07)", border: "1px solid rgba(251,191,36,.16)", color: "#fbbf24" }}
+                  >
+                    {t("login.sessionExpiredNotice")}
+                  </div>
+                )}
 
                 {error && (
                   <div

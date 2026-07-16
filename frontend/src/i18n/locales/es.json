@@ -35,7 +35,13 @@
     "reqUpper": "Al menos una mayúscula",
     "newPassword": "Nueva contraseña",
     "saving": "Guardando…",
-    "savePassword": "Guardar contraseña →"
+    "savePassword": "Guardar contraseña →",
+    "sessionExpiredNotice": "Tu sesión expiró por inactividad. Inicia sesión de nuevo."
+  },
+  "sessionWarning": {
+    "title": "Tu sesión está por expirar",
+    "message": "Por inactividad, cerraremos tu sesión en unos minutos.",
+    "stayButton": "Seguir conectado"
   },
   "register": {
     "tagline": "AI Pipeline",
