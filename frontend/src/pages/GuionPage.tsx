@@ -7,6 +7,7 @@ import type { N8nProxyResult } from "../api/script";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { GuionHeaderArt } from "../components/GuionHeaderArt";
 import { Select, SelectOption } from "../components/Select";
+import ComingSoonToast from "../components/ComingSoonToast";
 
 type ActivePanel = "prompts" | "guion";
 type PromptMode = "general" | "stick" | "ultrarealismo";
@@ -28,6 +29,7 @@ export default function GuionPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [soonToast, setSoonToast] = useState(false);
 
   const [result, setResult] = useState<N8nProxyResult | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("prompts");
@@ -203,7 +205,7 @@ export default function GuionPage() {
   }
 
   function notImplemented() {
-    alert(t("tools.comingSoon"));
+    setSoonToast(true);
   }
 
   function syncLineScroll() {
@@ -681,6 +683,7 @@ export default function GuionPage() {
           </div>
         </div>
       </div>
+      <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
     </div>
   );
 }

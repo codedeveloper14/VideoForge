@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import ComingSoonToast from "../components/ComingSoonToast";
 
 function EyeToggle({ shown, onClick }: { shown: boolean; onClick: () => void }) {
   return (
@@ -65,6 +66,7 @@ export default function LoginPage() {
   const [mustChange, setMustChange] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [soonToast, setSoonToast] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -323,7 +325,7 @@ export default function LoginPage() {
                 <div className="mb-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => alert(t("login.comingSoon"))}
+                    onClick={() => setSoonToast(true)}
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
                     style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
@@ -337,7 +339,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => alert(t("login.comingSoon"))}
+                    onClick={() => setSoonToast(true)}
                     className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] py-2.5 text-xs font-semibold text-[rgba(var(--vf-fg-rgb),0.65)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.055)] hover:text-white"
                     style={{ border: "1px solid rgba(var(--vf-fg-rgb),.09)", background: "rgba(var(--vf-fg-rgb),.03)" }}
                   >
@@ -430,6 +432,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+      <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
     </div>
   );
 }

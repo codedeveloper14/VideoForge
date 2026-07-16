@@ -10,6 +10,7 @@ import { Select, SelectOption } from "../components/Select";
 import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
+import ComingSoonToast from "../components/ComingSoonToast";
 
 function WaveformPlayer({ src }: { src?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +92,7 @@ export default function VozPage() {
   const [generating, setGenerating] = useState(false);
   const [merging, setMerging] = useState(false);
   const [error, setError] = useState("");
+  const [soonToast, setSoonToast] = useState(false);
 
   const [existingAudio, setExistingAudio] = useState<LoadAudioResult | null>(null);
 
@@ -161,7 +163,7 @@ export default function VozPage() {
 
   async function handleGenerate() {
     if (provider === "xtts") {
-      alert(t("tools.comingSoon"));
+      setSoonToast(true);
       return;
     }
     if (!text.trim()) {
@@ -714,6 +716,7 @@ export default function VozPage() {
           </form>
         </div>
       )}
+      <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
     </div>
   );
 }
