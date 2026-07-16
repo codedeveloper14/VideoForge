@@ -5,12 +5,12 @@ import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
 import GrokPanel from "./video/GrokPanel";
 import QwenPanel from "./video/QwenPanel";
-import MetaPanel from "./video/MetaPanel";
+import VibesPanel from "./video/VibesPanel";
 
 const TABS = [
   { id: "grok", label: "Grok" },
   { id: "qwen", label: "Qwen" },
-  { id: "meta", label: "Meta" },
+  { id: "vibes", label: "Vibes" },
 ];
 
 export default function VideoPage() {
@@ -95,7 +95,7 @@ export default function VideoPage() {
       <div className="mt-4">
         {tab === "grok" && <GrokPanel project={project} />}
         {tab === "qwen" && <QwenPanel project={project} />}
-        {tab === "meta" && <MetaPanel project={project} />}
+        {tab === "vibes" && <VibesPanel project={project} />}
       </div>
     </div>
   );

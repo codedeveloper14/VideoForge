@@ -157,6 +157,7 @@
     "stoppedByUser": "Stopped by user.",
     "selectProjectFirst": "Select a project in the top bar before animating.",
     "uploadAtLeastOneImage": "Upload at least one image.",
+    "writePromptFirst": "Write a prompt before generating.",
     "uploadingImagesToProject": "Uploading {{count}} images to project: {{project}}",
     "startedProjectPid": "Started — project: {{project}} · pid: {{pid}}",
     "regenerating": "Regenerating: {{name}}",
@@ -175,6 +176,8 @@
     "uploadImagesToStart": "Upload images to start",
     "imagesReadyCount_one": "{{count}} image ready",
     "imagesReadyCount_other": "{{count}} images ready",
+    "batchesReadyCount_one": "{{count}} video to generate",
+    "batchesReadyCount_other": "{{count}} videos to generate",
     "progress": "Progress",
     "liveOutputTitle": "// {{label}}_multi — live output",
     "clearLog": "clear",
@@ -216,6 +219,16 @@
     "noAccounts": "No accounts",
     "launchChrome": "🌐 Launch Chrome",
     "openDevmode": "🧩 Open dev-mode"
+  },
+  "vibesPanel": {
+    "aspectRatio": "Aspect Ratio",
+    "aspectVertical": "9:16 — Vertical",
+    "aspectHorizontal": "16:9 — Horizontal",
+    "aspectSquare": "1:1 — Square",
+    "resolution": "Resolution",
+    "batchVariation": "4 variations per batch",
+    "bridgeSetup": "Vibes connection",
+    "bridgeSetupHint": "Vibes only generates from a real Chrome tab signed in to vibes.ai. Sign in above, then open Chrome with the button below — leave it open while generating."
   },
   "imagenShared": {
     "noImagesYet": "No images yet"
@@ -1009,7 +1022,7 @@
     "moduleLabel": "Module 05 · Video Animator",
     "titlePart1": "Video",
     "titlePart2": "Animator",
-    "subtitle": "Upload your images, set the prompt, and process multiple videos in parallel with Grok, Qwen, or Meta AI."
+    "subtitle": "Upload your images, set the prompt, and process multiple videos in parallel with Grok, Qwen, or Vibes."
   },
   "projectDetail": {
     "backToProjects": "← Projects",

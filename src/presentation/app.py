@@ -31,6 +31,7 @@ from src.presentation.routes.stripe import stripe_bp, stripe_pages_bp
 from src.presentation.routes.updates import updates_bp
 from src.presentation.routes.usage import usage_bp
 from src.presentation.routes.user import user_bp
+from src.presentation.routes.vibes import vibes_bp
 from src.presentation.routes.voice import voice_bp
 
 _DOCS_PATHS = ("/docs", "/openapi.json", "/redoc")
@@ -83,6 +84,7 @@ def create_app() -> APIFlask:
     app.register_blueprint(render_bp)
     app.register_blueprint(quick_render_bp)
     app.register_blueprint(meta_bp)
+    app.register_blueprint(vibes_bp)
     app.register_blueprint(guion_bp)
     app.register_blueprint(audio_bp)
     app.register_blueprint(stripe_bp)

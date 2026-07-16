@@ -261,6 +261,7 @@
     "stoppedByUser": "Detenido por el usuario.",
     "selectProjectFirst": "Selecciona un proyecto en la barra superior antes de animar.",
     "uploadAtLeastOneImage": "Sube al menos una imagen.",
+    "writePromptFirst": "Escribe un prompt antes de generar.",
     "uploadingImagesToProject": "Subiendo {{count}} imágenes al proyecto: {{project}}",
     "startedProjectPid": "Iniciado — proyecto: {{project}} · pid: {{pid}}",
     "regenerating": "Regenerando: {{name}}",
@@ -279,6 +280,8 @@
     "uploadImagesToStart": "Sube imágenes para comenzar",
     "imagesReadyCount_one": "{{count}} imagen lista",
     "imagesReadyCount_other": "{{count}} imágenes listas",
+    "batchesReadyCount_one": "{{count}} video a generar",
+    "batchesReadyCount_other": "{{count}} videos a generar",
     "progress": "Progreso",
     "liveOutputTitle": "// {{label}}_multi — output en vivo",
     "clearLog": "limpiar",
@@ -320,6 +323,16 @@
     "noAccounts": "Sin cuentas",
     "launchChrome": "🌐 Lanzar Chrome",
     "openDevmode": "🧩 Abrir dev-mode"
+  },
+  "vibesPanel": {
+    "aspectRatio": "Aspect Ratio",
+    "aspectVertical": "9:16 — Vertical",
+    "aspectHorizontal": "16:9 — Horizontal",
+    "aspectSquare": "1:1 — Cuadrado",
+    "resolution": "Resolución",
+    "batchVariation": "4 variaciones por tanda",
+    "bridgeSetup": "Conexión con Vibes",
+    "bridgeSetupHint": "Vibes solo genera desde una pestaña real de Chrome logueada en vibes.ai. Inicia sesión arriba y despues abrí Chrome con el botón de abajo — dejalo abierto mientras generás."
   },
   "imagenShared": {
     "noImagesYet": "Sin imágenes todavía"
@@ -1009,7 +1022,7 @@
     "moduleLabel": "Módulo 05 · Video Animator",
     "titlePart1": "Video",
     "titlePart2": "Animator",
-    "subtitle": "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok, Qwen o Meta AI."
+    "subtitle": "Sube tus imágenes, configura el prompt y procesa múltiples videos en paralelo con Grok, Qwen o Vibes."
   },
   "projectDetail": {
     "backToProjects": "← Proyectos",

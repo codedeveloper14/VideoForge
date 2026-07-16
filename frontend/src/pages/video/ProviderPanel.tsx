@@ -94,12 +94,18 @@ export interface ProviderPanelProps {
   initialOptions?: ProviderOptions;
   extraActions?: () => ReactNode;
   supportsRegenerate?: boolean;
+  // Vibes genera video+imagen desde el prompt en un solo paso — no anima
+  // imagenes subidas, a diferencia de Grok/Qwen/Meta. showImages=false oculta
+  // la seccion de imagenes y usa `slots` (en vez de images.length) como el
+  // total de la barra de progreso.
+  showImages?: boolean;
 }
 
-// Generic panel shared by Grok / Qwen / Meta — the three backends are
-// near-identical in shape (sesiones/login_cuenta/borrar_sesion/iniciar/detener/
-// log/videos/video/descargar_todas/abrir_carpeta). Provider-specific bits
-// (extra iniciar fields, regenerar support, extra actions) are injected via props.
+// Generic panel shared by Grok / Qwen / Vibes — the backends are near-identical
+// in shape (sesiones/login_cuenta/borrar_sesion/iniciar/detener/log/videos/video/
+// descargar_todas/abrir_carpeta). Provider-specific bits (extra iniciar fields,
+// regenerar support, extra actions, whether images apply at all) are injected via
+// props.
 export default function ProviderPanel({
   project,
   providerLabel,
@@ -110,6 +116,7 @@ export default function ProviderPanel({
   initialOptions = {},
   extraActions,
   supportsRegenerate = false,
+  showImages = true,
 }: ProviderPanelProps) {
   const { t } = useTranslation();
   const [images, setImages] = useState<File[]>([]);
@@ -264,15 +271,22 @@ export default function ProviderPanel({
       setError(t("providerPanel.selectProjectFirst"));
       return;
     }
-    if (images.length === 0) {
+    if (showImages && images.length === 0) {
       setError(t("providerPanel.uploadAtLeastOneImage"));
       return;
     }
+    if (!showImages && !prompt.trim()) {
+      setError(t("providerPanel.writePromptFirst"));
+      return;
+    }
 
-    totalImagesRef.current = images.length;
+    const total = showImages ? images.length : slots;
+    totalImagesRef.current = total;
     clearLog();
-    setProgress({ done: 0, total: images.length });
-    appendLog(t("providerPanel.uploadingImagesToProject", { count: images.length, project }));
+    setProgress({ done: 0, total });
+    if (showImages) {
+      appendLog(t("providerPanel.uploadingImagesToProject", { count: images.length, project }));
+    }
 
     try {
       const d = await api.iniciar({
@@ -341,19 +355,21 @@ export default function ProviderPanel({
 
   return (
     <div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard
-          title={t("providerPanel.images")}
-          right={
-            images.length > 0 ? (
-              <span className="font-mono text-[10px] text-[var(--vf-c5)]">
-                {images.length} cargada{images.length !== 1 ? "s" : ""}
-              </span>
-            ) : undefined
-          }
-        >
-          <ImageSlots files={images} onChange={setImages} />
-        </SectionCard>
+      <div className={"grid grid-cols-1 gap-4" + (showImages ? " lg:grid-cols-2" : "")}>
+        {showImages && (
+          <SectionCard
+            title={t("providerPanel.images")}
+            right={
+              images.length > 0 ? (
+                <span className="font-mono text-[10px] text-[var(--vf-c5)]">
+                  {images.length} cargada{images.length !== 1 ? "s" : ""}
+                </span>
+              ) : undefined
+            }
+          >
+            <ImageSlots files={images} onChange={setImages} />
+          </SectionCard>
+        )}
 
         <SectionCard title={t("providerPanel.configuration")}>
           <div className="mb-3">
@@ -408,7 +424,7 @@ export default function ProviderPanel({
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <PrimaryButton
           onClick={handleStart}
-          disabled={!running && images.length === 0}
+          disabled={!running && (showImages ? images.length === 0 : !prompt.trim())}
           className={
             (running ? "flex-none" : "flex-1 sm:flex-none") +
             " inline-flex items-center justify-center gap-2 !rounded-[10px] !px-7 !py-3 text-[11.5px] uppercase tracking-[.06em] shadow-[0_4px_18px_rgba(124,106,255,.4)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_8px_28px_rgba(124,106,255,.55)]" +
@@ -419,9 +435,11 @@ export default function ProviderPanel({
         </PrimaryButton>
         {running && <StopButton onClick={handleStart} />}
         <div className="font-mono text-[10px] leading-[1.6] text-[var(--vf-muted)]">
-          {images.length === 0
-            ? t("providerPanel.uploadImagesToStart")
-            : t("providerPanel.imagesReadyCount", { count: images.length })}
+          {showImages
+            ? images.length === 0
+              ? t("providerPanel.uploadImagesToStart")
+              : t("providerPanel.imagesReadyCount", { count: images.length })
+            : t("providerPanel.batchesReadyCount", { count: slots })}
           {projectDir && (
             <div className="mt-0.5 text-[var(--vf-m2)]">📁 {projectDir}</div>
           )}
