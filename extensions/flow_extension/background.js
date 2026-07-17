@@ -1,4 +1,4 @@
-// background.js v7.5
+// background.js v7.6
 var BRIDGE_PORT = 5556;
 var WS_PORT     = 5557;
 var BRIDGE_BASE = "http://127.0.0.1:" + BRIDGE_PORT;
@@ -151,8 +151,12 @@ function wsConnect() {
 
 function dispatch(req, accountHash) {
   var hash  = accountHash || req.account_hash;
+  // NUNCA caer a "cualquier pestaña registrada" cuando el hash pedido no tiene tab --
+  // ese fallback es lo que mandaba requests de Flow a la pestaña de Vibes (o viceversa)
+  // cuando la cuenta correcta no estaba registrada en el momento exacto del dispatch.
+  // Si el hash pedido no tiene tab, la request falla explícito (no_tab) y el backend
+  // reintenta/rota -- nunca se ejecuta contra la pestaña equivocada.
   var tabId = hash ? _accountToTab[hash] : null;
-  if (!tabId) { for (var h in _accountToTab) { tabId = _accountToTab[h]; hash = h; break; } }
   if (!tabId) { sendResultHttp({ requestId: req.requestId, error: "no_tab" }); return; }
   incActive(hash);
   chrome.tabs.sendMessage(tabId, {
@@ -189,6 +193,21 @@ function pollBridge() {
   });
 }
 
+// Verificacion de origen: un hash "flow:*" solo puede registrarse desde una pestaña
+// de labs.google/fx/tools/flow, y un hash "vibes:*" solo desde vibes.ai -- aunque el
+// hash este bien formado y namespaceado, sin este chequeo nada impide que llegue
+// registrado desde la pestaña equivocada (bug, contenido inyectado, etc.). Los
+// patrones espejan exactamente los "matches" de content_scripts en manifest.json.
+var FLOW_TAB_RE  = /^https:\/\/labs\.google(\.com)?\/fx\/([^/]+\/)?tools\/flow/;
+var VIBES_TAB_RE = /^https:\/\/www\.vibes\.ai\//;
+
+function _originMatchesHash(hash, url) {
+  if (!hash || !url) return false;
+  if (hash.indexOf("flow:") === 0) return FLOW_TAB_RE.test(url);
+  if (hash.indexOf("vibes:") === 0) return VIBES_TAB_RE.test(url);
+  return true; // hash sin namespace reconocido (otro proveedor) -- no es este chequeo
+}
+
 function registerHttp(hash) {
   fetch(BRIDGE_BASE + "/flow-register?account=" + encodeURIComponent(hash)).catch(function(){});
 }
@@ -222,6 +241,12 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 
   if (msg.type === "REGISTER_ACCOUNT") {
     var hash = msg.accountHash, tabId = sender.tab && sender.tab.id;
+    var tabUrl = sender.tab && sender.tab.url;
+    if (hash && tabId && !_originMatchesHash(hash, tabUrl)) {
+      console.log("[Imperio BG] REGISTER_ACCOUNT rechazado -- hash " + hash + " no coincide con origen " + tabUrl);
+      sendResponse({ ok: false, error: "origin_mismatch" });
+      return true;
+    }
     if (hash && tabId) {
       _accountToTab[hash] = tabId;
       _tabToAccount[tabId] = hash;
@@ -423,4 +448,4 @@ try {
 
 _pollTimer = setInterval(pollBridge, 1000);
 wsConnect();
-console.log("[Imperio BG] v7.5 started — vibes.ai agregado a _PROTECTED_HOSTS: _cleanupTabs() solo protegia labs.google/meta.ai/grok.com/qwen.ai, asi que con una pestaña de Flow abierta a la vez, la pestaña de vibes.ai se cerraba sola (parecia 'se cierra la sesion' pero era la pestaña entera). + dispatch() propaga 'kind' para uploads multipart (v7.4) + registro de cuentas incluye email (v7.3) + foco sostenido a pedido (v7.2) + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");
+console.log("[Imperio BG] v7.6 started — dispatch() ya no cae a 'cualquier pestaña registrada' cuando el hash pedido no tiene tab (podia mandar requests de Flow a la pestaña de Vibes o viceversa); REGISTER_ACCOUNT ahora verifica que el origen (sender.tab.url) coincida con el namespace del hash ('flow:'→labs.google/fx/tools/flow, 'vibes:'→www.vibes.ai) antes de aceptar el registro (v7.6). + vibes.ai agregado a _PROTECTED_HOSTS (v7.5) + dispatch() propaga 'kind' para uploads multipart (v7.4) + registro de cuentas incluye email (v7.3) + foco sostenido a pedido (v7.2) + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");

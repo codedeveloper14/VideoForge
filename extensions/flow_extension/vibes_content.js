@@ -10,7 +10,10 @@
 // de esa misma pestaña real (con la extension cargada), asi que el fetch() sale con
 // el fingerprint real del browser, no el de una automatizacion.
 
-var VIBES_ACCOUNT_HASH = "vibes-default";
+// Prefijo "vibes:" -- namespacea frente al hash de Flow ("flow:"+djb2, ver
+// flow_token_gen.js) en el bridge compartido, asi background.js puede verificar
+// que este hash solo se registre desde una pestaña de vibes.ai.
+var VIBES_ACCOUNT_HASH = "vibes:default";
 var _registerPending = false;
 
 function registerWithBackground() {

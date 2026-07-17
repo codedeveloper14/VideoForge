@@ -116,7 +116,10 @@ GENERATION_BATCHES_URL = f"{BASE_URL}/api/generation-batches"
 # Debe coincidir EXACTO con VIBES_ACCOUNT_HASH en extensions/flow_extension/vibes_content.js.
 # Un solo hash fijo -- a diferencia de Flow (10 cuentas rotando), Vibes hoy es una
 # sola sesion por cliente, no hace falta resolver identidad dinamicamente.
-VIBES_ACCOUNT_HASH = "vibes-default"
+# Prefijo "vibes:" -- namespacea el hash frente al de Flow (que usa "flow:", ver
+# flow_service.account_hash) en el bridge compartido, para que background.js pueda
+# verificar que un hash "vibes:*" solo se registre desde una pestaña de vibes.ai.
+VIBES_ACCOUNT_HASH = "vibes:default"
 
 
 def _stream_url(batch_id: str) -> str:

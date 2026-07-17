@@ -390,7 +390,10 @@ function _refreshSession() {
       var identity = user.email || user.name || "";
       var bearer   = data.access_token || "";
       if (identity) {
-        var hash = djb2Hash(identity);
+        // Prefijo "flow:" -- namespacea frente a VIBES_ACCOUNT_HASH ("vibes:default")
+        // en el bridge compartido (background.js/flow_bridge.py), para que un hash de
+        // una plataforma nunca se pueda confundir con uno de la otra.
+        var hash = "flow:" + djb2Hash(identity);
         _currentHash   = hash;
         _currentBearer = bearer;
         window.postMessage({type: "FLOW_ACCOUNT_HASH", hash: hash, email: identity}, "*");

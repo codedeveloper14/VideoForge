@@ -19,10 +19,16 @@ SESSION_URL = "https://labs.google/fx/api/auth/session"
 
 
 def account_hash(value: str) -> str:
+    """Prefijo "flow:" -- el bridge (flow_bridge.py, puertos 5556/5557) es compartido
+    con Vibes (ver vibes_client.VIBES_ACCOUNT_HASH), y antes ambos vivian en el mismo
+    namespace de string plano: un fallback de enrutamiento en background.js (dispatch())
+    podia mandar trafico de Flow a la pestaña de Vibes o viceversa sin que nada lo
+    detectara. Namespacear por plataforma hace que un hash de una plataforma nunca
+    pueda pasar una verificacion pensada para la otra, aunque el enrutamiento falle."""
     h = 5381
     for c in value:
         h = ((h << 5) + h + ord(c)) & 0xFFFFFFFF
-    return format(h, "08x")
+    return "flow:" + format(h, "08x")
 
 
 def cookie_path(account_idx: int) -> Path:

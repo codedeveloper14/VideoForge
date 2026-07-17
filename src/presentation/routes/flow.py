@@ -57,7 +57,7 @@ def bridge_status():
     status = flow_bridge.status()
     # El bridge (WS/HTTP 5556/5557) es compartido con Vibes -- sin este filtro, la
     # tarjeta "Estado de Google Flow" del panel de Flow lista tambien la pestaña de
-    # vibes.ai (hash fijo "vibes-default"), confundiendo al usuario.
+    # vibes.ai (hash fijo VIBES_ACCOUNT_HASH, "vibes:default"), confundiendo al usuario.
     status["accounts"] = [
         a for a in status.get("accounts", []) if a.get("account_hash") != vibes_client.VIBES_ACCOUNT_HASH
     ]
