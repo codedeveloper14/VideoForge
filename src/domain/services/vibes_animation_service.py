@@ -125,6 +125,10 @@ def start_batch(
     vid_dir.mkdir(parents=True, exist_ok=True)
 
     slots = max(1, min(slots, 12))
+    # Cada batch trae hasta 4 videos si batch_variation esta activo (default) --
+    # "total" tiene que contar videos, no tandas, o la barra de progreso marca
+    # "100%" con 1/4 de lo que en realidad se genero por tanda.
+    n_variations = 4 if video_params.get("batch_variation", True) else 1
     cancel_ev = threading.Event()
     _state.update(
         {
@@ -132,7 +136,7 @@ def start_batch(
             "log_lines": [],
             "finished": False,
             "project_dir": str(proj_dir),
-            "total": slots,
+            "total": slots * n_variations,
             "done": 0,
             "cancel_event": cancel_ev,
         }
@@ -200,6 +204,7 @@ def _batch_worker(
                     "cdn_url": upload_result["cdn_url"],
                 }
 
+    videos_done = 0
     for i in range(slots):
         if cancel_ev.is_set():
             _log("Detenido por el usuario.")
@@ -216,15 +221,17 @@ def _batch_worker(
             log=_log,
             **video_params,
         )
+        n_videos = len(result.get("videos", []))
         if result.get("error"):
             _log(f"[ERROR] [{i + 1}/{slots}] {result['error']}")
         else:
-            _log(f"[OK] [{i + 1}/{slots}] {len(result.get('videos', []))} video(s)")
+            _log(f"[OK] [{i + 1}/{slots}] {n_videos} video(s)")
+        videos_done += n_videos
         with _lock:
-            _state["done"] = i + 1
+            _state["done"] = videos_done
 
     _state.update(finished=True, running=False)
-    _log(f"Vibes finalizado: {_state['done']}/{slots} batch(es) procesados.")
+    _log(f"Vibes finalizado: {videos_done}/{_state['total']} video(s) generados ({slots} tanda(s) procesadas).")
 
 
 def stop() -> None:
