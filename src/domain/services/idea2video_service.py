@@ -253,7 +253,8 @@ def _call_claude(idea: str, dur_sec: int, style: str, tone: str, audience: str, 
             "words": len(script.split()),
             "dur": dur_s,
         }
-    except Exception:
+    except Exception as exc:
+        logger.warning("idea2video: _call_claude fallo, uso template: %s", exc)
         return None
 
 
