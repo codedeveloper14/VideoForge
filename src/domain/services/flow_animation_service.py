@@ -8,6 +8,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from queue import Empty, Queue
 
 import requests
@@ -15,7 +16,7 @@ import requests
 from src.infrastructure.ai_providers import flow_bridge, flow_browser, flow_service
 from src.infrastructure.ai_providers.openrouter_client import sanitize_prompt
 from src.utils.logger import get_logger
-from src.utils.paths import get_flow_profiles_dir
+from src.utils.paths import get_flow_cookies_dir, get_flow_profiles_dir
 from src.utils.platform_utils import open_folder
 
 logger = get_logger(__name__)
@@ -83,11 +84,86 @@ def save_account_cookie(idx: int, cookie: str) -> dict:
     return {"ok": True, "email": email, "hash": acc_hash}
 
 
+# ── Persistencia automatica de la sesion del bridge (Puente B) ───────────────────
+# La extension nunca pide al usuario pegar nada: en cuanto flow_bridge recibe un
+# bearer+email en vivo (WS o HTTP, ver flow_bridge.set_cached_bearer), dispara
+# _on_bridge_session via el listener registrado abajo. Persistimos en un sidecar
+# separado de account_N.txt (que load_cookie()/get_session() esperan que sea un
+# *cookie header* crudo) para no romper ese contrato -- aca solo tenemos bearer,
+# no la cookie de sesion completa.
+_hash_to_idx: dict[str, int] = {}
+_hash_to_idx_lock = threading.Lock()
+
+
+def _bridge_session_path(idx: int) -> Path:
+    return get_flow_cookies_dir() / f"account_{idx}.bridge.json"
+
+
+def _load_bridge_session(idx: int) -> dict | None:
+    path = _bridge_session_path(idx)
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _assign_slot_for_hash(account_hash: str) -> int:
+    """Mapea un account_hash de la extension a un indice de cuenta 0-9 estable. La
+    extension nunca manda un indice (solo el hash de su propia sesion), asi que el
+    slot se reconstruye leyendo los sidecars existentes en disco -- misma cuenta
+    siempre cae en el mismo indice entre reinicios del backend."""
+    with _hash_to_idx_lock:
+        if account_hash in _hash_to_idx:
+            return _hash_to_idx[account_hash]
+        for i in range(flow_service.NUM_ACCOUNTS):
+            existing = _load_bridge_session(i)
+            if existing and existing.get("account_hash") == account_hash:
+                _hash_to_idx[account_hash] = i
+                return i
+        for i in range(flow_service.NUM_ACCOUNTS):
+            if flow_service.load_cookie(i) or _load_bridge_session(i):
+                continue
+            _hash_to_idx[account_hash] = i
+            return i
+        idx = len(_hash_to_idx) % flow_service.NUM_ACCOUNTS
+        _hash_to_idx[account_hash] = idx
+        return idx
+
+
+def _on_bridge_session(account_hash: str, email: str, bearer: str) -> None:
+    if not account_hash or not email:
+        return
+    idx = _assign_slot_for_hash(account_hash)
+    try:
+        _bridge_session_path(idx).write_text(
+            json.dumps({"account_hash": account_hash, "email": email, "bearer": bearer, "ts": time.time()}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+    with lock:
+        was_ok = state["accounts"][idx].get("ok")
+        state["accounts"][idx].update({"ok": True, "email": email})
+    if not was_ok:
+        log(f"[Flow] Sesion detectada automaticamente via extension: {email} -> cuenta {idx}")
+
+
+flow_bridge.add_session_listener(_on_bridge_session)
+
+
 def check_accounts() -> list[dict]:
     def _check_one(i):
         ck = flow_service.load_cookie(i)
         acc = {"index": i, "ok": False, "email": None, "cookie": bool(ck)}
         if not ck:
+            bridge_sess = _load_bridge_session(i)
+            if bridge_sess and bridge_sess.get("email"):
+                acc["ok"] = True
+                acc["email"] = bridge_sess["email"]
+                with lock:
+                    state["accounts"][i].update({"ok": True, "email": bridge_sess["email"]})
             return i, acc
         sess = flow_service.get_session(ck)
         bearer = sess.get("bearer", "")
@@ -737,6 +813,22 @@ def start_run(
         if state["running"]:
             raise RuntimeError("Ya hay una generacion en curso")
 
+    # Cada click en "Generar" es una tanda NUEVA, no una reanudacion de la anterior.
+    # _enqueue_missing() se salta indices cuyo flow_{i+1:04d}.png ya existe en disco
+    # (pensado para resumir una tanda interrumpida sin regastar cuota) -- pero eso
+    # tambien hacia que, tras generar el prompt 1 con exito, escribir un prompt
+    # DISTINTO y volver a apretar "Generar" quedara bloqueado en silencio: el indice
+    # 0 seguia teniendo un flow_0001.png de la tanda anterior. Borrando aca los
+    # archivos de los indices que esta tanda va a (re)generar, cada click siempre
+    # trae imagenes frescas para lo que este escrito ahora.
+    for i in range(len(prompts)):
+        try:
+            fpath = os.path.join(out_dir, f"flow_{i + 1:04d}.png")
+            if os.path.isfile(fpath):
+                os.remove(fpath)
+        except Exception:
+            pass
+
     if auto_open:
         auto_open_browsers()
 
@@ -1385,6 +1477,7 @@ def _run_batch_inner(
 
     def _enqueue_missing() -> int:
         count = 0
+        skipped_existing = 0
         with completed_lock:
             done = set(completed)
         for i, p in enumerate(prompts):
@@ -1392,9 +1485,15 @@ def _run_batch_inner(
                 continue
             fpath = os.path.join(out_dir, f"flow_{i + 1:04d}.png")
             if os.path.isfile(fpath) and os.path.getsize(fpath) > 500:
+                skipped_existing += 1
                 continue
             job_q.put((i, p))
             count += 1
+        if skipped_existing:
+            log(
+                f"[Flow] {skipped_existing} imagen(es) ya existian en la carpeta de salida - "
+                "omitidas sin regenerar (usa 'Reintentar' sobre esa imagen si querés reemplazarla)"
+            )
         return count
 
     _enqueue_missing()

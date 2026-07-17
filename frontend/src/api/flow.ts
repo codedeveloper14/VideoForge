@@ -1,8 +1,10 @@
 import { api } from "./client";
 
 export interface FlowAccount {
-  name?: string;
-  logged_in?: boolean;
+  index?: number;
+  ok?: boolean;
+  email?: string | null;
+  cookie?: boolean;
 }
 
 export interface FlowAccountsResult {
@@ -57,10 +59,25 @@ export function flowLogin(account: number) {
   return api.post<{ ok: boolean }>("/flow/login", { account }).then((r) => r.data);
 }
 
+export interface FlowSaveCookieResult {
+  ok: boolean;
+  email?: string;
+  hash?: string;
+  error?: string;
+}
+
 export function flowSaveCookie(account: number, cookie: string) {
   return api
-    .post<{ ok: boolean }>("/flow/save-cookie", { account, cookie })
+    .post<FlowSaveCookieResult>("/flow/save-cookie", { account, cookie })
     .then((r) => r.data);
+}
+
+export interface FlowBridgeAccount {
+  account_hash: string;
+  email?: string;
+  connected: boolean;
+  has_bearer?: boolean;
+  age_seconds?: number | null;
 }
 
 export interface FlowBridgeStatus {
@@ -68,6 +85,7 @@ export interface FlowBridgeStatus {
   ws_clients?: string[];
   bridge_ok?: boolean;
   ws_ok?: boolean;
+  accounts?: FlowBridgeAccount[];
 }
 
 export function flowBridgeStatus() {

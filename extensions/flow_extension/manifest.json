@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VideoForge - Cookie Helper",
-  "version": "5.12",
+  "version": "5.13",
   "description": "Copia o exporta las cookies de Google Flow con un clic para usar en Imperio Studio",
   "permissions": [
     "cookies",

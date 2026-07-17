@@ -1,4 +1,4 @@
-// background.js v7.2
+// background.js v7.3
 var BRIDGE_PORT = 5556;
 var WS_PORT     = 5557;
 var BRIDGE_BASE = "http://127.0.0.1:" + BRIDGE_PORT;
@@ -11,6 +11,7 @@ var _accountToTab   = {};
 var _tabToAccount   = {};
 var _activeRequests = {};
 var _bearerCache    = {};  // hash → bearer, persiste mientras el SW vive
+var _emailCache     = {};  // hash → email, para que el backend muestre "Conectado como X" sin que el usuario haga nada
 var MAX_CONCURRENT  = 10;
 var _pollTimer      = null;
 
@@ -127,7 +128,7 @@ function wsConnect() {
   _ws.onopen = function() {
     console.log("[Imperio BG] WS: conectado OK — registrando cuentas: " + JSON.stringify(Object.keys(_accountToTab)));
     Object.keys(_accountToTab).forEach(function(h) {
-      try { _ws.send(JSON.stringify({ type: "register", account_hash: h, bearer: _bearerCache[h] || "" })); } catch(e) {}
+      try { _ws.send(JSON.stringify({ type: "register", account_hash: h, bearer: _bearerCache[h] || "", email: _emailCache[h] || "" })); } catch(e) {}
     });
   };
   _ws.onmessage = function(ev) {
@@ -192,11 +193,11 @@ function registerHttp(hash) {
   fetch(BRIDGE_BASE + "/flow-register?account=" + encodeURIComponent(hash)).catch(function(){});
 }
 
-function registerBearer(hash, bearer) {
+function registerBearer(hash, bearer, email) {
   if (!bearer) return;
   fetch(BRIDGE_BASE + "/flow-register-bearer", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ account: hash, bearer: bearer })
+    body: JSON.stringify({ account: hash, bearer: bearer, email: email || "" })
   }).catch(function(){});
 }
 
@@ -224,13 +225,14 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     if (hash && tabId) {
       _accountToTab[hash] = tabId;
       _tabToAccount[tabId] = hash;
+      if (msg.email) _emailCache[hash] = msg.email;
       registerHttp(hash);
       if (msg.bearer) {
         _bearerCache[hash] = msg.bearer;
-        registerBearer(hash, msg.bearer);
+        registerBearer(hash, msg.bearer, _emailCache[hash] || "");
       }
       if (_ws && _ws.readyState === 1) {
-        try { _ws.send(JSON.stringify({ type: "register", account_hash: hash, bearer: _bearerCache[hash] || "" })); } catch(e) {}
+        try { _ws.send(JSON.stringify({ type: "register", account_hash: hash, bearer: _bearerCache[hash] || "", email: _emailCache[hash] || "" })); } catch(e) {}
       }
       if (!_ws || _ws.readyState > 1) wsConnect();
     }
@@ -421,4 +423,4 @@ try {
 
 _pollTimer = setInterval(pollBridge, 1000);
 wsConnect();
-console.log("[Imperio BG] v7.2 started — foco sostenido a pedido (META_NEED_FOCUS/META_FOCUS_DONE): cada pestaña pide foco justo antes de adjuntar+enviar y se le respeta hasta que avisa que terminó (máx " + FOCUS_HOLD_MAX_MS + "ms), en vez de depender del turno fijo de rotación — confirmado: con varias pestañas, ese turno podía ser muy corto y dejar el adjunto a medias hasta que el usuario hacía clic manual. + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");
+console.log("[Imperio BG] v7.3 started — registro de cuentas ahora incluye email (antes solo hash), para que el backend pueda mostrar 'Conectado como <email>' sin ningun paso manual del usuario. + foco sostenido a pedido (META_NEED_FOCUS/META_FOCUS_DONE): cada pestaña pide foco justo antes de adjuntar+enviar y se le respeta hasta que avisa que terminó (máx " + FOCUS_HOLD_MAX_MS + "ms), en vez de depender del turno fijo de rotación — confirmado: con varias pestañas, ese turno podía ser muy corto y dejar el adjunto a medias hasta que el usuario hacía clic manual. + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");

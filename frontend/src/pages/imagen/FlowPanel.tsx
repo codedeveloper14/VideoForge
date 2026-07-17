@@ -17,7 +17,7 @@ import {
   flowStatus,
   flowStop,
 } from "../../api/flow";
-import type { FlowAccount, FlowChromiumProfile } from "../../api/flow";
+import type { FlowAccount, FlowBridgeAccount, FlowChromiumProfile } from "../../api/flow";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
@@ -58,6 +58,13 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   const [chromiumProfiles, setChromiumProfiles] = useState<FlowChromiumProfile[]>([]);
   const [noBrowserConnected, setNoBrowserConnected] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+
+  // Estado del Puente B (extension <-> bridge WS/HTTP 5556/5557) — se consulta
+  // siempre, no solo mientras corre una generacion, para que el indicador de la UI
+  // se ponga verde solo con abrir Google Flow en Chrome, sin que el usuario toque
+  // nada. bridgeChecked evita que el aviso "sin cuentas" parpadee antes del primer poll.
+  const [bridgeAccounts, setBridgeAccounts] = useState<FlowBridgeAccount[]>([]);
+  const [bridgeChecked, setBridgeChecked] = useState(false);
 
   const sinceRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -140,21 +147,34 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
         refreshImages();
       })
       .catch(() => {});
-
-    if (!running) return;
-    flowBridgeStatus()
-      .then((d) => {
-        const connected = (d.ws_clients?.length ?? 0) > 0;
-        if (connected) {
-          disconnectedSinceRef.current = null;
-          setNoBrowserConnected(false);
-          return;
-        }
-        if (disconnectedSinceRef.current === null) disconnectedSinceRef.current = Date.now();
-        setNoBrowserConnected(Date.now() - disconnectedSinceRef.current > NO_BROWSER_WARNING_MS);
-      })
-      .catch(() => {});
   }
+
+  // Poll continuo del Puente B, siempre activo (no solo mientras corre un batch):
+  // es lo que hace que "Conectado como <email>" aparezca solo con abrir Flow en
+  // Chrome con la extension puesta, sin ninguna accion del usuario en esta app.
+  useEffect(() => {
+    function pollBridge() {
+      flowBridgeStatus()
+        .then((d) => {
+          const accs = d.accounts || [];
+          setBridgeAccounts(accs);
+          setBridgeChecked(true);
+          const connected = accs.some((a) => a.connected);
+          if (connected) {
+            disconnectedSinceRef.current = null;
+            setNoBrowserConnected(false);
+            return;
+          }
+          if (disconnectedSinceRef.current === null) disconnectedSinceRef.current = Date.now();
+          setNoBrowserConnected(Date.now() - disconnectedSinceRef.current > NO_BROWSER_WARNING_MS);
+        })
+        .catch(() => setBridgeChecked(true));
+    }
+    pollBridge();
+    const id = setInterval(pollBridge, 2500);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadAccounts();
@@ -283,6 +303,8 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   }
 
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const hasLiveAccount = bridgeAccounts.some((a) => a.connected);
+  const showNoAccountsWarning = bridgeChecked && !hasLiveAccount;
 
   return (
     <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-2">
@@ -521,6 +543,51 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
           </section>
 
           <section className="flow-card" style={{ padding: "14px 16px" }}>
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="font-mono text-[11px] font-semibold text-[var(--vf-text)]">
+                {t("flowPanel.bridgeStatusTitle")}
+              </span>
+            </div>
+            {!bridgeChecked || bridgeAccounts.length === 0 ? (
+              <div
+                className="flex items-center gap-2 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(245,158,11,.35)",
+                  background: "rgba(245,158,11,.08)",
+                  color: "#f5a623",
+                }}
+              >
+                <span>⏳</span>
+                <span>{t("flowPanel.bridgeConnecting")}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {bridgeAccounts.map((a) => (
+                  <div
+                    key={a.account_hash}
+                    className="flex items-center gap-2 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                    style={
+                      a.connected
+                        ? { borderColor: "rgba(34,197,94,.35)", background: "rgba(34,197,94,.08)", color: "#22c55e" }
+                        : { borderColor: "rgba(245,158,11,.35)", background: "rgba(245,158,11,.08)", color: "#f5a623" }
+                    }
+                  >
+                    <span>{a.connected ? "✅" : "⏳"}</span>
+                    <span>
+                      {a.connected
+                        ? t("flowPanel.bridgeConnectedAs", { email: a.email || a.account_hash })
+                        : t("flowPanel.bridgeReconnecting", { email: a.email || a.account_hash })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-2.5 font-mono text-[9px] leading-relaxed text-[var(--vf-m2)]">
+              {t("flowPanel.bridgeStatusHint")}
+            </p>
+          </section>
+
+          <section className="flow-card" style={{ padding: "14px 16px" }}>
             <div className="mb-2.5 flex items-center justify-between">
               <span className="font-mono text-[11px] text-[var(--vf-m)]">{progress.label}</span>
               <span className="font-mono text-[11px] font-semibold text-[var(--vf-c2)]">{pct}%</span>
@@ -528,11 +595,23 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
             <div className="flow-progress-track mb-3.5">
               <div className="flow-progress-fill" style={{ width: `${pct}%` }} />
             </div>
+            {showNoAccountsWarning && (
+              <div
+                className="mb-3 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(248,113,113,.4)",
+                  background: "rgba(248,113,113,.1)",
+                  color: "#f87171",
+                }}
+              >
+                {t("flowPanel.noActiveAccountsWarning")}
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleStart}
-                disabled={running}
+                disabled={running || showNoAccountsWarning}
                 className="flow-btn flow-btn--primary"
               >
                 {t("flowPanel.startGeneration")}
@@ -576,14 +655,14 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                         className="flex items-center justify-between rounded-md border border-[var(--vf-border)] px-2 py-1"
                       >
                         <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                          {a.name || t("flowPanel.accountFallback", { n: i })}
+                          {a.email || t("flowPanel.accountFallback", { n: i })}
                         </span>
                         <div className="flex items-center gap-2">
                           <span
                             className="font-mono text-[9px]"
-                            style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
+                            style={{ color: a.ok ? "var(--vf-c5)" : "var(--vf-m2)" }}
                           >
-                            {a.logged_in ? t("flowPanel.connected") : t("flowPanel.disconnected")}
+                            {a.ok ? t("flowPanel.connected") : t("flowPanel.disconnected")}
                           </span>
                           <button
                             onClick={() => handleLogin(i)}
