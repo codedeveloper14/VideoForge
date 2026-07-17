@@ -1,4 +1,4 @@
-// background.js v7.3
+// background.js v7.5
 var BRIDGE_PORT = 5556;
 var WS_PORT     = 5557;
 var BRIDGE_BASE = "http://127.0.0.1:" + BRIDGE_PORT;
@@ -25,7 +25,7 @@ setInterval(function() {
 }, 4000);
 
 // Dominios que NUNCA se deben cerrar (slots activos de generación)
-var _PROTECTED_HOSTS = ['labs.google', 'meta.ai', 'grok.com', 'qwen.ai'];
+var _PROTECTED_HOSTS = ['labs.google', 'meta.ai', 'grok.com', 'qwen.ai', 'vibes.ai'];
 
 function _isProtected(url) {
   if (!url) return false;
@@ -157,7 +157,7 @@ function dispatch(req, accountHash) {
   incActive(hash);
   chrome.tabs.sendMessage(tabId, {
     type: "FLOW_GENERATE_REQUEST", requestId: req.requestId,
-    url: req.url, bearer: req.bearer, body: req.body
+    url: req.url, bearer: req.bearer, body: req.body, kind: req.kind
   }, function() {
     if (chrome.runtime.lastError) {
       decActive(hash);
@@ -423,4 +423,4 @@ try {
 
 _pollTimer = setInterval(pollBridge, 1000);
 wsConnect();
-console.log("[Imperio BG] v7.3 started — registro de cuentas ahora incluye email (antes solo hash), para que el backend pueda mostrar 'Conectado como <email>' sin ningun paso manual del usuario. + foco sostenido a pedido (META_NEED_FOCUS/META_FOCUS_DONE): cada pestaña pide foco justo antes de adjuntar+enviar y se le respeta hasta que avisa que terminó (máx " + FOCUS_HOLD_MAX_MS + "ms), en vez de depender del turno fijo de rotación — confirmado: con varias pestañas, ese turno podía ser muy corto y dejar el adjunto a medias hasta que el usuario hacía clic manual. + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");
+console.log("[Imperio BG] v7.5 started — vibes.ai agregado a _PROTECTED_HOSTS: _cleanupTabs() solo protegia labs.google/meta.ai/grok.com/qwen.ai, asi que con una pestaña de Flow abierta a la vez, la pestaña de vibes.ai se cerraba sola (parecia 'se cierra la sesion' pero era la pestaña entera). + dispatch() propaga 'kind' para uploads multipart (v7.4) + registro de cuentas incluye email (v7.3) + foco sostenido a pedido (v7.2) + autoDiscardable:false universal (v7.1) + rotación por URL (v7.0).");

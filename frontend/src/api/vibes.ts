@@ -21,6 +21,7 @@ export interface VibesIniciarParams {
   video_model?: string;
   batch_variation?: boolean;
   timeout?: number;
+  reference_image?: string;
 }
 
 export interface VibesIniciarResult {

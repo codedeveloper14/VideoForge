@@ -73,6 +73,7 @@ def iniciar(json_data):
             json_data["slots"],
             video_params,
             json_data["timeout"],
+            ref_image_b64=json_data.get("reference_image") or None,
         )
         return jsonify(result)
     except ValueError as exc:

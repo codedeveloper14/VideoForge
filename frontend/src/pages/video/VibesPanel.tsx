@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import * as vibesApi from "../../api/vibes";
 import { Select, SelectOption } from "../../components/Select";
@@ -19,6 +20,7 @@ const api: ProviderApi = {
       resolution: params.resolution as string | undefined,
       batch_variation: params.batch_variation as boolean | undefined,
       timeout: params.timeout as number | undefined,
+      reference_image: (params.reference_image as string | undefined) || undefined,
     }),
   // Vibes has no /regenerar endpoint.
   detener: vibesApi.vibesDetener,
@@ -86,8 +88,48 @@ export default function VibesPanel({ project }: VibesPanelProps) {
         batch_variation: true,
         timeout: 300,
       }}
-      extraOptions={({ options, setOption }) => (
+      extraOptions={({ options, setOption }) => {
+        const refImage = options.reference_image as string | undefined;
+
+        function handleRefImageChange(e: ChangeEvent<HTMLInputElement>) {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => setOption("reference_image", reader.result as string);
+          reader.readAsDataURL(file);
+        }
+
+        return (
         <div>
+          <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
+            {t("vibesPanel.referenceImage")}
+          </label>
+          <p className="mb-2 font-mono text-[10px] leading-relaxed text-[var(--vf-m2)]">
+            {t("vibesPanel.referenceImageHint")}
+          </p>
+          <div className="mb-4 flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 rounded-[9px] border border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 font-mono text-[10.5px] text-[var(--vf-text)] transition-colors hover:border-[color-mix(in_srgb,var(--vf-c1)_40%,transparent)]">
+              {t("vibesPanel.chooseImage")}
+              <input type="file" accept="image/*" className="hidden" onChange={handleRefImageChange} />
+            </label>
+            {refImage && (
+              <div className="flex items-center gap-2">
+                <img
+                  src={refImage}
+                  alt="reference"
+                  className="h-10 w-10 rounded-md border border-[var(--vf-b)] object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOption("reference_image", undefined)}
+                  className="font-mono text-[10px] text-[var(--vf-m2)] hover:text-[var(--vf-text)]"
+                >
+                  {t("flowPanel.remove")}
+                </button>
+              </div>
+            )}
+          </div>
+
           <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
             {t("providerPanel.videoParams")}
           </label>
@@ -148,7 +190,8 @@ export default function VibesPanel({ project }: VibesPanelProps) {
             </div>
           </div>
         </div>
-      )}
+        );
+      }}
       extraActions={() => <AdvancedActions />}
     />
   );

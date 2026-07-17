@@ -17,6 +17,7 @@ class VibesIniciarInSchema(Schema):
     video_model = String(load_default="midjen-short")
     batch_variation = Boolean(load_default=True)
     timeout = Integer(load_default=300)
+    reference_image = String(load_default="")
 
 
 class VibesLogQuerySchema(Schema):

@@ -103,6 +103,13 @@ SESSION_COOKIE_NAME = "meta_session"  # cookie de VIBES, pese al nombre -- no es
 
 ME_URL = f"{BASE_URL}/api/auth/me"
 UPLOAD_ASSET_URL = f"{BASE_URL}/api/upload-asset"
+# Endpoint real de subida de imagen de referencia ("Ingredientes" -> "Upload media"
+# en la UI), confirmado en vivo (2026-07-17) via DevTools -- NO es UPLOAD_ASSET_URL
+# (esa nunca se vio usada en trafico real). multipart/form-data con campos "file"
+# (binario) + "filename". Devuelve {"mediaEntId","cdnUrl","dimensions",
+# "aspectRatio","uploadToken"} -- mediaEntId/cdnUrl son los mismos valores que
+# manda el batch de generacion como setting_image_ent_ids/setting_image_url.
+UPLOAD_MEDIA_URL = f"{BASE_URL}/api/upload-media"
 PROJECTS_URL = f"{BASE_URL}/api/projects"
 GENERATION_BATCHES_URL = f"{BASE_URL}/api/generation-batches"
 
@@ -373,13 +380,22 @@ def _build_create_body(
     image_model: str = "midjen-base",
     video_model: str = "midjen-short",
     batch_variation: bool = True,
+    ref_image: dict | None = None,
 ) -> dict:
     """Body real completo capturado via cURL 2026-07-16. batch_id/content NO los
     devuelve el server -- se generan aca y se mandan ya armados; el POST guarda este
     objeto "en progreso" (isComplete=false). Compartido entre generate_video()
     (requests puro -- confirmado que NO alcanza para que la generacion arranque de
     verdad, solo crea el batch) y generate_video_via_bridge() (via la extension en
-    un browser real, el camino que si funciona)."""
+    un browser real, el camino que si funciona).
+
+    ref_image (opcional): {"media_ent_id": str, "cdn_url": str} devuelto por
+    upload_reference_image_via_bridge(). Confirmado en vivo (2026-07-17, cURL real
+    capturado con "Add from projects" en la UI de Vibes): con imagen de referencia
+    el body agrega "setting_image_ent_ids"/"setting_image_url" (los mismos
+    mediaEntId/cdnUrl que devuelve /api/upload-media) y "promptSegments"
+    ([{"segmentType":"raw_text","text":prompt}]) ademas del "prompt" normal -- sin
+    imagen ninguno de estos 3 campos aparece."""
     batch_id = _new_batch_id()
     now = _iso_now_ms()
     n_variations = 4 if batch_variation else 1
@@ -410,6 +426,10 @@ def _build_create_body(
         "isDirectGeneration": True,
         "projectId": project_id,
     }
+    if ref_image and ref_image.get("media_ent_id") and ref_image.get("cdn_url"):
+        body["setting_image_ent_ids"] = ref_image["media_ent_id"]
+        body["setting_image_url"] = ref_image["cdn_url"]
+        body["promptSegments"] = [{"segmentType": "raw_text", "text": prompt}]
     return body
 
 
@@ -594,6 +614,79 @@ def _download_videos(
             log(f"[S{slot_id}] [WARNING] descarga video {i} fallo: {exc}")
 
 
+def upload_reference_image_via_bridge(
+    image_bytes: bytes,
+    filename: str = "reference.jpg",
+    timeout_sec: int = 60,
+    log: Callable[[str], None] = _NoOpLog,
+) -> dict:
+    """Sube una imagen de referencia a traves de la pestaña real de Chrome (mismo
+    motivo que generate_video_via_bridge: un POST automatizado sin browser real
+    puede ser rechazado). Devuelve {"media_ent_id","cdn_url","error"} -- media_ent_id/
+    cdn_url son mediaEntId/cdnUrl de la respuesta real de POST /api/upload-media
+    (confirmado en vivo 2026-07-17), listos para pasar como ref_image a
+    generate_video_via_bridge()."""
+    from base64 import b64encode
+
+    from src.infrastructure.ai_providers import flow_bridge
+
+    result: dict = {"media_ent_id": None, "cdn_url": None, "error": None}
+
+    connected = set(flow_bridge.get_connected_accounts()) | set(flow_bridge.get_ws_clients().keys())
+    if VIBES_ACCOUNT_HASH not in connected:
+        result["error"] = (
+            "No hay ninguna pestaña de vibes.ai conectada al bridge. Abri vibes.ai en "
+            "Chrome con extensions/flow_extension cargada y logueado, y esperá unos "
+            "segundos a que se registre."
+        )
+        return result
+
+    request_id = str(uuid.uuid4())
+    event = flow_bridge.register_result_waiter(request_id)
+    req = {
+        "requestId": request_id,
+        "url": UPLOAD_MEDIA_URL,
+        "bearer": "",
+        "kind": "upload_media",
+        "body": json.dumps({"filename": filename, "dataB64": b64encode(image_bytes).decode("ascii")}),
+        "account_hash": VIBES_ACCOUNT_HASH,
+    }
+
+    log(f"encolando subida de imagen de referencia ({filename}, {len(image_bytes)} bytes)...")
+    pushed = flow_bridge.ws_push(VIBES_ACCOUNT_HASH, req)
+    if not pushed:
+        flow_bridge.enqueue_request(req)
+        log("sin WS -- encolado para HTTP poll")
+
+    ok = event.wait(timeout=timeout_sec)
+    msg = flow_bridge.try_pop_result(request_id)
+    flow_bridge.cleanup_waiter(request_id)
+
+    if not ok or msg is None:
+        result["error"] = f"Timeout ({timeout_sec}s) esperando resultado de la subida"
+        return result
+    if msg.get("status") != 200 or msg.get("error"):
+        result["error"] = f"Subida fallo: {msg.get('error')} (status={msg.get('status')}) body={str(msg.get('body'))[:300]}"
+        return result
+
+    try:
+        data = json.loads(msg.get("body") or "{}")
+    except Exception as exc:
+        result["error"] = f"Respuesta de subida no es JSON valido: {exc}"
+        return result
+
+    media_ent_id = data.get("mediaEntId")
+    cdn_url = data.get("cdnUrl")
+    if not media_ent_id or not cdn_url:
+        result["error"] = f"Respuesta de subida sin mediaEntId/cdnUrl: {str(data)[:300]}"
+        return result
+
+    log(f"[OK] imagen de referencia subida -- mediaEntId={media_ent_id}")
+    result["media_ent_id"] = media_ent_id
+    result["cdn_url"] = cdn_url
+    return result
+
+
 def generate_video_via_bridge(
     prompt: str,
     project_id: str | None = None,
@@ -607,6 +700,7 @@ def generate_video_via_bridge(
     timeout_sec: int = 300,
     slot_id: int = 0,
     cookie_list: list[dict] | None = None,
+    ref_image: dict | None = None,
     log: Callable[[str], None] = _NoOpLog,
 ) -> dict:
     """Genera video(s) via Vibes usando una pestaña REAL de Chrome (con
@@ -639,7 +733,15 @@ def generate_video_via_bridge(
         return result
 
     create_body = _build_create_body(
-        prompt, project_id, aspect_ratio, resolution, prompt_model, image_model, video_model, batch_variation
+        prompt,
+        project_id,
+        aspect_ratio,
+        resolution,
+        prompt_model,
+        image_model,
+        video_model,
+        batch_variation,
+        ref_image=ref_image,
     )
     batch_id = create_body["id"]
     result["batch_id"] = batch_id

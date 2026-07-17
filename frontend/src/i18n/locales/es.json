@@ -367,7 +367,10 @@
     "resolution": "Resolución",
     "batchVariation": "4 variaciones por tanda",
     "bridgeSetup": "Conexión con Vibes",
-    "bridgeSetupHint": "Vibes solo genera desde una pestaña real de Chrome logueada en vibes.ai. Inicia sesión arriba y despues abrí Chrome con el botón de abajo — dejalo abierto mientras generás."
+    "bridgeSetupHint": "Vibes solo genera desde una pestaña real de Chrome logueada en vibes.ai. Inicia sesión arriba y despues abrí Chrome con el botón de abajo — dejalo abierto mientras generás.",
+    "referenceImage": "Imagen de referencia",
+    "referenceImageHint": "Opcional — guía visual para los 4 videos generados (equivalente a \"Ingredientes\" en vibes.ai).",
+    "chooseImage": "Elegir imagen"
   },
   "imagenShared": {
     "noImagesYet": "Sin imágenes todavía"

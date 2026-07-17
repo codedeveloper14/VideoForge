@@ -129,11 +129,50 @@ async function handleGenerateRequest(data) {
   }
 }
 
+// Sube una imagen de referencia via POST multipart/form-data (data.url =
+// /api/upload-media). data.body es JSON {filename, dataB64} -- el binario viaja
+// en base64 porque el protocolo del bridge (WS/HTTP poll) solo lleva strings; se
+// reconstruye a Blob aca adentro, en la pestaña real, antes del fetch. Igual
+// motivo que handleGenerateRequest: un upload automatizado sin browser real puede
+// ser rechazado, asi que corre dentro de esta pestaña con la extension cargada.
+async function handleUploadRequest(data) {
+  var requestId = data.requestId;
+  try {
+    var parsed = JSON.parse(data.body);
+    var filename = parsed.filename || "reference.jpg";
+    var byteChars = atob(parsed.dataB64);
+    var bytes = new Uint8Array(byteChars.length);
+    for (var i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+    var blob = new Blob([bytes]);
+
+    var form = new FormData();
+    form.append("file", blob, filename);
+    form.append("filename", filename);
+
+    var resp = await fetch(data.url, { method: "POST", credentials: "include", body: form });
+    var text = await resp.text();
+    if (!resp.ok) {
+      console.log("[Imperio Vibes] upload-media fallo HTTP " + resp.status + ": " + text.slice(0, 200));
+      _sendResult(requestId, resp.status, text, "upload_failed");
+      return;
+    }
+    console.log("[Imperio Vibes] [OK] imagen de referencia subida");
+    _sendResult(requestId, 200, text, "");
+  } catch (e) {
+    console.log("[Imperio Vibes] upload excepcion: " + e.toString());
+    _sendResult(requestId, 0, "", e.toString());
+  }
+}
+
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   if (!msg || msg.type !== "FLOW_GENERATE_REQUEST") return;
-  handleGenerateRequest(msg);
+  if (msg.kind === "upload_media") {
+    handleUploadRequest(msg);
+  } else {
+    handleGenerateRequest(msg);
+  }
   sendResponse({ ok: true });
   return true;
 });
 
-console.log("[Imperio Vibes] vibes_content.js v1.0 cargado");
+console.log("[Imperio Vibes] vibes_content.js v1.1 cargado");

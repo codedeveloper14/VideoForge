@@ -102,7 +102,14 @@ def launch_chrome() -> dict:
 # ─────────────────────────────────────────────────────────────────
 
 
-def start_batch(project_name: str, prompt: str, slots: int, video_params: dict, timeout_sec: int) -> dict:
+def start_batch(
+    project_name: str,
+    prompt: str,
+    slots: int,
+    video_params: dict,
+    timeout_sec: int,
+    ref_image_b64: str | None = None,
+) -> dict:
     name = sanitize_name(project_name) if project_name else ""
     if not name:
         raise ValueError("Selecciona un proyecto antes de generar.")
@@ -132,7 +139,7 @@ def start_batch(project_name: str, prompt: str, slots: int, video_params: dict, 
     )
     threading.Thread(
         target=_batch_worker,
-        args=(vid_dir, prompt.strip(), slots, video_params, timeout_sec, cancel_ev),
+        args=(vid_dir, prompt.strip(), slots, video_params, timeout_sec, cancel_ev, ref_image_b64),
         daemon=True,
     ).start()
 
@@ -151,6 +158,7 @@ def _batch_worker(
     video_params: dict,
     timeout_sec: int,
     cancel_ev: threading.Event,
+    ref_image_b64: str | None = None,
 ) -> None:
     cookies = vibes_client.load_cookies(_ACCOUNT_IDX) or []
     project_id = vibes_client.ensure_project(cookies, _ACCOUNT_IDX, log=_log)
@@ -160,6 +168,37 @@ def _batch_worker(
         return
 
     _log(f"{slots} batch(es) - proyecto Vibes {project_id}")
+
+    ref_image: dict | None = None
+    if ref_image_b64:
+        import base64
+
+        _log("Imagen de referencia incluida - subiendo a Vibes...")
+        mime = "image/jpeg"
+        raw_b64 = ref_image_b64
+        if "," in ref_image_b64:
+            header, raw_b64 = ref_image_b64.split(",", 1)
+            if "image/png" in header:
+                mime = "image/png"
+            elif "image/webp" in header:
+                mime = "image/webp"
+        ext = {"image/png": "png", "image/webp": "webp"}.get(mime, "jpg")
+        try:
+            image_bytes = base64.b64decode(raw_b64)
+        except Exception as exc:
+            _log(f"[WARNING] Imagen de referencia invalida ({exc}) - generando sin referencia")
+            image_bytes = None
+        if image_bytes:
+            upload_result = vibes_client.upload_reference_image_via_bridge(
+                image_bytes, filename=f"reference.{ext}", log=_log
+            )
+            if upload_result.get("error"):
+                _log(f"[WARNING] Subida de imagen de referencia fallo: {upload_result['error']} - generando sin referencia")
+            else:
+                ref_image = {
+                    "media_ent_id": upload_result["media_ent_id"],
+                    "cdn_url": upload_result["cdn_url"],
+                }
 
     for i in range(slots):
         if cancel_ev.is_set():
@@ -173,6 +212,7 @@ def _batch_worker(
             cookie_list=cookies,
             timeout_sec=timeout_sec,
             slot_id=i,
+            ref_image=ref_image,
             log=_log,
             **video_params,
         )
