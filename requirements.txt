@@ -6,6 +6,7 @@ DBUtils>=3.1.0
 bcrypt>=4.1.0
 stripe>=8.0.0
 requests>=2.31.0
+urllib3>=2.0.0
 websockets>=12.0
 playwright>=1.40.0
 curl_cffi>=0.7.0
@@ -13,6 +14,7 @@ oss2>=2.18.0
 Pillow>=10.0.0
 psutil>=5.9.0
 pywebview>=5.0
+json_repair>=0.61.0
 pyobjc>=10.0; sys_platform == "darwin"  # backend nativo Cocoa/WebKit de pywebview en Mac
 
 # --- Render: backends de transcripcion (whisper_client.py) ---
@@ -38,3 +40,4 @@ pre-commit>=3.7.0
 # Ofuscacion antes de compilar el instalador. Licencia Basic ya comprada y
 # registrada para esta maquina (producto "StudioIVR") -- ver pyarmor reg.
 pyarmor>=9.2.5
+pyinstaller>=6.21.0

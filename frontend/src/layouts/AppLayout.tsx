@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { WorkspaceProvider, useWorkspace, type PipelinePage } from "../context/WorkspaceContext";
-import { createProject, listProjects } from "../api/projects";
+import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import ActiveJobsPopup from "../components/ActiveJobsPopup";
 import UpdateNotice from "../components/UpdateNotice";
+import NewProjectModal from "../components/NewProjectModal";
 
 const NO_SIDEBAR_ROUTES = [
   "/app/idea2video",
@@ -141,73 +142,6 @@ const PIPELINE_STEPS: { page: PipelinePage; labelKey: string }[] = [
   { page: "video", labelKey: "sidebar.pipelineVideo" },
   { page: "render", labelKey: "sidebar.pipelineRender" },
 ];
-
-function CreateProjectModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (name: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [nombre, setNombre] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!nombre.trim()) return;
-    setCreating(true);
-    setError("");
-    try {
-      await createProject(nombre.trim());
-      onCreated(nombre.trim());
-    } catch (err) {
-      setError((err as Error).message);
-      setCreating(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[380px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),.08)] bg-[var(--vf-s)] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
-      >
-        <h2 className="mb-3 text-lg font-bold text-[var(--vf-text)]">{t("topbar.newProjectPlain")}</h2>
-        <input
-          autoFocus
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder={t("topbar.newProjectNamePlaceholderAlt") || ""}
-          className="mb-3 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none focus:border-[#7c6aff]"
-        />
-        {error && <p className="mb-3 text-xs text-[var(--vf-danger)]">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] px-4 py-2 text-sm text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.04)]"
-          >
-            {t("topbar.cancel")}
-          </button>
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
-          >
-            {creating ? t("topbar.creating") : t("topbar.createProjectArrow")}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name: string) => void }) {
   const { t } = useTranslation();
@@ -368,7 +302,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
       </button>
 
       {showCreate && (
-        <CreateProjectModal
+        <NewProjectModal
           onClose={() => setShowCreate(false)}
           onCreated={(name) => {
             setShowCreate(false);
