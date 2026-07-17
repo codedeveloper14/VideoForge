@@ -13,7 +13,7 @@ from queue import Empty, Queue
 
 import requests
 
-from src.infrastructure.ai_providers import flow_bridge, flow_browser, flow_service
+from src.infrastructure.ai_providers import flow_bridge, flow_browser, flow_service, vibes_client
 from src.infrastructure.ai_providers.openrouter_client import sanitize_prompt
 from src.utils.logger import get_logger
 from src.utils.paths import get_flow_cookies_dir, get_flow_profiles_dir
@@ -1041,6 +1041,8 @@ def _run_batch_inner(
     has_ws_accounts = bool(ws_now)
     all_connected_hashes = set(connected_all) | set(ws_now.keys())
     for ch in list(all_connected_hashes):
+        if ch == vibes_client.VIBES_ACCOUNT_HASH:
+            continue
         if any(a["account_hash"] == ch for a in accounts_ok):
             continue
         src = "WS" if ch in ws_now else "HTTP"
@@ -1087,6 +1089,8 @@ def _run_batch_inner(
         ws_active_during = flow_bridge.get_bearer_cache_hashes()
         all_during = set(ws_during.keys()) | ws_active_during
         for ch in list(all_during):
+            if ch == vibes_client.VIBES_ACCOUNT_HASH:
+                continue
             if not any(a["account_hash"] == ch for a in accounts_ok):
                 accounts_ok.append(
                     {
@@ -1331,7 +1335,7 @@ def _run_batch_inner(
         existing = {a["account_hash"] for a in accounts_ok}
         used_indices = {a["index"] for a in accounts_ok if "index" in a}
         for nh, nbearer in new_entries.items():
-            if nh in existing:
+            if nh in existing or nh == vibes_client.VIBES_ACCOUNT_HASH:
                 continue
             now = time.time()
             new_idx = len(accounts_ok)

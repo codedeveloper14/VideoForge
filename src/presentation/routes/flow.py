@@ -2,7 +2,7 @@ from apiflask import APIBlueprint
 from flask import Response, jsonify, request, send_file
 
 from src.domain.services import flow_animation_service
-from src.infrastructure.ai_providers import flow_bridge
+from src.infrastructure.ai_providers import flow_bridge, vibes_client
 from src.presentation.schemas.flow import (
     FlowImageQuerySchema,
     FlowImagesQuerySchema,
@@ -54,7 +54,14 @@ def accounts():
 @flow_bp.get("/bridge-status")
 def bridge_status():
     flow_bridge.start_bridge(flow_animation_service.log)
-    return _cors(jsonify(flow_bridge.status()))
+    status = flow_bridge.status()
+    # El bridge (WS/HTTP 5556/5557) es compartido con Vibes -- sin este filtro, la
+    # tarjeta "Estado de Google Flow" del panel de Flow lista tambien la pestaña de
+    # vibes.ai (hash fijo "vibes-default"), confundiendo al usuario.
+    status["accounts"] = [
+        a for a in status.get("accounts", []) if a.get("account_hash") != vibes_client.VIBES_ACCOUNT_HASH
+    ]
+    return _cors(jsonify(status))
 
 
 @flow_bp.post("/login")
