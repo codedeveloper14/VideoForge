@@ -557,7 +557,6 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                   color: "#f5a623",
                 }}
               >
-                <span>⏳</span>
                 <span>{t("flowPanel.bridgeConnecting")}</span>
               </div>
             ) : (
@@ -572,7 +571,6 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                         : { borderColor: "rgba(245,158,11,.35)", background: "rgba(245,158,11,.08)", color: "#f5a623" }
                     }
                   >
-                    <span>{a.connected ? "✅" : "⏳"}</span>
                     <span>
                       {a.connected
                         ? t("flowPanel.bridgeConnectedAs", { email: a.email || a.account_hash })

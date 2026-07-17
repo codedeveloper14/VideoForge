@@ -143,6 +143,11 @@ export default function ProviderPanel({
   const galleryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentProjectRef = useRef(project);
   const totalImagesRef = useRef(0);
+  // Si /log falla (401 por sesion vencida, 500, etc.) sin esto el intervalo
+  // sigue pegado para siempre en silencio -- el usuario ve la UI "sin leer
+  // nada" indefinidamente, sin ningun error ni forma de saber que paso.
+  const pollFailRef = useRef(0);
+  const MAX_POLL_FAILURES = 5;
 
   const setOption = useCallback((key: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -240,6 +245,7 @@ export default function ProviderPanel({
     api
       .log(logOffsetRef.current)
       .then((d) => {
+        pollFailRef.current = 0;
         if (d.lines && d.lines.length) {
           setLogLines((prev) => [...prev, ...(d.lines as string[])]);
         }
@@ -251,11 +257,20 @@ export default function ProviderPanel({
           appendLog(t("providerPanel.processCompleted"));
         }
       })
-      .catch(() => {});
-  }, [api, pollGallery]);
+      .catch((err) => {
+        pollFailRef.current += 1;
+        if (pollFailRef.current >= MAX_POLL_FAILURES) {
+          setRunning(false);
+          stopPolling();
+          setError((err as Error).message || t("providerPanel.unknownError"));
+          appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message || t("providerPanel.unknownError") }));
+        }
+      });
+  }, [api, pollGallery, t]);
 
   function startPolling() {
     stopPolling();
+    pollFailRef.current = 0;
     logTimerRef.current = setInterval(pollLog, LOG_POLL_MS);
     pollGallery();
     galleryTimerRef.current = setInterval(pollGallery, GALLERY_POLL_MS);
