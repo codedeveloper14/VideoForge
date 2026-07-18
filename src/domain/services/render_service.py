@@ -269,6 +269,7 @@ def _procesar_render_inteligente(
         try:
             return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **no_window_kwargs())
         except subprocess.TimeoutExpired:
+            logger.warning("[%s] ffmpeg colgado, timeout tras %ss: %s", job_id, timeout, " ".join(cmd[:6]))
             return subprocess.CompletedProcess(cmd, -1, "", f"timeout tras {timeout}s -- proceso colgado")
 
     cancel_event = _get_cancel_event(job_id)
@@ -302,7 +303,7 @@ def _procesar_render_inteligente(
                 )
             duracion_total = float(dur)
         except Exception as de:
-            raise Exception(f"No se pudo leer la duracion del audio: {de}")
+            raise RuntimeError(f"No se pudo leer la duracion del audio: {de}") from de
         log(f"Audio: {duracion_total:.1f}s", 7)
 
         # ── Verificar duracion maxima segun plan (server-side) ──────────
@@ -333,20 +334,20 @@ def _procesar_render_inteligente(
                 try:
                     segmentos, all_words = whisper_client.transcribe_api(audio_path, language="es")
                 except Exception as exc:
-                    raise Exception(f"Whisper API error: {exc}")
+                    raise RuntimeError(f"Whisper API error: {exc}") from exc
                 log(f"  (API: {len(all_words)} words --> {len(segmentos)} sub-segmentos)")
             elif whisper_backend == "faster":
                 log(f"Transcribiendo con faster-whisper ({modelo})...", 10)
                 try:
                     segmentos = whisper_client.transcribe_faster(audio_path, modelo)
                 except Exception as exc:
-                    raise Exception(f"faster-whisper error: {exc}")
+                    raise RuntimeError(f"faster-whisper error: {exc}") from exc
             elif whisper_backend == "whisperx_local":
                 log(f"Transcribiendo con WhisperX local ({modelo})...", 10)
                 try:
                     segmentos, all_words = whisper_client.transcribe_whisperx_local(audio_path, modelo)
                 except Exception as exc:
-                    raise Exception(f"WhisperX local error: {exc}")
+                    raise RuntimeError(f"WhisperX local error: {exc}") from exc
             elif whisper_backend == "whisperx":
                 log("Transcribiendo con WhisperX Replicate (alineacion forzada)...", 10)
                 try:
@@ -354,7 +355,7 @@ def _procesar_render_inteligente(
                         audio_path, language=None
                     )
                 except Exception as exc:
-                    raise Exception(f"WhisperX Replicate error: {exc}")
+                    raise RuntimeError(f"WhisperX Replicate error: {exc}") from exc
             else:
                 log(f"Transcribiendo con Whisper ({modelo})...", 10)
                 segmentos = whisper_client.transcribe_local(audio_path, modelo)
@@ -661,7 +662,7 @@ def _procesar_render_inteligente(
                 try:
                     os.remove(out_tmp)
                 except Exception:
-                    pass
+                    logger.exception("[%s] no se pudo borrar temporal %s", job_id, out_tmp)
             elif os.path.exists(out_tmp):
                 os.replace(out_tmp, out)
 
@@ -801,7 +802,9 @@ def _procesar_render_inteligente(
                         if os.path.exists(fb) and os.path.getsize(fb) > 500:
                             batch_clips.append(fb)
                     if not batch_clips:
-                        raise Exception(f"Modal seg {seg_idx} batch {bi}: request error {merr}. {merr.body}")
+                        raise RuntimeError(
+                            f"Modal seg {seg_idx} batch {bi}: request error {merr}. {merr.body}"
+                        ) from merr
                     if len(batch_clips) == 1:
                         bp = batch_clips[0]
                     else:
@@ -856,7 +859,9 @@ def _procesar_render_inteligente(
                 try:
                     decoded_video = base64.b64decode(video_b64)
                 except Exception as b64_err:
-                    raise Exception(f"Modal seg {seg_idx} batch {bi}: base64 invalido ({b64_err})")
+                    raise RuntimeError(
+                        f"Modal seg {seg_idx} batch {bi}: base64 invalido ({b64_err})"
+                    ) from b64_err
                 with open(bp, "wb") as f:
                     f.write(decoded_video)
                 if not os.path.exists(bp) or os.path.getsize(bp) <= 500:
@@ -925,7 +930,9 @@ def _procesar_render_inteligente(
                         )
                         continue
                 except Exception:
-                    pass
+                    logger.exception(
+                        "[%s] seg%s: no se pudo validar dimensiones de %s", job_id, seg_idx, bp_v
+                    )
                 clips_ok.append(bp_v)
             if not clips_ok:
                 raise Exception(f"seg {seg_idx}: todos los batches tienen dimensiones invalidas - abortando")
@@ -947,7 +954,7 @@ def _procesar_render_inteligente(
                     bd = float(json.loads(pr.stdout).get("format", {}).get("duration", 0))
                     log(f"  batch{bi}: {os.path.basename(bp)} dur={bd:.3f}s")
                 except Exception:
-                    pass
+                    logger.exception("[%s] seg%s: no se pudo leer duracion de batch %s", job_id, seg_idx, bp)
             # Normalizar resolucion de cada batch antes de concatenar - sin esto, si
             # Modal devuelve clips con dimensiones distintas, FFmpeg falla el concat.
             fc_inputs = []
@@ -998,7 +1005,9 @@ def _procesar_render_inteligente(
                 esp = sum(sc["duracion"] for sc in img_scenes)
                 log(f"  seg{seg_idx} concat: dur={sd:.3f}s esperado={esp:.3f}s delta={sd - esp:+.3f}s")
             except Exception:
-                pass
+                logger.exception(
+                    "[%s] seg%s: no se pudo verificar duracion del concat de imagenes", job_id, seg_idx
+                )
             return seg_idx, co
 
         # ── _render_vid_segment: procesa clips de video en paralelo con FFmpeg ─
@@ -1186,7 +1195,9 @@ def _procesar_render_inteligente(
                         os.replace(co_corr, co)
                         log(f"  [OK] seg{seg_idx} drift corregido: {drift:+.3f}s --> 0.000s")
             except Exception:
-                pass
+                logger.exception(
+                    "[%s] seg%s: no se pudo verificar/corregir drift del concat de video", job_id, seg_idx
+                )
             return seg_idx, co
 
         # ── Agrupar escenas en segmentos consecutivos por tipo ───────────
