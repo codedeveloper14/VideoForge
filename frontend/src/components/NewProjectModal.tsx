@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type JSX } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { createProject } from "../api/projects";
 import ComingSoonToast from "./ComingSoonToast";
@@ -171,6 +172,7 @@ export default function NewProjectModal({
   onCreated: (name: string) => void;
 }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [pipelineType, setPipelineType] = useState<PipelineType>("sketch");
   const [format, setFormat] = useState<VideoFormat>("largo");
   const [nombre, setNombre] = useState("");
@@ -179,6 +181,11 @@ export default function NewProjectModal({
   const [soonToast, setSoonToast] = useState(false);
 
   function pickCard(type: PipelineType) {
+    if (type === "idea") {
+      onClose();
+      navigate("/app/idea2video");
+      return;
+    }
     if (type !== "sketch") {
       setSoonToast(true);
       return;
