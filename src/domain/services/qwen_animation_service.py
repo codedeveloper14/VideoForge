@@ -16,24 +16,48 @@ logger = get_logger(__name__)
 
 _MAX_LOG_LINES = 1500
 
-_state = {
-    "running": False,
-    "log_lines": [],
-    "finished": False,
-    "project_dir": None,
-    "images": [],
-    "total": 0,
-    "cancel_event": None,
-}
-_lock = threading.Lock()
+# Estado indexado por proyecto (sanitize_name) -- antes era un unico dict a
+# nivel de modulo: lanzar un segundo lote (otro proyecto) no mataba el hilo
+# del primero, pero SI pisaba _state["project_dir"]/["images"], y ambos
+# hilos seguian escribiendo en la MISMA lista de log_lines -- logs y
+# progreso de dos proyectos distintos quedaban entrelazados en lo que fuera
+# que la UI estuviera pollenado. Con _batches cada proyecto tiene su propio
+# log_lines/cancel_event/project_dir.
+_batches: dict[str, dict] = {}
+_batches_lock = threading.Lock()
+_last_project: str | None = None
 
 
-def _log(msg: str) -> None:
+def _new_batch_state() -> dict:
+    return {
+        "running": False,
+        "log_lines": [],
+        "finished": False,
+        "project_dir": None,
+        "images": [],
+        "total": 0,
+        "cancel_event": None,
+    }
+
+
+def _get_batch(name: str) -> dict:
+    with _batches_lock:
+        return _batches.setdefault(name, _new_batch_state())
+
+
+def _resolve_name(project_name: str) -> str:
+    name = sanitize_name(project_name or "")
+    if name:
+        return name
+    return _last_project or ""
+
+
+def _append_log(batch: dict, msg: str) -> None:
     line = f"[QWEN] {msg}"
-    with _lock:
-        _state["log_lines"].append(line)
-        if len(_state["log_lines"]) > _MAX_LOG_LINES:
-            _state["log_lines"] = _state["log_lines"][-_MAX_LOG_LINES:]
+    with _batches_lock:
+        batch["log_lines"].append(line)
+        if len(batch["log_lines"]) > _MAX_LOG_LINES:
+            batch["log_lines"] = batch["log_lines"][-_MAX_LOG_LINES:]
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -52,10 +76,10 @@ def start_account_login(account_name: str) -> None:
     qwen_service.ensure_accounts(accounts_dir)
     folder = qwen_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    _log("Abriendo Chromium - inicia sesion en chat.qwen.ai y cierra.")
+    logger.info("[QWEN] Abriendo Chromium - inicia sesion en chat.qwen.ai y cierra.")
 
     def _run():
-        qwen_service.login_account_managed(folder, log_callback=_log)
+        qwen_service.login_account_managed(folder, log_callback=lambda msg: logger.info("[QWEN] %s", msg))
 
     threading.Thread(target=_run, daemon=True).start()
 
@@ -84,7 +108,12 @@ def _is_retryable_error(msg: str) -> bool:
     )
 
 
-def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_sec: int) -> None:
+def _batch_worker(name: str, proj_dir: Path, prompt: str, size: str, slots: int, timeout_sec: int) -> None:
+    batch = _get_batch(name)
+
+    def log(msg: str) -> None:
+        _append_log(batch, msg)
+
     try:
         img_dir = proj_dir / "imagen"
         vid_dir = proj_dir / "video"
@@ -95,29 +124,29 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
             if p.is_file() and p.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS
         ]
         if not imgs:
-            _log("[ERROR] No hay imagenes para animar.")
-            _state.update(finished=True, running=False)
+            log("[ERROR] No hay imagenes para animar.")
+            batch.update(finished=True, running=False)
             return
 
         accounts_dir = get_qwen_accounts_dir()
         tokens = qwen_service.tokens_for_run(accounts_dir)
         if not tokens:
-            _log("[ERROR] No hay cuentas Qwen activas. Inicia sesion primero en Cuentas.")
-            _state.update(finished=True, running=False)
+            log("[ERROR] No hay cuentas Qwen activas. Inicia sesion primero en Cuentas.")
+            batch.update(finished=True, running=False)
             return
 
         n_accounts = max(1, len(tokens))
         maxw = max(1, min(max(1, int(slots or 1)), 8))
         submit_delay = 0.35 if maxw > 1 else 0.0
-        _log(
+        log(
             f"Iniciando lote Qwen: {len(imgs)} imagen(es), {n_accounts} cuenta(s), "
             f"slots={slots} --> efectivos={maxw}, delay={submit_delay:.1f}s"
         )
-        _log(
+        log(
             f"Transporte HTTP: {'curl_cffi(chromium impersonation)' if qwen_service.HAS_CURL_CFFI else 'requests estandar'}"
         )
 
-        cancel_ev = _state["cancel_event"]
+        cancel_ev = batch["cancel_event"]
         done = {"n": 0}
         done_lock = threading.Lock()
 
@@ -130,9 +159,9 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
             if Path(out_path).is_file():
                 with done_lock:
                     done["n"] += 1
-                _log(f"[{out_name}] ya existe ({done['n']}/{len(imgs)})")
+                log(f"[{out_name}] ya existe ({done['n']}/{len(imgs)})")
                 return
-            _log(f"[{account_name}] Generando {out_name} ({i + 1}/{len(imgs)})")
+            log(f"[{account_name}] Generando {out_name} ({i + 1}/{len(imgs)})")
             max_attempts = 4
             for attempt in range(1, max_attempts + 1):
                 if cancel_ev and cancel_ev.is_set():
@@ -150,20 +179,20 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
                     )
                     with done_lock:
                         done["n"] += 1
-                    _log(f"[{account_name}] [OK] {out_name} ({done['n']}/{len(imgs)})")
+                    log(f"[{account_name}] [OK] {out_name} ({done['n']}/{len(imgs)})")
                     return
                 except Exception as exc:
                     err = str(exc)
                     if attempt < max_attempts and _is_retryable_error(err):
                         wait_s = min(90, 12 * attempt)
-                        _log(
+                        log(
                             f"[{account_name}] {out_name} retry {attempt}/{max_attempts - 1} en {wait_s}s ({err[:90]})"
                         )
                         time.sleep(wait_s)
                         continue
                     with done_lock:
                         done["n"] += 1
-                    _log(f"[{account_name}] [ERROR] {out_name}: {err}")
+                    log(f"[{account_name}] [ERROR] {out_name}: {err}")
                     return
 
         with ThreadPoolExecutor(max_workers=maxw) as ex:
@@ -176,13 +205,13 @@ def _batch_worker(proj_dir: Path, prompt: str, size: str, slots: int, timeout_se
                 try:
                     f.result()
                 except Exception as exc:
-                    _log(f"[WARNING] Worker error: {exc}")
+                    log(f"[WARNING] Worker error: {exc}")
 
-        _state.update(finished=True, running=False)
-        _log("Lote Qwen finalizado.")
+        batch.update(finished=True, running=False)
+        log("Lote Qwen finalizado.")
     except Exception as exc:
-        _state.update(finished=True, running=False)
-        _log(f"[ERROR] Error batch Qwen: {exc}")
+        batch.update(finished=True, running=False)
+        log(f"[ERROR] Error batch Qwen: {exc}")
 
 
 def start_batch(
@@ -194,11 +223,20 @@ def start_batch(
     timeout_sec: int,
     aspect_ratio: str,
 ) -> dict:
+    global _last_project
+
     name = sanitize_name(project_name)
     if not name:
         raise ValueError("Selecciona un proyecto en la barra superior antes de animar.")
     if not images:
         raise ValueError("No se recibieron imagenes")
+
+    batch = _get_batch(name)
+    # Si el MISMO proyecto ya tiene un lote corriendo, cancelalo antes de
+    # pisar su estado -- nunca toca el cancel_event de otro proyecto.
+    old_cancel = batch.get("cancel_event")
+    if old_cancel and not batch.get("finished", True):
+        old_cancel.set()
 
     proj_dir = project_repository.create_project(name)
     img_dir = proj_dir / "imagen"
@@ -220,7 +258,7 @@ def start_batch(
     )
 
     cancel_ev = threading.Event()
-    _state.update(
+    batch.update(
         {
             "running": True,
             "log_lines": [],
@@ -231,21 +269,24 @@ def start_batch(
             "cancel_event": cancel_ev,
         }
     )
+    _last_project = name
     threading.Thread(
-        target=_batch_worker, args=(proj_dir, prompt, size, slots, timeout_sec), daemon=True
+        target=_batch_worker, args=(name, proj_dir, prompt, size, slots, timeout_sec), daemon=True
     ).start()
 
     return {"ok": True, "pid": f"qwen-{int(time.time())}", "project_dir": str(proj_dir), "project_name": name}
 
 
 def start_regen(project_name: str, video_name: str, prompt: str, size: str) -> dict:
-    name = sanitize_name(project_name)
-    if _state["project_dir"]:
-        proj_dir = Path(_state["project_dir"])
-    elif name:
-        proj_dir = project_repository.project_dir(name)
-    else:
+    global _last_project
+
+    name = _resolve_name(project_name)
+    if not name:
         raise ValueError("Sin proyecto activo")
+    proj_dir = project_repository.project_dir(name)
+    batch = _get_batch(name)
+    batch["project_dir"] = str(proj_dir)
+    _last_project = name
 
     img_stem = Path(video_name).stem
     img_dir = proj_dir / "imagen"
@@ -268,11 +309,11 @@ def start_regen(project_name: str, video_name: str, prompt: str, size: str) -> d
         raise ValueError("No hay cuentas Qwen activas")
     account_name, token, cookie_header, session_meta = tokens[0]
 
-    _state.update(finished=False, running=True)
+    batch.update(finished=False, running=True)
 
     def _run():
         try:
-            _log(f"[{account_name}] Regen {img_stem}.mp4")
+            _append_log(batch, f"[{account_name}] Regen {img_stem}.mp4")
             qwen_service.generate_one(
                 token,
                 str(matches[0]),
@@ -283,26 +324,34 @@ def start_regen(project_name: str, video_name: str, prompt: str, size: str) -> d
                 cookie_header=cookie_header,
                 session_meta=session_meta,
             )
-            _log(f"[{account_name}] [OK] Regen completado: {img_stem}.mp4")
+            _append_log(batch, f"[{account_name}] [OK] Regen completado: {img_stem}.mp4")
         except Exception as exc:
-            _log(f"[{account_name}] [ERROR] Regen error: {exc}")
-        _state.update(running=False, finished=True)
+            _append_log(batch, f"[{account_name}] [ERROR] Regen error: {exc}")
+        batch.update(running=False, finished=True)
 
     threading.Thread(target=_run, daemon=True).start()
     return {"ok": True}
 
 
-def stop() -> None:
-    ev = _state.get("cancel_event")
+def stop(project_name: str = "") -> None:
+    name = _resolve_name(project_name)
+    if not name:
+        return
+    batch = _get_batch(name)
+    ev = batch.get("cancel_event")
     if ev:
         ev.set()
-    _state.update(running=False, finished=True)
-    _log("Lote marcado para detener.")
+    batch.update(running=False, finished=True)
+    _append_log(batch, "Lote marcado para detener.")
 
 
-def get_log_state(offset: int) -> dict:
-    lines = _state["log_lines"][offset:]
-    video_dir = Path(_state["project_dir"]) / "video" if _state["project_dir"] else None
+def get_log_state(offset: int, project_name: str = "") -> dict:
+    name = _resolve_name(project_name)
+    if not name:
+        return {"lines": [], "next_offset": offset, "finished": True, "videos_done": 0, "videos_total": 0}
+    batch = _get_batch(name)
+    lines = batch["log_lines"][offset:]
+    video_dir = Path(batch["project_dir"]) / "video" if batch["project_dir"] else None
     try:
         videos_done = len(list(video_dir.glob("*.mp4"))) if video_dir and video_dir.is_dir() else 0
     except Exception:
@@ -310,9 +359,9 @@ def get_log_state(offset: int) -> dict:
     return {
         "lines": lines,
         "next_offset": offset + len(lines),
-        "finished": bool(_state["finished"]),
+        "finished": bool(batch["finished"]),
         "videos_done": videos_done,
-        "videos_total": int(_state.get("total") or 0),
+        "videos_total": int(batch.get("total") or 0),
     }
 
 
@@ -338,8 +387,10 @@ def list_videos(project_name: str) -> dict:
 def get_video_path(project_name: str, filename: str) -> Path | None:
     if project_name:
         return project_repository.resolve_safe_file(project_name, "video", filename)
-    if _state["project_dir"]:
-        video_dir = Path(_state["project_dir"]) / "video"
+    name = _last_project
+    proj_dir = _batches.get(name, {}).get("project_dir") if name else None
+    if proj_dir:
+        video_dir = Path(proj_dir) / "video"
         candidate = (video_dir / filename).resolve()
         try:
             candidate.relative_to(video_dir.resolve())
@@ -352,8 +403,10 @@ def get_video_path(project_name: str, filename: str) -> Path | None:
 def _active_video_dir(project_name: str) -> Path | None:
     if project_name:
         return project_repository.project_dir(project_name) / "video"
-    if _state["project_dir"]:
-        return Path(_state["project_dir"]) / "video"
+    name = _last_project
+    proj_dir = _batches.get(name, {}).get("project_dir") if name else None
+    if proj_dir:
+        return Path(proj_dir) / "video"
     return None
 
 

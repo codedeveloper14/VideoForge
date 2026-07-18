@@ -22,6 +22,11 @@ class VibesIniciarInSchema(Schema):
 
 class VibesLogQuerySchema(Schema):
     offset = Integer(load_default=0)
+    project = String(load_default="")
+
+
+class VibesDetenerInSchema(Schema):
+    project = String(load_default="")
 
 
 class VibesVideosQuerySchema(Schema):

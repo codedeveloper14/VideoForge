@@ -189,8 +189,15 @@ _GENERATE_JS = """
     const _check = () => {
         for (const img of document.querySelectorAll('img')) {
             const s = img.src || '';
-            if (s.startsWith('data:image') && s.length > 5000
-                    && !window.__gt_pre.has(s.substring(0,200))) {
+            if (window.__gt_pre.has(s.substring(0,200))) continue;
+            // data: -- imagen inline en base64 (formato historico de GenTube).
+            // blob: -- patron comun en apps React que renderizan el resultado con
+            // URL.createObjectURL(blob); no trae longitud en la URL, asi que
+            // cualquier blob: nuevo (no pre-existente) cuenta como candidato.
+            if (s.startsWith('data:image') && s.length > 5000) {
+                window.__gt_img = s; return;
+            }
+            if (s.startsWith('blob:')) {
                 window.__gt_img = s; return;
             }
         }
@@ -223,25 +230,64 @@ _GENERATE_JS = """
 }
 """
 
+# Los bytes de un blob: URL solo existen dentro del contexto de la pagina que lo
+# creo -- hay que leerlos ahi (fetch + FileReader) y devolverlos como data URL
+# para poder reusar el mismo parsing (`header, _, b64data = ...partition(",")`)
+# que ya existe para el caso "data:image" clasico.
+_BLOB_TO_DATA_URL_JS = """
+(u) => fetch(u).then(r => r.blob()).then(b => new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.onerror = reject;
+    fr.readAsDataURL(b);
+}))
+"""
+
+
+_TRACKER_DOMAINS = (
+    "google-analytics",
+    "googleads",
+    "doubleclick",
+    "pinterest",
+    "axiom.co",
+    "posthog",
+    "ph.gentube",
+)
+
+
+def should_block_request(url: str, resource_type: str) -> bool:
+    """Que bloquear en el contexto headless de generacion. Bloquea fuentes/media
+    (no afectan la captura de la imagen resultado, ahorran ancho de banda) y
+    dominios de tracking conocidos -- NUNCA por resource_type "image" con un
+    allowlist de un solo dominio de CDN: eso fue justamente lo que dejo a
+    Playwright ciego cuando GenTube cambio de CDN (la imagen final se
+    bloqueaba antes de cargar, asi que ni el DOM-observer ni el sniffer de
+    red podian verla)."""
+    if resource_type in ("font", "media"):
+        return True
+    return any(d in url for d in _TRACKER_DOMAINS)
+
 
 def _block_route(route):
-    url = route.request.url
-    rt = route.request.resource_type
-    if (rt in ("image", "font", "media") and "cloudfront.net" not in url) or any(
-        d in url
-        for d in (
-            "google-analytics",
-            "googleads",
-            "doubleclick",
-            "pinterest",
-            "axiom.co",
-            "posthog",
-            "ph.gentube",
-        )
-    ):
+    if should_block_request(route.request.url, route.request.resource_type):
         route.abort()
     else:
         route.continue_()
+
+
+_JUNK_IMAGE_MARKERS = ("profile_", "avatar", "favicon", "/icons/", "logo")
+
+
+def is_capturable_image_response(url: str, content_type: str, status: int) -> bool:
+    """Si una respuesta de red es candidata a "la imagen generada". Antes exigia
+    "cloudfront.net" en la URL -- un allowlist de un solo CDN que se rompe con
+    cualquier cambio de proveedor de imagenes en GenTube. Ahora es agnostica al
+    dominio: cualquier respuesta de tipo imagen con 200 OK cuenta, salvo los
+    patrones conocidos de assets decorativos (avatares, iconos, logos)."""
+    if status != 200 or "image" not in (content_type or ""):
+        return False
+    low = url.lower()
+    return not any(marker in low for marker in _JUNK_IMAGE_MARKERS)
 
 
 def _slot_worker(
@@ -297,13 +343,11 @@ def _slot_worker(
         page.route("**/*", _block_route)
         page_loaded = False
         pre_urls: set[str] = set()
-        captured_cf: list[str] = []
+        captured_imgs: list[str] = []
 
         def _on_resp(r):
-            url = r.url
-            ct = r.headers.get("content-type", "")
-            if "cloudfront.net" in url and "image" in ct and r.status == 200 and "profile_" not in url:
-                captured_cf.append(url)
+            if is_capturable_image_response(r.url, r.headers.get("content-type", ""), r.status):
+                captured_imgs.append(r.url)
 
         page.on("response", _on_resp)
 
@@ -338,7 +382,7 @@ def _slot_worker(
 
                     log(f"  [S{slot_idx}|{task_idx + 1}/{total}] {prompt[:55]}...")
 
-                    del captured_cf[:]
+                    del captured_imgs[:]
                     result = page.evaluate(_GENERATE_JS % {"prompt": json.dumps(prompt)})
 
                     if result != "ok":
@@ -377,11 +421,20 @@ def _slot_worker(
                                     )
                                 except Exception:
                                     pass
-                                result_img = ("b64", ds)
-                                break
-                            new_cf = [u for u in captured_cf if u not in pre_urls]
-                            if new_cf:
-                                result_img = ("url", new_cf[-1])
+                                if ds.startswith("blob:"):
+                                    # blob: no trae los bytes en la URL -- hay que
+                                    # leerlo desde el contexto de la pagina (donde
+                                    # el objeto Blob vive) y convertirlo a data URL.
+                                    try:
+                                        ds = page.evaluate(_BLOB_TO_DATA_URL_JS, ds)
+                                    except Exception:
+                                        ds = None
+                                if ds:
+                                    result_img = ("b64", ds)
+                                    break
+                            new_imgs = [u for u in captured_imgs if u not in pre_urls]
+                            if new_imgs:
+                                result_img = ("url", new_imgs[-1])
                                 break
                         except Exception:
                             pass

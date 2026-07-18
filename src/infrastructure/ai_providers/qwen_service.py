@@ -2,8 +2,10 @@ import json
 import mimetypes
 import os
 import re
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -169,17 +171,77 @@ def test_token(token: str, cookie_header: str = "", session_meta: dict | None = 
         return False, str(exc)
 
 
+# ─────────────────────────────────────────────────────────────────
+# Verificacion de red en background: list_account_sessions() NO debe bloquear
+# al llamador con requests HTTP en vivo (antes hacia test_token() secuencial
+# por cada cuenta, hasta N x 15s de timeout dentro del propio GET /sesiones --
+# eso es lo que producia "Network Error" en el frontend cuando la red estaba
+# lenta/inalcanzable: algo aguas abajo terminaba cortando la conexion antes de
+# que Flask lograra responder). Ahora list_account_sessions() solo lee disco
+# (igual que Grok) y devuelve el ultimo resultado de verificacion en cache si
+# existe; la verificacion real corre en un ThreadPoolExecutor en paralelo, en
+# un hilo de fondo separado, y solo se dispara una vez por ciclo (no se apila
+# un verify nuevo mientras el anterior sigue corriendo).
+_verify_cache: dict[str, tuple[bool, str]] = {}
+_verify_lock = threading.Lock()
+_verify_inflight = False
+
+
+def _verify_one(folder: Path) -> tuple[str, tuple[bool, str] | None]:
+    tk = account_token(folder)
+    if not tk:
+        return folder.name, None
+    ck = load_cookies(folder)
+    cookie_header = cookie_header_from_cookies(ck)
+    sm = load_session_meta(folder)
+    result = test_token(tk, cookie_header=cookie_header, session_meta=sm)
+    return folder.name, result
+
+
+def _verify_accounts_background(folders: list[Path]) -> None:
+    global _verify_inflight
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for name, result in ex.map(_verify_one, folders):
+                if result is None:
+                    continue
+                with _verify_lock:
+                    _verify_cache[name] = result
+    finally:
+        with _verify_lock:
+            _verify_inflight = False
+
+
 def list_account_sessions(accounts_dir: Path) -> list[dict]:
+    global _verify_inflight
+    folders = [f for f in sorted(accounts_dir.iterdir()) if f.is_dir()]
     rows = []
-    for folder in sorted(accounts_dir.iterdir()):
-        if not folder.is_dir():
-            continue
+    needs_verify = False
+    for folder in folders:
         tk = account_token(folder)
         ck = load_cookies(folder)
-        active, detail = (False, "sin sesion")
-        if tk:
-            active, detail = test_token(tk)
+        if not tk:
+            rows.append({"name": folder.name, "active": False, "user": "sin sesion", "has_cookies": bool(ck)})
+            continue
+        cached = _verify_cache.get(folder.name)
+        if cached is not None:
+            active, detail = cached
+        else:
+            # Sin verificacion todavia: hay token en disco -- lo mostramos
+            # optimistamente como activo (igual que Grok con la cookie "sso")
+            # mientras el ThreadPoolExecutor confirma en paralelo.
+            active, detail = True, "sin verificar"
+            needs_verify = True
         rows.append({"name": folder.name, "active": bool(active), "user": detail, "has_cookies": bool(ck)})
+
+    if needs_verify:
+        with _verify_lock:
+            already_running = _verify_inflight
+            if not already_running:
+                _verify_inflight = True
+        if not already_running:
+            threading.Thread(target=_verify_accounts_background, args=(folders,), daemon=True).start()
+
     return rows
 
 

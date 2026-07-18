@@ -92,13 +92,15 @@ export function grokRegenerar(params: GrokRegenerarParams) {
     .then((r) => r.data);
 }
 
-export function grokDetener() {
-  return api.post<{ ok: boolean }>("/grok/detener").then((r) => r.data);
+export function grokDetener(project = "") {
+  return api
+    .post<{ ok: boolean }>("/grok/detener", { project })
+    .then((r) => r.data);
 }
 
-export function grokLog(offset = 0) {
+export function grokLog(offset = 0, project = "") {
   return api
-    .get<GrokLogResult>("/grok/log", { params: { offset } })
+    .get<GrokLogResult>("/grok/log", { params: { offset, project } })
     .then((r) => r.data);
 }
 

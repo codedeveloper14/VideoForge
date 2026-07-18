@@ -17,6 +17,11 @@ class GrokRegenerarInSchema(Schema):
 
 class GrokLogQuerySchema(Schema):
     offset = Integer(load_default=0)
+    project = String(load_default="")
+
+
+class GrokDetenerInSchema(Schema):
+    project = String(load_default="")
 
 
 class GrokVideosQuerySchema(Schema):

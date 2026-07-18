@@ -71,8 +71,8 @@ export interface ProviderApi {
   borrarSesion: (account: string) => Promise<{ ok: boolean }>;
   iniciar: (params: ProviderIniciarParams) => Promise<ProviderIniciarResult>;
   regenerar?: (params: ProviderRegenerarParams) => Promise<ProviderRegenerarResult>;
-  detener: () => Promise<{ ok: boolean }>;
-  log: (offset: number) => Promise<ProviderLogResult>;
+  detener: (project?: string) => Promise<{ ok: boolean }>;
+  log: (offset: number, project?: string) => Promise<ProviderLogResult>;
   videos: (project: string) => Promise<ProviderVideosResult>;
   videoUrl: (project: string, file: string, dl?: number) => string;
   descargarTodasUrl: (project: string) => string;
@@ -149,26 +149,57 @@ export default function ProviderPanel({
   const pollFailRef = useRef(0);
   const MAX_POLL_FAILURES = 5;
 
+  // Si /sesiones falla justo al montar (arranque en frio del backend: la
+  // pestana se monta antes de que Flask termine de bindear el puerto), sin
+  // reintento el "Network Error" queda congelado para siempre -- nada mas
+  // vuelve a llamar sesiones(). Backoff exponencial acotado: el backend
+  // suele levantar en pocos segundos.
+  const sesionesRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sesionesAttemptRef = useRef(0);
+  const MAX_SESIONES_RETRIES = 5;
+
   const setOption = useCallback((key: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   // ── Sessions ──────────────────────────────────────────────────
   const loadSesiones = useCallback(() => {
+    if (sesionesRetryRef.current) {
+      clearTimeout(sesionesRetryRef.current);
+      sesionesRetryRef.current = null;
+    }
     setAccountsLoading(true);
     setAccountsError("");
     api
       .sesiones()
-      .then((d) => setAccounts(d.accounts || []))
-      .catch((err) => setAccountsError((err as Error).message))
+      .then((d) => {
+        sesionesAttemptRef.current = 0;
+        setAccounts(d.accounts || []);
+      })
+      .catch((err) => {
+        setAccountsError((err as Error).message);
+        if (sesionesAttemptRef.current < MAX_SESIONES_RETRIES) {
+          sesionesAttemptRef.current += 1;
+          const delay = Math.min(1000 * 2 ** (sesionesAttemptRef.current - 1), 15000);
+          sesionesRetryRef.current = setTimeout(loadSesiones, delay);
+        }
+      })
       .finally(() => setAccountsLoading(false));
   }, [api]);
+
+  // Reintento manual (boton "verificar"): siempre arranca un ciclo de
+  // backoff nuevo, aunque los reintentos automaticos ya se hayan agotado.
+  const refreshSesiones = useCallback(() => {
+    sesionesAttemptRef.current = 0;
+    loadSesiones();
+  }, [loadSesiones]);
 
   useEffect(() => {
     loadSesiones();
     return () => {
       if (logTimerRef.current) clearInterval(logTimerRef.current);
       if (galleryTimerRef.current) clearInterval(galleryTimerRef.current);
+      if (sesionesRetryRef.current) clearTimeout(sesionesRetryRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -243,7 +274,7 @@ export default function ProviderPanel({
 
   const pollLog = useCallback(() => {
     api
-      .log(logOffsetRef.current)
+      .log(logOffsetRef.current, currentProjectRef.current)
       .then((d) => {
         pollFailRef.current = 0;
         if (d.lines && d.lines.length) {
@@ -280,7 +311,7 @@ export default function ProviderPanel({
   async function handleStart() {
     if (running) {
       try {
-        await api.detener();
+        await api.detener(currentProjectRef.current);
         appendLog(t("providerPanel.stoppedByUser"));
       } catch (err) {
         appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message }));
@@ -442,7 +473,7 @@ export default function ProviderPanel({
               error={accountsError}
               onLogin={handleLogin}
               onDelete={handleDeleteSession}
-              onRefresh={loadSesiones}
+              onRefresh={refreshSesiones}
             />
           </div>
 

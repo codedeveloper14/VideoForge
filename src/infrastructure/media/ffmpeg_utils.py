@@ -6,10 +6,22 @@ from src.utils.platform_utils import no_window_kwargs
 
 _h264_encode_cache: list[str] | None = None
 
+# Timeout por defecto para pasos "pesados" (concat/filter_complex sobre varios
+# segmentos, mux final) -- 300s cubre renders largos sin dejar un ffmpeg
+# colgado (audio/video corrupto, codec que nunca progresa) bloqueando el hilo
+# del render para siempre. Los llamados livianos (ffprobe, un clip suelto)
+# deben pasar un timeout mas chico explicitamente.
+DEFAULT_FFMPEG_TIMEOUT = 300
 
-def run_cmd(cmd: list[str], err_ctx: str) -> subprocess.CompletedProcess:
-    """Corre un subprocess y lanza un error legible si falla (ultimas 20 lineas de stderr)."""
-    res = subprocess.run(cmd, capture_output=True, text=True, **no_window_kwargs())
+
+def run_cmd(cmd: list[str], err_ctx: str, timeout: int = DEFAULT_FFMPEG_TIMEOUT) -> subprocess.CompletedProcess:
+    """Corre un subprocess y lanza un error legible si falla (ultimas 20 lineas de stderr)
+    o si se cuelga mas de `timeout` segundos (TimeoutExpired -> Exception legible, nunca
+    deja el proceso colgado indefinidamente)."""
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **no_window_kwargs())
+    except subprocess.TimeoutExpired:
+        raise Exception(f"{err_ctx}: timeout tras {timeout}s (proceso colgado -- revisa el audio/video de entrada)")
     if res.returncode != 0:
         stderr = (res.stderr or "").strip()
         lines = stderr.splitlines()
@@ -156,7 +168,12 @@ def h264_encode_args() -> list[str]:
 
 
 def final_mux_aligned(
-    concat_out: str, audio_path_mix: str, video_final: str, duracion_total: float, log=None
+    concat_out: str,
+    audio_path_mix: str,
+    video_final: str,
+    duracion_total: float,
+    log=None,
+    timeout: int = DEFAULT_FFMPEG_TIMEOUT,
 ) -> None:
     """
     Une video + audio a duracion_total (audio maestro). Sin -shortest: no recorta al stream
@@ -213,7 +230,10 @@ def final_mux_aligned(
             f"{dt:.6f}",
             video_final,
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, **no_window_kwargs())
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **no_window_kwargs())
+        except subprocess.TimeoutExpired:
+            raise Exception(f"FFmpeg mux final (copy): timeout tras {timeout}s -- audio/video colgado")
         copy_ok = res.returncode == 0 or (
             os.path.exists(video_final) and os.path.getsize(video_final) > 10240
         )
@@ -242,9 +262,18 @@ def final_mux_aligned(
     tail = ["-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-t", f"{dt:.6f}", video_final]
 
     def _run_mux(enc_list):
-        return subprocess.run(
-            base_cmd + enc_list + tail, capture_output=True, text=True, **no_window_kwargs()
-        )
+        # Un timeout se trata como un fallo mas (returncode -1 sintetico) en vez de
+        # levantar de inmediato: asi el intento con GPU (NVENC/QSV/AMF) colgado
+        # todavia cae al reintento con libx264 (CPU) mas abajo, en vez de dejar
+        # el render entero sin fallback por un timeout del primer intento.
+        try:
+            return subprocess.run(
+                base_cmd + enc_list + tail, capture_output=True, text=True, timeout=timeout, **no_window_kwargs()
+            )
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(
+                base_cmd + enc_list + tail, -1, "", f"timeout tras {timeout}s -- proceso colgado"
+            )
 
     res = _run_mux(h264_encode_args())
     if res.returncode != 0:

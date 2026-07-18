@@ -70,13 +70,15 @@ export function vibesIniciar(params: VibesIniciarParams) {
   return api.post<VibesIniciarResult>("/vibes/iniciar", params).then((r) => r.data);
 }
 
-export function vibesDetener() {
-  return api.post<{ ok: boolean }>("/vibes/detener").then((r) => r.data);
+export function vibesDetener(project = "") {
+  return api
+    .post<{ ok: boolean }>("/vibes/detener", { project })
+    .then((r) => r.data);
 }
 
-export function vibesLog(offset = 0) {
+export function vibesLog(offset = 0, project = "") {
   return api
-    .get<VibesLogResult>("/vibes/log", { params: { offset } })
+    .get<VibesLogResult>("/vibes/log", { params: { offset, project } })
     .then((r) => r.data);
 }
 

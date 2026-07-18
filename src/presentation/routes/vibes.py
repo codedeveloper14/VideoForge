@@ -5,6 +5,7 @@ from src.domain.services import vibes_animation_service
 from src.presentation.schemas.vibes import (
     VibesAbrirCarpetaInSchema,
     VibesAccountInSchema,
+    VibesDetenerInSchema,
     VibesIniciarInSchema,
     VibesLogQuerySchema,
     VibesVideoQuerySchema,
@@ -81,15 +82,16 @@ def iniciar(json_data):
 
 
 @vibes_bp.post("/detener")
-def detener():
-    vibes_animation_service.stop()
+@vibes_bp.input(VibesDetenerInSchema)
+def detener(json_data):
+    vibes_animation_service.stop(json_data["project"])
     return jsonify({"ok": True})
 
 
 @vibes_bp.get("/log")
 @vibes_bp.input(VibesLogQuerySchema, location="query")
 def log(query_data):
-    return jsonify(vibes_animation_service.get_log_state(query_data["offset"]))
+    return jsonify(vibes_animation_service.get_log_state(query_data["offset"], query_data["project"]))
 
 
 @vibes_bp.get("/videos")

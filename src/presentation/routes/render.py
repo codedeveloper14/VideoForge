@@ -52,6 +52,20 @@ def estado_job(job_id):
     return jsonify(job)
 
 
+@render_bp.post("/render/detener")
+def render_detener():
+    """Cancela un render individual por job_id -- nunca afecta a otros renders
+    en curso. Antes la unica forma de "destrabar" un render colgado era
+    reiniciar el backend entero."""
+    data = request.get_json(silent=True) or {}
+    job_id = str(data.get("job_id", "")).strip()
+    if not job_id:
+        return jsonify({"error": "Falta job_id"}), 400
+    if not render_service.stop_render(job_id):
+        return jsonify({"error": "Job no encontrado o ya finalizado"}), 404
+    return jsonify({"ok": True})
+
+
 @render_bp.get("/descargar_render/<job_id>")
 def descargar_render(job_id):
     job = render_service.get_job(job_id)
