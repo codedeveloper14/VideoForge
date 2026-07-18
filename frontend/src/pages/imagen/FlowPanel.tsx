@@ -587,9 +587,6 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                 ))}
               </div>
             )}
-            <p className="mt-2.5 font-mono text-[9px] leading-relaxed text-[var(--vf-m2)]">
-              {t("flowPanel.bridgeStatusHint")}
-            </p>
           </section>
 
           <section className="flow-card" style={{ padding: "14px 16px" }}>

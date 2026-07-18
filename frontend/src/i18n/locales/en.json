@@ -316,7 +316,6 @@
     "bridgeConnecting": "Connecting… Open labs.google/fx/tools/flow in Chrome with the \"VideoForge - Cookie Helper\" extension installed and sign in.",
     "bridgeConnectedAs": "Connected as: {{email}}",
     "bridgeReconnecting": "Reconnecting: {{email}}",
-    "bridgeStatusHint": "100% automatic detection — no need to paste cookies or click anything in the extension's popup.",
     "noActiveAccountsWarning": "⚠️ No Google Flow account connected. Open Google Flow in Chrome with the \"VideoForge - Cookie Helper\" extension installed and sign in — it will be detected automatically.",
     "accountsProfilesChromium": "// Accounts / Chromium Profiles",
     "noDataYet": "No data yet",
