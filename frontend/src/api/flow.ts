@@ -5,6 +5,7 @@ export interface FlowAccount {
   ok?: boolean;
   email?: string | null;
   cookie?: boolean;
+  open?: boolean;
 }
 
 export interface FlowAccountsResult {

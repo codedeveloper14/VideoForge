@@ -6,7 +6,6 @@ import {
   flowAbrirCarpeta,
   flowAccounts,
   flowBridgeStatus,
-  flowChromiumStatus,
   flowImages,
   flowImageUrl,
   flowLogin,
@@ -17,7 +16,7 @@ import {
   flowStatus,
   flowStop,
 } from "../../api/flow";
-import type { FlowAccount, FlowBridgeAccount, FlowChromiumProfile } from "../../api/flow";
+import type { FlowAccount, FlowBridgeAccount } from "../../api/flow";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
@@ -55,7 +54,6 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   const [error, setError] = useState("");
 
   const [accounts, setAccounts] = useState<FlowAccount[]>([]);
-  const [chromiumProfiles, setChromiumProfiles] = useState<FlowChromiumProfile[]>([]);
   const [noBrowserConnected, setNoBrowserConnected] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
@@ -103,10 +101,17 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
       .then((d) => setAccounts(d.accounts || []))
       .catch(() => {});
   }
-  function loadChromium() {
-    flowChromiumStatus()
-      .then((d) => setChromiumProfiles(d.profiles || []))
-      .catch(() => {});
+
+  // "ok" (sesion valida, via bridge WS/HTTP o cookie en disco) y "open" (hay un
+  // Chromium de Playwright abierto para ese perfil) son senales independientes --
+  // una cuenta conectada por el Chrome real del usuario nunca tiene "open" en true,
+  // y por eso antes convivian dos listas que parecian contradecirse (conectado arriba,
+  // inactivo abajo). Un solo estado combinado por cuenta evita esa lectura confusa.
+  function accountStatus(a: FlowAccount): { label: string; color: string } {
+    if (a.ok && a.open) return { label: t("flowPanel.connectedPlaywright"), color: "var(--vf-c5)" };
+    if (a.ok) return { label: t("flowPanel.connected"), color: "var(--vf-c5)" };
+    if (a.open) return { label: t("flowPanel.openingProfile"), color: "var(--vf-c2)" };
+    return { label: t("flowPanel.disconnected"), color: "var(--vf-m2)" };
   }
 
   function refreshImages() {
@@ -153,6 +158,13 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   // es lo que hace que "Conectado como <email>" aparezca solo con abrir Flow en
   // Chrome con la extension puesta, sin ninguna accion del usuario en esta app.
   useEffect(() => {
+    // loadAccounts() (tarjetas "Perfiles Chromium") corre en el mismo poll que
+    // flowBridgeStatus() (el aviso de arriba) -- antes se cargaba una sola vez al
+    // montar y de nuevo al apretar "Login", pero ANTES de que el usuario terminara
+    // de loguearse en la ventana de Playwright que se acababa de abrir. La tarjeta
+    // quedaba pegada en "abriendo..." para siempre aunque el login ya hubiera
+    // terminado y el aviso de arriba (que si refrescaba) mostrara la cuenta
+    // conectada y habilitara generar.
     function pollBridge() {
       flowBridgeStatus()
         .then((d) => {
@@ -169,17 +181,12 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
           setNoBrowserConnected(Date.now() - disconnectedSinceRef.current > NO_BROWSER_WARNING_MS);
         })
         .catch(() => setBridgeChecked(true));
+      loadAccounts();
     }
     pollBridge();
     const id = setInterval(pollBridge, 2500);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    loadAccounts();
-    loadChromium();
     return () => {
+      clearInterval(id);
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -296,7 +303,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
     setConfirmResetOpen(false);
     try {
       await flowResetChromium();
-      loadChromium();
+      loadAccounts();
     } catch (err) {
       setError((err as Error).message);
     }
@@ -643,24 +650,22 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                 <span className="text-[8px] text-[var(--vf-m2)]">{t("flowPanel.perfilQuotaNote")}</span>
               </summary>
               <div className="flex flex-col gap-1.5 px-2.5 pb-2.5">
-                {accounts.length === 0 && chromiumProfiles.length === 0 ? (
+                {accounts.length === 0 ? (
                   <div className="font-mono text-[10px] text-[var(--vf-m2)]">{t("flowPanel.noDataYet")}</div>
                 ) : (
-                  <>
-                    {accounts.map((a, i) => (
+                  accounts.map((a, i) => {
+                    const status = accountStatus(a);
+                    return (
                       <div
                         key={i}
                         className="flex items-center justify-between rounded-md border border-[var(--vf-border)] px-2 py-1"
                       >
                         <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                          {a.email || t("flowPanel.accountFallback", { n: i })}
+                          {a.email || t("flowPanel.accountFallback", { n: i + 1 })}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span
-                            className="font-mono text-[9px]"
-                            style={{ color: a.ok ? "var(--vf-c5)" : "var(--vf-m2)" }}
-                          >
-                            {a.ok ? t("flowPanel.connected") : t("flowPanel.disconnected")}
+                          <span className="font-mono text-[9px]" style={{ color: status.color }}>
+                            {status.label}
                           </span>
                           <button
                             onClick={() => handleLogin(i)}
@@ -670,13 +675,8 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                           </button>
                         </div>
                       </div>
-                    ))}
-                    {chromiumProfiles.map((p, i) => (
-                      <div key={`ch-${i}`} className="font-mono text-[9px] text-[var(--vf-m2)]">
-                        {t("flowPanel.profileLabel", { n: i, status: p.status || (p.active ? t("flowPanel.active") : t("flowPanel.inactive")) })}
-                      </div>
-                    ))}
-                  </>
+                    );
+                  })
                 )}
                 <p className="px-0.5 font-mono text-[9px] text-[var(--vf-m2)]">
                   {t("flowPanel.openProfileHint")}

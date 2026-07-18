@@ -104,38 +104,70 @@ def _load_bridge_session(idx: int) -> dict | None:
     if not path.is_file():
         return None
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return None
+    # Sidecars de antes del namespacing por plataforma (fix c77d9e2, que agrego el
+    # prefijo "flow:" al hash): mismo djb2 pero sin el prefijo, huerfanos para
+    # siempre -- la extension y flow_service.account_hash() ya solo emiten el
+    # formato con prefijo, asi que ese hash viejo nunca vuelve a conectarse. Sin
+    # esta limpieza, el slot queda "ocupado" en check_accounts()/_assign_slot_for_hash
+    # de forma permanente, duplicando en la UI la cuenta real (que ya tiene un
+    # sidecar nuevo, correcto, en otro indice) y desperdiciando el slot viejo.
+    if not str(data.get("account_hash", "")).startswith("flow:"):
+        try:
+            path.unlink()
+        except Exception:
+            pass
+        return None
+    return data
 
 
-def _assign_slot_for_hash(account_hash: str) -> int:
+def _assign_slot_for_hash(account_hash: str) -> int | None:
     """Mapea un account_hash de la extension a un indice de cuenta 0-9 estable. La
     extension nunca manda un indice (solo el hash de su propia sesion), asi que el
     slot se reconstruye leyendo los sidecars existentes en disco -- misma cuenta
-    siempre cae en el mismo indice entre reinicios del backend."""
+    siempre cae en el mismo indice entre reinicios del backend.
+
+    Devuelve None si ya no queda ningun slot libre (limite NUM_ACCOUNTS) -- nunca
+    alias una cuenta nueva sobre un indice ya ocupado por otra."""
     with _hash_to_idx_lock:
         if account_hash in _hash_to_idx:
             return _hash_to_idx[account_hash]
+        # Indices ya reservados en memoria esta sesion, aunque su sidecar en disco
+        # todavia no se haya escrito -- _on_bridge_session escribe FUERA de este
+        # lock, asi que dos cuentas nunca antes vistas registrandose casi al mismo
+        # tiempo (p. ej. al reiniciar la app con varias extensiones reconectando a
+        # la vez) podrian, sin este chequeo, leer el mismo estado "libre" en disco
+        # y terminar compartiendo el mismo indice.
+        reserved = set(_hash_to_idx.values())
         for i in range(flow_service.NUM_ACCOUNTS):
+            if i in reserved:
+                continue
             existing = _load_bridge_session(i)
             if existing and existing.get("account_hash") == account_hash:
                 _hash_to_idx[account_hash] = i
                 return i
         for i in range(flow_service.NUM_ACCOUNTS):
+            if i in reserved:
+                continue
             if flow_service.load_cookie(i) or _load_bridge_session(i):
                 continue
             _hash_to_idx[account_hash] = i
             return i
-        idx = len(_hash_to_idx) % flow_service.NUM_ACCOUNTS
-        _hash_to_idx[account_hash] = idx
-        return idx
+        return None
 
 
 def _on_bridge_session(account_hash: str, email: str, bearer: str) -> None:
     if not account_hash or not email:
         return
     idx = _assign_slot_for_hash(account_hash)
+    if idx is None:
+        log(
+            f"[Flow] [WARNING] Sin slots libres (limite {flow_service.NUM_ACCOUNTS}) - "
+            f"sesion de {email} descartada para no pisar el sidecar de otra cuenta"
+        )
+        return
     try:
         _bridge_session_path(idx).write_text(
             json.dumps({"account_hash": account_hash, "email": email, "bearer": bearer, "ts": time.time()}),
@@ -154,16 +186,25 @@ flow_bridge.add_session_listener(_on_bridge_session)
 
 
 def check_accounts() -> list[dict]:
+    open_idxs = _open_profile_indices()
+    # Misma definicion de "conectado" que usa flow_bridge.status() (el aviso de
+    # arriba del panel y el motor de generacion) -- WS, HTTP reciente o bearer
+    # cacheado <10min. Sin este chequeo, el sidecar en disco por si solo hacia que
+    # una cuenta mostrara "conectado" para siempre aunque el navegador ya no
+    # estuviera ahi, contradiciendo el aviso "sin cuentas conectadas" de arriba.
+    connected_hashes = set(flow_bridge.get_connected_accounts())
+
     def _check_one(i):
         ck = flow_service.load_cookie(i)
-        acc = {"index": i, "ok": False, "email": None, "cookie": bool(ck)}
+        acc = {"index": i, "ok": False, "email": None, "cookie": bool(ck), "open": i in open_idxs}
         if not ck:
             bridge_sess = _load_bridge_session(i)
             if bridge_sess and bridge_sess.get("email"):
-                acc["ok"] = True
+                is_live = bridge_sess.get("account_hash") in connected_hashes
+                acc["ok"] = is_live
                 acc["email"] = bridge_sess["email"]
                 with lock:
-                    state["accounts"][i].update({"ok": True, "email": bridge_sess["email"]})
+                    state["accounts"][i].update({"ok": is_live, "email": bridge_sess["email"]})
             return i, acc
         sess = flow_service.get_session(ck)
         bearer = sess.get("bearer", "")
@@ -226,11 +267,6 @@ FLOW_GEN_URL_TPL = "https://aisandbox-pa.googleapis.com/v1/projects/{pid}/flowMe
 
 _chromium_procs: dict[int, threading.Thread] = {}
 _chromium_lock = threading.Lock()
-
-# Hashes de cuentas lanzadas por Playwright (cargadas de disco). Cuentas NO en este
-# set = Chrome real del usuario.
-_playwright_hashes: set[str] = set()
-_playwright_hashes_lock = threading.Lock()
 
 # Rotacion: active_slots arranca como los primeros N indices, backup_queue el resto.
 # Una cuenta con rate-limit persistente se banea 1h y se reemplaza por el siguiente
@@ -298,19 +334,6 @@ def _open_chromium_by_idx(idx: int) -> None:
             if isinstance(existing, threading.Thread) and existing.is_alive():
                 return
             _chromium_procs.pop(idx, None)
-
-    # Marcar este hash como Playwright ahora (cuando realmente va a abrir), no antes
-    # (donde correria para todas las cuentas de disco, Chrome real incluido).
-    try:
-        ck = flow_service.load_cookie(idx)
-        if ck:
-            sess = flow_service.get_session(ck)
-            email = sess.get("email", "")
-            if email:
-                with _playwright_hashes_lock:
-                    _playwright_hashes.add(flow_service.account_hash(email))
-    except Exception:
-        pass
 
     def _on_closed():
         with _chromium_lock:
@@ -413,24 +436,21 @@ def record_rl_hit(account_hash: str, acc_idx: int) -> bool:
 
 
 def auto_open_browsers() -> None:
-    """Abre Chromium para todos los slots activos que tengan cookie. Si ya hay
-    Chrome real conectado (via el bridge), no abre Playwright en absoluto."""
+    """Abre Chromium (Playwright) para todos los slots activos que tengan cookie.
+    Playwright es la via primaria: se abre siempre, cuenta por cuenta, salvo que
+    esa cuenta puntual ya tenga una sesion viva conectada al bridge (Chrome real
+    u otro Playwright detectado via el sidecar de _on_bridge_session) -- eso evita
+    abrir dos navegadores logueados en el mismo Google account a la vez."""
     connected_all = set(flow_bridge.get_connected_accounts())
-    with _playwright_hashes_lock:
-        pw_hashes = set(_playwright_hashes)
-    # Cuentas activas via extension Chrome (HTTP) son Chrome real aunque antes hayan
-    # sido abiertas con Playwright -- quitar del set Playwright para detectarlas bien.
-    pw_hashes -= flow_bridge.get_http_seen_accounts()
-    real_hashes = connected_all - pw_hashes
-    if real_hashes:
-        log(f"[Flow] [OK] Chrome real conectado ({len(real_hashes)} cuenta(s)) - Playwright no abrira")
-        return
 
     with _rotation_lock:
         active = list(_active_slots)
     opened = 0
     for idx in active:
         if not flow_service.load_cookie(idx):
+            continue
+        bridge_sess = _load_bridge_session(idx)
+        if bridge_sess and bridge_sess.get("account_hash") in connected_all:
             continue
         with _chromium_lock:
             existing = _chromium_procs.get(idx)
@@ -443,8 +463,12 @@ def auto_open_browsers() -> None:
         log(f"[Flow] Auto-apertura Playwright: {opened} browser(s) iniciados")
 
 
-def chromium_status() -> list[dict]:
-    """Estado de cada perfil -- respuesta instantanea, sin llamadas HTTP."""
+def _open_profile_indices() -> set[int]:
+    """Indices con un Chromium (Playwright) actualmente abierto para ese perfil --
+    limpia threads muertos primero. Compartido por chromium_status() y
+    check_accounts() para que ambas vistas de "esta cuenta esta conectada" reflejen
+    exactamente el mismo estado de Playwright, en vez de que cada una lo calcule por
+    su cuenta y puedan divergir."""
     with _chromium_lock:
         dead = []
         for idx, p in _chromium_procs.items():
@@ -472,7 +496,12 @@ def chromium_status() -> list[dict]:
                             pass
         for idx in dead:
             _chromium_procs.pop(idx, None)
-        open_idxs = set(_chromium_procs.keys())
+        return set(_chromium_procs.keys())
+
+
+def chromium_status() -> list[dict]:
+    """Estado de cada perfil -- respuesta instantanea, sin llamadas HTTP."""
+    open_idxs = _open_profile_indices()
 
     connected_hashes = set(flow_bridge.get_ws_clients().keys())
 
@@ -540,8 +569,6 @@ def reset_chromium() -> dict:
 
     with _chromium_lock:
         _chromium_procs.clear()
-    with _playwright_hashes_lock:
-        _playwright_hashes.clear()
     for h in list(flow_bridge.get_ws_clients().keys()):
         flow_bridge.remove_ws_client(h)
 
@@ -596,8 +623,6 @@ def reset_chromium_profile(idx: int) -> dict:
             email = sess.get("email", "")
             if email:
                 h = flow_service.account_hash(email)
-                with _playwright_hashes_lock:
-                    _playwright_hashes.discard(h)
                 flow_bridge.remove_ws_client(h)
     except Exception as exc:
         errors.append(str(exc))
@@ -719,36 +744,39 @@ def _bridge_generate(
             log(f"[Flow] Bridge: HTTP poll queue -> {account_hash[:8]} req={rid[:12]}...")
             pushed = True
 
+    # Aislamiento estricto: una request con account_hash asignado SOLO puede
+    # ejecutarse en el canal (WS o polling HTTP) de esa misma cuenta. Prohibido
+    # delegarla a otra cuenta conectada aunque este disponible -- Cuenta N =
+    # solo ejecuta Cuenta N. Si N no tiene WS vivo en este instante, se encola
+    # especificamente para N via HTTP polling; el reintento/reencolado ante
+    # timeout ya lo maneja el caller (ver _mark_fail + job_q.put en el worker).
     if not pushed:
-        try_order = []
-        if account_hash and account_hash in ws_hashes:
-            try_order.append(account_hash)
-        for h in ws_hashes:
-            if h not in try_order and not is_banned(h):
-                try_order.append(h)
-
-        for h in try_order:
-            req["account_hash"] = h
-            # Si el fallback es una cuenta distinta a la asignada, usar SU bearer para
-            # que las cookies del browser coincidan con el Authorization header --
-            # el mismatch cookies/bearer es la causa principal de 403 reCAPTCHA.
-            if h != account_hash:
-                alt_bearer = flow_bridge.get_cached_bearer(h)
-                if alt_bearer:
-                    req["bearer"] = alt_bearer
-            if flow_bridge.ws_push(h, req):
+        if account_hash:
+            if account_hash in ws_hashes and flow_bridge.ws_push(account_hash, req):
                 pushed = True
-                log(f"[Flow] WS push -> {h[:8]} req={rid[:12]}...")
-                break
-
-        if not pushed:
-            if account_hash:
+                log(f"[Flow] WS push -> {account_hash[:8]} req={rid[:12]}...")
+            if not pushed:
                 req["account_hash"] = account_hash
                 req["bearer"] = bearer
-            flow_bridge.enqueue_request(req)
-            log(
-                f"[Flow] Bridge: request encolado {rid[:12]}... cuenta={account_hash or 'any'} (HTTP polling)"
-            )
+                flow_bridge.enqueue_request(req)
+                log(
+                    f"[Flow] Bridge: HTTP poll queue -> {account_hash[:8]} req={rid[:12]}... "
+                    "(WS propio no disponible, sin cruzar cuentas)"
+                )
+        else:
+            # Sin cuenta asignada (el caller no exige una identidad especifica):
+            # cualquier WS conectado y no baneado sirve.
+            for h in ws_hashes:
+                if is_banned(h):
+                    continue
+                req["account_hash"] = h
+                if flow_bridge.ws_push(h, req):
+                    pushed = True
+                    log(f"[Flow] WS push (sin cuenta asignada) -> {h[:8]} req={rid[:12]}...")
+                    break
+            if not pushed:
+                flow_bridge.enqueue_request(req)
+                log(f"[Flow] Bridge: request encolado {rid[:12]}... cuenta=any (HTTP polling)")
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -994,6 +1022,20 @@ def _run_batch_inner(
     accounts_ok: list[dict] = []
     acc_load_lock = threading.Lock()
 
+    def _next_free_batch_index() -> int:
+        """Primer entero >=0 no usado todavia como 'index' en accounts_ok. Una cuenta
+        cargada desde disco usa como index su slot fisico real (0-9); una cuenta
+        detectada solo por WS/HTTP (sin cookie) no tiene slot fisico propio en este
+        batch, asi que NO puede reusar `len(accounts_ok)` a ciegas -- si ese numero
+        ya es el index fisico de otra cuenta, ambas terminarian compartiendo la
+        misma entrada de _warmup_until_idx (que se indexa por 'index'), mezclando el
+        temporizador de calentamiento de dos cuentas distintas."""
+        used = {a["index"] for a in accounts_ok if "index" in a}
+        i = 0
+        while i in used:
+            i += 1
+        return i
+
     def _load_account(i):
         ck = flow_service.load_cookie(i)
         if not ck:
@@ -1052,7 +1094,7 @@ def _run_batch_inner(
                 continue
         accounts_ok.append(
             {
-                "index": len(accounts_ok),
+                "index": _next_free_batch_index(),
                 "cookie": "",
                 "bearer": "",
                 "bearer_lock": threading.Lock(),
@@ -1065,16 +1107,9 @@ def _run_batch_inner(
     flow_bridge.start_bridge(log)
 
     if auto_open:
-        # Esperar hasta 3s para que Chrome real conecte antes de abrir Playwright
-        # (chequea WS + HTTP bridge; Chrome real registra por HTTP antes que WS).
-        ao_end = time.time() + 3
-        while time.time() < ao_end:
-            connected_ao = set(flow_bridge.get_connected_accounts())
-            with _playwright_hashes_lock:
-                pw_h_ao = set(_playwright_hashes)
-            if connected_ao - pw_h_ao:
-                break
-            time.sleep(0.3)
+        # Playwright es la via primaria: se abre de inmediato, sin esperar a que el
+        # usuario conecte su Chrome real (auto_open_browsers ya evita duplicar
+        # sesion por cuenta via el sidecar de _on_bridge_session).
         auto_open_browsers()
 
     # ── Esperar conexion de la extension al bridge (via WS o HTTP polling) ──
@@ -1094,7 +1129,7 @@ def _run_batch_inner(
             if not any(a["account_hash"] == ch for a in accounts_ok):
                 accounts_ok.append(
                     {
-                        "index": len(accounts_ok),
+                        "index": _next_free_batch_index(),
                         "cookie": "",
                         "bearer": "",
                         "bearer_lock": threading.Lock(),
@@ -1125,7 +1160,26 @@ def _run_batch_inner(
             and (a["account_hash"] in bearer_now_set or bool(a.get("bearer", "")))
         )
 
-        # Prioridad Chrome: si hay extensiones Chrome (HTTP) con bearer, no esperar Playwright.
+        # Prioridad Playwright: si el Chromium interno ya tiene bearer via WS, no
+        # esperar a que el usuario conecte su Chrome real.
+        if len(accounts_ok) > 0 and n_ws_bearer >= len(accounts_ok):
+            if first_ready_time is None:
+                first_ready_time = time.time()
+            grace_elapsed = time.time() - first_ready_time
+            all_disk_bearer = all(bool(a.get("bearer", "")) for a in accounts_ok)
+            grace_limit = 0 if all_disk_bearer else 25
+            if grace_elapsed >= grace_limit:
+                log(f"[Flow] [OK] Playwright listo - iniciando ({n_ws_bearer} cuenta(s))")
+                break
+            if time.time() - last_feedback >= 5:
+                last_feedback = time.time()
+                log(
+                    f"[Flow] [OK] {n_ws_bearer} cuenta(s) Playwright OK - grace {int(grace_limit - grace_elapsed):.0f}s mas..."
+                )
+            time.sleep(0.3)
+            continue
+
+        # Sin Playwright listo todavia: aceptar Chrome real como fallback si esta ahi.
         if n_http_bearer > 0:
             if first_ready_time is None:
                 first_ready_time = time.time()
@@ -1138,24 +1192,6 @@ def _run_batch_inner(
                 last_feedback = time.time()
                 log(
                     f"[Flow] [OK] {n_http_bearer} Chrome OK - grace {int(grace_limit - grace_elapsed):.0f}s mas..."
-                )
-            time.sleep(0.3)
-            continue
-
-        # Sin Chrome real: esperar WS (Playwright) como fallback.
-        if len(accounts_ok) > 0 and n_ws_bearer >= len(accounts_ok):
-            if first_ready_time is None:
-                first_ready_time = time.time()
-            grace_elapsed = time.time() - first_ready_time
-            all_disk_bearer = all(bool(a.get("bearer", "")) for a in accounts_ok)
-            grace_limit = 0 if all_disk_bearer else 25
-            if grace_elapsed >= grace_limit:
-                log(f"[Flow] [OK] WS + bearer listo - iniciando ({n_ws_bearer} cuenta(s))")
-                break
-            if time.time() - last_feedback >= 5:
-                last_feedback = time.time()
-                log(
-                    f"[Flow] [OK] {n_ws_bearer} cuenta(s) WS OK - grace {int(grace_limit - grace_elapsed):.0f}s mas..."
                 )
             time.sleep(0.3)
             continue
@@ -1338,11 +1374,11 @@ def _run_batch_inner(
             if nh in existing or nh == vibes_client.VIBES_ACCOUNT_HASH:
                 continue
             now = time.time()
-            new_idx = len(accounts_ok)
+            new_idx = _next_free_batch_index()
             # Heredar warmup: buscar perfil Chrome con warmup activo pero sin cuenta
-            # aun -- al conectar, su indice dinamico (len(accounts_ok)) != el indice
-            # del perfil Chrome que abrio rotation, asi que el warmup se perderia
-            # sin este traspaso explicito.
+            # aun -- al conectar, su indice dinamico (_next_free_batch_index()) != el
+            # indice del perfil Chrome que abrio rotation, asi que el warmup se
+            # perderia sin este traspaso explicito.
             inherited_warmup = 0
             with _warmup_lock:
                 for cidx, exp in sorted(_warmup_until_idx.items()):
