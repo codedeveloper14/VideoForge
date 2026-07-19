@@ -56,3 +56,7 @@ def get_flow_cookies_dir() -> Path:
 
 def get_flow_profiles_dir() -> Path:
     return _ensure(config.app_data_dir / "flow_profiles")
+
+
+def get_vibes_profile_dir() -> Path:
+    return _ensure(config.app_data_dir / "vibes_profile")

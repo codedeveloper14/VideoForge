@@ -93,6 +93,11 @@ export interface ProviderPanelProps {
   initialOptions?: ProviderOptions;
   extraActions?: () => ReactNode;
   supportsRegenerate?: boolean;
+  /** false (o una función de las options actuales) para proveedores texto-a-video
+   * (p. ej. vibes.ai) donde no hace falta subir imágenes — slots controla cuántos
+   * videos se generan desde el prompt. Función porque el modo puede cambiar en
+   * caliente vía un selector dentro de extraOptions. */
+  requiresImages?: boolean | ((options: ProviderOptions) => boolean);
 }
 
 // Generic panel shared by Grok / Qwen / Meta — the three backends are
@@ -109,11 +114,13 @@ export default function ProviderPanel({
   initialOptions = {},
   extraActions,
   supportsRegenerate = false,
+  requiresImages = true,
 }: ProviderPanelProps) {
   const [images, setImages] = useState<File[]>([]);
   const [prompt, setPrompt] = useState("Cinematic slow zoom");
   const [slots, setSlots] = useState(defaultSlots);
   const [options, setOptions] = useState<ProviderOptions>(initialOptions);
+  const needsImages = typeof requiresImages === "function" ? requiresImages(options) : requiresImages;
 
   const [accounts, setAccounts] = useState<AccountSessionInfo[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
@@ -266,15 +273,20 @@ export default function ProviderPanel({
       setError("Selecciona un proyecto en la barra superior antes de animar.");
       return;
     }
-    if (images.length === 0) {
+    if (needsImages && images.length === 0) {
       setError("Sube al menos una imagen.");
       return;
     }
 
-    totalImagesRef.current = images.length;
+    const total = needsImages ? images.length : slots;
+    totalImagesRef.current = total;
     clearLog();
-    setProgress({ done: 0, total: images.length });
-    appendLog(`Subiendo ${images.length} imágenes al proyecto: ${project}`);
+    setProgress({ done: 0, total });
+    appendLog(
+      needsImages
+        ? `Subiendo ${images.length} imágenes al proyecto: ${project}`
+        : `Generando ${slots} video(s) desde el prompt en el proyecto: ${project}`,
+    );
 
     try {
       const d = await api.iniciar({
@@ -410,7 +422,7 @@ export default function ProviderPanel({
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <PrimaryButton
           onClick={handleStart}
-          disabled={!running && images.length === 0}
+          disabled={!running && needsImages && images.length === 0}
           className={
             (running ? "flex-none" : "flex-1 sm:flex-none") +
             " inline-flex items-center justify-center gap-2 !rounded-[10px] !px-7 !py-3 text-[11.5px] uppercase tracking-[.06em] shadow-[0_4px_18px_rgba(124,106,255,.4)] hover:enabled:-translate-y-0.5 hover:enabled:shadow-[0_8px_28px_rgba(124,106,255,.55)]" +
@@ -421,9 +433,11 @@ export default function ProviderPanel({
         </PrimaryButton>
         {running && <StopButton onClick={handleStart}>Detener</StopButton>}
         <div className="font-mono text-[10px] leading-[1.6] text-[var(--vf-muted)]">
-          {images.length === 0
-            ? "Sube imágenes para comenzar"
-            : `${images.length} imagen${images.length !== 1 ? "es" : ""} lista${images.length !== 1 ? "s" : ""}`}
+          {!needsImages
+            ? `${slots} video${slots !== 1 ? "s" : ""} desde el prompt`
+            : images.length === 0
+              ? "Sube imágenes para comenzar"
+              : `${images.length} imagen${images.length !== 1 ? "es" : ""} lista${images.length !== 1 ? "s" : ""}`}
           {projectDir && (
             <div className="mt-0.5 text-[var(--vf-m2)]">📁 {projectDir}</div>
           )}

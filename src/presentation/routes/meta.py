@@ -3,6 +3,7 @@ from flask import current_app, jsonify, request, send_file
 
 from src.domain.services import meta_animation_service
 from src.domain.services.meta_animation_service import bridge
+from src.infrastructure.ai_providers import vibes_bridge
 from src.presentation.schemas.meta import (
     MetaAbrirCarpetaInSchema,
     MetaAccountInSchema,
@@ -18,6 +19,45 @@ meta_bp = APIBlueprint("meta", __name__, url_prefix="/api/meta")
 
 def _cors_empty():
     return bridge.cors(current_app.make_response(""))
+
+
+def _vibes_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Access-Control-Request-Private-Network"
+    )
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
+
+
+# ─────────────────────────────────────────────────────────────────
+# Bridge de la extension para vibes.ai (polling normal via el mismo
+# puerto Flask -- ver comentario en vibes_bridge.py)
+# ─────────────────────────────────────────────────────────────────
+
+
+@meta_bp.route("/vibes-poll", methods=["GET", "OPTIONS"])
+def vibes_poll():
+    if request.method == "OPTIONS":
+        return _vibes_cors(current_app.make_response("")), 204
+    account = request.args.get("account", "default")
+    max_raw = request.args.get("max", "1")
+    try:
+        max_take = max(1, int(max_raw))
+    except (ValueError, TypeError):
+        max_take = 1
+    reqs = vibes_bridge.poll(account, max_take)
+    return _vibes_cors(jsonify({"requests": reqs}))
+
+
+@meta_bp.route("/vibes-result", methods=["POST", "OPTIONS"])
+def vibes_result():
+    if request.method == "OPTIONS":
+        return _vibes_cors(current_app.make_response("")), 204
+    data = request.get_json(silent=True) or {}
+    vibes_bridge.post_result(data.get("requestId", ""), data)
+    return _vibes_cors(jsonify({"ok": True}))
 
 
 # ─────────────────────────────────────────────────────────────────

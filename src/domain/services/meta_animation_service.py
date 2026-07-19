@@ -1,7 +1,10 @@
+import base64
+import mimetypes
 import queue
 import subprocess
 import threading
 import time
+import uuid as uuid_lib
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
@@ -18,6 +21,7 @@ from src.infrastructure.ai_providers import (
     meta_chrome_process,
     meta_gql_client,
     meta_verify,
+    vibes_bridge,
 )
 from src.infrastructure.ai_providers.meta_extension_bridge import MetaExtensionBridge
 from src.infrastructure.storage import project_repository
@@ -462,6 +466,149 @@ def _batch_worker_ext(proj_dir: Path, prompt: str, slots: int, timeout_sec: int)
 
 
 # ─────────────────────────────────────────────────────────────────
+# Batch worker: vibes.ai (Meta desplazo aqui la generacion de video, en
+# reemplazo de meta.ai). Sin DOM, sin GraphQL manual: la extension hace
+# fetch() directo a la API interna de vibes.ai con la cookie de sesion real
+# del navegador -- el backend solo lanza/reusa la pestana y espera UN
+# resultado con las URLs de los videos ya generados.
+# ─────────────────────────────────────────────────────────────────
+
+
+def _batch_worker_vibes(proj_dir: Path, prompt: str, slots: int, timeout_sec: int) -> None:
+    """A diferencia de ext/http (que lanzan su propio Chromium con un perfil dedicado
+    por cuenta), vibes.ai usa la sesion real del navegador que el usuario ya tiene
+    abierto -- no tiene sentido lanzar un perfil nuevo en blanco, porque nunca vendria
+    con sesion iniciada. Este worker solo espera a que la extension (cargada en el
+    Chrome real del usuario, con una pestana en vibes.ai) se registre.
+
+    Cada imagen se manda como un job independiente: la extension la adjunta como
+    "ingredient" (imagen de referencia) en el compositor real de vibes.ai antes de
+    escribir el prompt y generar -- igual que el usuario lo haria a mano."""
+    images = _state.get("images", [])
+    cancel_ev = _state.get("cancel_event")
+    vid_dir = proj_dir / "video"
+    vid_dir.mkdir(parents=True, exist_ok=True)
+    total = len(images)
+
+    _log(f"Vibes.ai: {total} imagen(es) - {slots} video(s) c/u - prompt: {prompt[:80]}")
+
+    connected = vibes_bridge.connected_accounts()
+    if not connected:
+        _log(
+            "Esperando a que la extension se conecte (abre/refresca una pestana en "
+            "vibes.ai con sesion iniciada, max 60s)..."
+        )
+        wait_start = time.time()
+        while time.time() - wait_start < 60:
+            if cancel_ev and cancel_ev.is_set():
+                _state.update(finished=True, running=False)
+                return
+            connected = vibes_bridge.connected_accounts()
+            if connected:
+                _log(f"[OK] Extension conectada en {int(time.time() - wait_start)}s")
+                break
+            time.sleep(1)
+        if not connected:
+            _log(
+                "[ERROR] La extension no se conecto. Abre https://vibes.ai/ en tu "
+                "navegador (con sesion iniciada) y verifica que la extension este "
+                "activa y recargada, luego refresca esa pestana."
+            )
+            _state.update(finished=True, running=False)
+            return
+
+    account_hash = connected[0]
+    session = requests.Session()
+    session.headers.update({"User-Agent": _META_UA, "Referer": "https://vibes.ai/"})
+    downloaded_total = 0
+    dl_lock = threading.Lock()
+
+    # La extension solo tiene UN compositor (una pestana real de vibes.ai), asi que el
+    # "envio" de cada mensaje es secuencial de por si (lo serializa vibes_bridge.js con su
+    # propia cola) -- pero la ESPERA de cada video no tiene por que bloquear el envio del
+    # siguiente. Por eso encolamos varias imagenes a la vez (como meta.ai con sus multiples
+    # ventanas Chromium) en vez de esperar el resultado de una antes de mandar la proxima.
+    def process_one(i: int, img_meta: dict) -> None:
+        nonlocal downloaded_total
+        if cancel_ev and cancel_ev.is_set():
+            return
+        img_path = Path(img_meta.get("path", ""))
+        try:
+            img_bytes = img_path.read_bytes()
+        except Exception as exc:
+            _log(f"[ERROR] [{i + 1}/{total}] No se pudo leer {img_meta.get('name')}: {exc}")
+            return
+        mime = mimetypes.guess_type(img_path.name)[0] or "image/jpeg"
+
+        rid = str(uuid_lib.uuid4())
+        ev = vibes_bridge.register_result_waiter(rid)
+        job = {
+            "requestId": rid,
+            "account": account_hash,
+            "prompt": prompt,
+            "slots": slots,
+            "timeoutSec": timeout_sec,
+            "projectName": f"{proj_dir.name}-{i + 1:03d}",
+            "imageBase64": base64.b64encode(img_bytes).decode("ascii"),
+            "imageMime": mime,
+            "imageName": img_meta.get("name") or f"{i + 1:05d}.jpg",
+        }
+        vibes_bridge.enqueue_request(job)
+        _log(f"[{i + 1}/{total}] Job encolado ({img_meta.get('name')}, cuenta={account_hash})")
+
+        deadline = time.time() + timeout_sec + 30
+        result = None
+        while time.time() < deadline:
+            if cancel_ev and cancel_ev.is_set():
+                break
+            ev.wait(timeout=2.0)
+            ev.clear()
+            result = vibes_bridge.try_pop_result(rid)
+            if result is not None:
+                break
+        vibes_bridge.remove_from_queue(rid)
+        vibes_bridge.cleanup_waiter(rid)
+
+        if not result:
+            _log(f"[ERROR] [{i + 1}/{total}] Sin respuesta de vibes.ai (timeout).")
+            return
+        if result.get("status") != 200 or result.get("error"):
+            _log(f"[ERROR] [{i + 1}/{total}] vibes.ai: {result.get('error', 'fallo desconocido')}")
+            return
+
+        urls = result.get("videos") or []
+        stem = Path(img_meta["name"]).stem
+        for j, url in enumerate(urls):
+            if cancel_ev and cancel_ev.is_set():
+                break
+            try:
+                resp = session.get(url, timeout=120)
+                resp.raise_for_status()
+                suffix = f"_{j + 1}" if len(urls) > 1 else ""
+                out_path = vid_dir / f"{stem}{suffix}.mp4"
+                out_path.write_bytes(resp.content)
+                with dl_lock:
+                    downloaded_total += 1
+                    _state["downloaded"] = downloaded_total
+                _log(f"[{i + 1}/{total}] Descargado: {out_path.name}")
+            except Exception as exc:
+                _log(f"[ERROR] [{i + 1}/{total}] Descarga fallo para video {j + 1}: {exc}")
+
+    concurrency = min(3, total) or 1
+    _log(f"Enviando hasta {concurrency} generacion(es) en paralelo (como meta.ai)...")
+    with ThreadPoolExecutor(max_workers=concurrency) as ex:
+        futures = [ex.submit(process_one, i, img_meta) for i, img_meta in enumerate(images)]
+        for f in as_completed(futures):
+            try:
+                f.result()
+            except Exception as exc:
+                _log(f"[WARNING] Excepcion en worker: {exc}")
+
+    _log(f"Listo: {downloaded_total} video(s) descargados.")
+    _state.update(finished=True, running=False)
+
+
+# ─────────────────────────────────────────────────────────────────
 # Batch worker: modo HTTP directo ("learn once, HTTP forever")
 # ─────────────────────────────────────────────────────────────────
 
@@ -675,10 +822,14 @@ def _batch_worker_http(proj_dir: Path, prompt: str, slots: int, timeout_sec: int
 def start_batch(
     project_name: str, images: list[tuple[str, object]], prompt: str, slots: int, mode: str, timeout_sec: int
 ) -> dict:
-    """`images` es una lista de (filename, file_storage) donde file_storage tiene .save(path)."""
+    """`images` es una lista de (filename, file_storage) donde file_storage tiene .save(path).
+    `slots` determina cuantos videos se generan por cada imagen."""
     name = sanitize_name(project_name) if project_name else ""
     if not name:
         raise ValueError("Selecciona un proyecto antes de animar.")
+
+    mode = (mode or "ext").strip().lower()
+    is_vibes = mode == "vibes"
     if not images:
         raise ValueError("No se recibieron imagenes")
 
@@ -693,8 +844,10 @@ def start_batch(
         file_storage.save(str(dest))
         images_meta.append({"index": i + 1, "name": filename or f"{i + 1:05d}.jpg", "path": str(dest)})
 
-    mode = (mode or "ext").strip().lower()
-    if mode in ("ext", "dom", "playwright"):
+    if is_vibes:
+        worker_fn = _batch_worker_vibes
+        mode_label = "Vibes.ai (API)"
+    elif mode in ("ext", "dom", "playwright"):
         worker_fn = _batch_worker_ext
         mode_label = "Playwright DOM"
     else:
@@ -714,7 +867,7 @@ def start_batch(
             "finished": False,
             "project_dir": str(proj_dir),
             "images": images_meta,
-            "total": len(images_meta),
+            "total": len(images_meta) * slots if is_vibes else len(images_meta),
             "cancel_event": cancel_ev,
             "downloaded": 0,
         }

@@ -22,6 +22,10 @@ PUBLIC_ROUTES = {
     "/api/meta/ext-learn",
     "/api/meta/ext-captured",
     "/api/meta/ext-state",
+    # La extension de vibes.ai (vibes_bridge.js) hace polling desde la pagina de
+    # vibes.ai, sin cookie de sesion de VideoForge -- misma razon que ext-* arriba.
+    "/api/meta/vibes-poll",
+    "/api/meta/vibes-result",
     # La extension de Flow envia la cookie desde su propio popup, misma razon
     # que las rutas ext-* de Meta arriba: no hay cookie de sesion de VideoForge.
     "/api/flow/save-cookie",

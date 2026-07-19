@@ -28,8 +28,9 @@ const api: ProviderApi = {
 };
 
 const MODE_OPTIONS = [
-  { value: "ext", label: "ext — Extensión Chrome" },
-  { value: "http", label: "http — Modo HTTP directo" },
+  { value: "vibes", label: "vibes — vibes.ai (nuevo)" },
+  { value: "ext", label: "ext — Extensión Chrome (meta.ai, legado)" },
+  { value: "http", label: "http — Modo HTTP directo (meta.ai, legado)" },
 ];
 
 function AdvancedActions() {
@@ -118,7 +119,7 @@ export default function MetaPanel({ project }: MetaPanelProps) {
       defaultSlots={1}
       supportsRegenerate={false}
       initialOptions={{
-        mode: "ext",
+        mode: "vibes",
         timeout: 900,
       }}
       extraOptions={({ options, setOption }) => (
