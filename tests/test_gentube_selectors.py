@@ -53,7 +53,20 @@ from src.infrastructure.ai_providers.gentube_service import (
         # Dominios de tracking/ads siguen bloqueados, sin importar resource_type.
         ("https://www.google-analytics.com/collect", "xhr", True),
         ("https://googleads.g.doubleclick.net/pagead", "script", True),
-        ("https://ph.gentube.app/e", "xhr", True),
+        # ph.gentube.app es el proxy propio de GenTube para PostHog (config,
+        # feature flags, eventos) -- bloquearlo rompia un fetch() interno de la
+        # app y la generacion real nunca llegaba a dispararse. NO bloquear.
+        # Incluye rutas que contienen el substring "posthog" en el path (ej.
+        # el script de session-recording) -- no deben caer en un match
+        # generico por ese substring.
+        ("https://ph.gentube.app/e", "xhr", False),
+        ("https://ph.gentube.app/flags/", "fetch", False),
+        ("https://ph.gentube.app/static/posthog-recorder.js", "script", False),
+        # api.axiom.co es el pipeline propio de logging/eventos del frontend
+        # de GenTube -- mismo caso que ph.gentube.app, bloquearlo rompia el
+        # fetch() interno de generacion (TypeError: Failed to fetch,
+        # confirmado via [reqfail] en dos corridas separadas). NO bloquear.
+        ("https://api.axiom.co/v1/datasets/gentube-frontend/ingest", "fetch", False),
     ],
 )
 def test_should_block_request_no_depende_de_un_solo_cdn(url, resource_type, expected):
