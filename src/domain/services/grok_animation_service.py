@@ -14,24 +14,53 @@ from src.utils.platform_utils import open_folder
 
 logger = get_logger(__name__)
 
-_state = {
-    "proc": None,
-    "log_lines": [],
-    "finished": False,
-    "project_dir": None,
-    "images": [],
-    "total": 0,
-    "regen_count": 0,
-}
+# Estado indexado por proyecto (sanitize_name) -- antes era un unico dict a
+# nivel de modulo compartido por TODOS los proyectos: lanzar un batch para un
+# proyecto B mataba (.terminate()) el proc de un proyecto A que seguia
+# corriendo, y /log de cualquier pestana abierta leia siempre el mismo
+# _state global sin importar que proyecto tenia activo. Con _batches cada
+# proyecto tiene su propio proc/log_lines/regen_count y arrancar uno no toca
+# a los demas.
+_batches: dict[str, dict] = {}
+_batches_lock = threading.Lock()
+_last_project: str | None = None
 
 
-def _tail_process(proc):
+def _new_batch_state() -> dict:
+    return {
+        "proc": None,
+        "log_lines": [],
+        "finished": False,
+        "project_dir": None,
+        "images": [],
+        "total": 0,
+        "regen_count": 0,
+    }
+
+
+def _get_batch(name: str) -> dict:
+    with _batches_lock:
+        return _batches.setdefault(name, _new_batch_state())
+
+
+def _resolve_name(project_name: str) -> str:
+    """Nombre saneado de proyecto, o el ultimo proyecto tocado si viene vacio
+    (compatibilidad con llamadas que no pueden pasar el project explicito,
+    p. ej. codigo legacy o un cliente que no mando el query param)."""
+    name = sanitize_name(project_name or "")
+    if name:
+        return name
+    return _last_project or ""
+
+
+def _tail_process(proc, name: str):
+    batch = _get_batch(name)
     try:
         for line in iter(proc.stdout.readline, b""):
-            _state["log_lines"].append(line.decode("utf-8", errors="replace").rstrip())
+            batch["log_lines"].append(line.decode("utf-8", errors="replace").rstrip())
     except Exception:
         pass
-    _state["finished"] = True
+    batch["finished"] = True
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -51,11 +80,11 @@ def start_account_login(account_name: str) -> None:
     grok_service.ensure_accounts_setup(accounts_dir)
     folder = grok_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    _state["log_lines"].append("Abriendo Chrome — inicia sesion en grok.com y cierra la ventana.")
+    logger.info("Abriendo Chrome — inicia sesion en grok.com y espera a que la ventana se cierre sola.")
 
     def _run():
         ok, message = grok_service.login_account_managed(folder, folder.name)
-        _state["log_lines"].append(message)
+        logger.info(message)
 
     threading.Thread(target=_run, daemon=True).start()
 
@@ -80,12 +109,17 @@ def start_batch(
     resolution: str,
 ) -> dict:
     """`images` es una lista de (filename, file_storage) donde file_storage tiene .save(path)."""
-    if _state["proc"] and _state["proc"].poll() is None:
-        _state["proc"].terminate()
+    global _last_project
 
     name = sanitize_name(project_name)
     if not name:
         raise ValueError("Selecciona un proyecto en la barra superior antes de animar.")
+
+    batch = _get_batch(name)
+    # Solo mata un batch previo DEL MISMO proyecto (reinicio) -- nunca el de
+    # otro proyecto que este corriendo en paralelo.
+    if batch["proc"] and batch["proc"].poll() is None:
+        batch["proc"].terminate()
 
     proj_dir = project_repository.create_project(name)
     accounts_dir = get_grok_accounts_dir()
@@ -111,15 +145,17 @@ def start_batch(
         f"video_length: {video_length}\nresolution: {resolution}\n"
     )
 
-    _state.update(
+    batch.update(
         {
             "log_lines": [],
             "finished": False,
             "project_dir": str(proj_dir),
             "images": images_meta,
             "total": len(images_meta),
+            "regen_count": 0,
         }
     )
+    _last_project = name
 
     stage_list_path = proj_dir / "guion" / "animate_this_run.json"
     stage_list_path.write_text(json.dumps(stage_names))
@@ -144,9 +180,9 @@ def start_batch(
         ],
         cwd=accounts_dir.parent,
     )
-    _state["proc"] = proc
+    batch["proc"] = proc
 
-    threading.Thread(target=_tail_process, args=(proc,), daemon=True).start()
+    threading.Thread(target=_tail_process, args=(proc, name), daemon=True).start()
 
     return {"ok": True, "pid": proc.pid, "project_dir": str(proj_dir), "project_name": name}
 
@@ -154,17 +190,18 @@ def start_batch(
 def start_regen(
     project_name: str, video_name: str, prompt: str, aspect_ratio: str, video_length: int, resolution: str
 ) -> dict:
-    name = sanitize_name(project_name)
-    if _state["project_dir"]:
-        proj_dir = Path(_state["project_dir"])
-    elif name:
-        proj_dir = project_repository.project_dir(name)
-        _state["project_dir"] = str(proj_dir)
-    else:
-        raise ValueError("Sin proyecto activo")
+    global _last_project
 
-    _state["regen_count"] = _state.get("regen_count", 0) + 1
-    _state["finished"] = False
+    name = _resolve_name(project_name)
+    if not name:
+        raise ValueError("Sin proyecto activo")
+    proj_dir = project_repository.project_dir(name)
+    batch = _get_batch(name)
+    batch["project_dir"] = str(proj_dir)
+    _last_project = name
+
+    batch["regen_count"] = batch.get("regen_count", 0) + 1
+    batch["finished"] = False
 
     vid_stem = Path(video_name).stem
     img_dir = proj_dir / "imagen"
@@ -213,7 +250,7 @@ def start_regen(
             cwd=accounts_dir.parent,
         )
         for line in iter(proc.stdout.readline, b""):
-            _state["log_lines"].append(line.decode("utf-8", errors="replace").rstrip())
+            batch["log_lines"].append(line.decode("utf-8", errors="replace").rstrip())
         proc.wait()
 
         snap_after = {f.name for f in video_dir.glob("*.mp4")}
@@ -224,36 +261,44 @@ def start_regen(
                 try:
                     src.rename(video_dir / target_name)
                 except Exception as exc:
-                    _state["log_lines"].append(f"[regen] rename error: {exc}")
-            _state["log_lines"].append(f"Regen completado: {target_name}")
+                    batch["log_lines"].append(f"[regen] rename error: {exc}")
+            batch["log_lines"].append(f"Regen completado: {target_name}")
         else:
             dl_dir = get_grok_downloads_dir()
             dl_videos = sorted(dl_dir.glob("*.mp4"), key=lambda f: f.stat().st_mtime)
             if dl_videos:
                 shutil.copy2(str(dl_videos[-1]), str(video_dir / target_name))
-                _state["log_lines"].append(f"Regen completado (desde downloads): {target_name}")
+                batch["log_lines"].append(f"Regen completado (desde downloads): {target_name}")
             else:
-                _state["log_lines"].append(f"Regen termino pero no se encontro el video: {target_name}")
+                batch["log_lines"].append(f"Regen termino pero no se encontro el video: {target_name}")
 
-        _state["regen_count"] = max(0, _state.get("regen_count", 1) - 1)
-        if _state["regen_count"] == 0:
-            _state["finished"] = True
+        batch["regen_count"] = max(0, batch.get("regen_count", 1) - 1)
+        if batch["regen_count"] == 0:
+            batch["finished"] = True
         shutil.rmtree(str(tmp_dir), ignore_errors=True)
 
     threading.Thread(target=_run, daemon=True).start()
     return {"ok": True}
 
 
-def stop() -> None:
-    if _state["proc"] and _state["proc"].poll() is None:
-        _state["proc"].terminate()
-    _state["finished"] = True
+def stop(project_name: str = "") -> None:
+    name = _resolve_name(project_name)
+    if not name:
+        return
+    batch = _get_batch(name)
+    if batch["proc"] and batch["proc"].poll() is None:
+        batch["proc"].terminate()
+    batch["finished"] = True
 
 
-def get_log_state(offset: int) -> dict:
-    finished = _state["finished"] or (_state["proc"] is not None and _state["proc"].poll() is not None)
-    lines = _state["log_lines"][offset:]
-    video_dir = Path(_state["project_dir"]) / "video" if _state["project_dir"] else None
+def get_log_state(offset: int, project_name: str = "") -> dict:
+    name = _resolve_name(project_name)
+    if not name:
+        return {"lines": [], "next_offset": offset, "finished": True, "videos_done": 0, "videos_total": 0}
+    batch = _get_batch(name)
+    finished = batch["finished"] or (batch["proc"] is not None and batch["proc"].poll() is not None)
+    lines = batch["log_lines"][offset:]
+    video_dir = Path(batch["project_dir"]) / "video" if batch["project_dir"] else None
     try:
         videos_done = len(list(video_dir.glob("*.mp4"))) if video_dir and video_dir.is_dir() else 0
     except Exception:
@@ -263,7 +308,7 @@ def get_log_state(offset: int) -> dict:
         "next_offset": offset + len(lines),
         "finished": finished,
         "videos_done": videos_done,
-        "videos_total": int(_state.get("total") or 0),
+        "videos_total": int(batch.get("total") or 0),
     }
 
 
@@ -301,8 +346,11 @@ def get_video_path(project_name: str, filename: str) -> Path | None:
 def _active_video_dir(project_name: str) -> Path:
     if project_name:
         return project_repository.project_dir(project_name) / "video"
-    if _state["project_dir"]:
-        return Path(_state["project_dir"]) / "video"
+    name = _last_project
+    if name:
+        batch = _batches.get(name)
+        if batch and batch.get("project_dir"):
+            return Path(batch["project_dir"]) / "video"
     return get_grok_downloads_dir()
 
 

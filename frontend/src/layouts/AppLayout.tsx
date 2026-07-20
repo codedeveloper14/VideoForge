@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Outlet } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { WorkspaceProvider, useWorkspace, type PipelinePage } from "../context/WorkspaceContext";
-import { createProject, listProjects } from "../api/projects";
+import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import ActiveJobsPopup from "../components/ActiveJobsPopup";
+import UpdateNotice from "../components/UpdateNotice";
+import NewProjectModal from "../components/NewProjectModal";
 import FloatingGenerationChips from "../components/FloatingGenerationChips";
 
 const NO_SIDEBAR_ROUTES = [
@@ -133,81 +136,16 @@ function xiClass({ isActive }: { isActive: boolean }) {
   );
 }
 
-const PIPELINE_STEPS: { page: PipelinePage; label: string }[] = [
-  { page: "guion", label: "Guión escrito" },
-  { page: "imagen", label: "Generación de imágenes" },
-  { page: "voz", label: "Generación de voz" },
-  { page: "video", label: "Generación de video" },
-  { page: "render", label: "Renderizado" },
+const PIPELINE_STEPS: { page: PipelinePage; labelKey: string }[] = [
+  { page: "guion", labelKey: "sidebar.pipelineScript" },
+  { page: "imagen", labelKey: "sidebar.pipelineImages" },
+  { page: "voz", labelKey: "sidebar.pipelineVoice" },
+  { page: "video", labelKey: "sidebar.pipelineVideo" },
+  { page: "render", labelKey: "sidebar.pipelineRender" },
 ];
 
-function CreateProjectModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (name: string) => void;
-}) {
-  const [nombre, setNombre] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!nombre.trim()) return;
-    setCreating(true);
-    setError("");
-    try {
-      await createProject(nombre.trim());
-      onCreated(nombre.trim());
-    } catch (err) {
-      setError((err as Error).message);
-      setCreating(false);
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-    >
-      <form
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[380px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),.08)] bg-[var(--vf-s)] p-5 shadow-[0_20px_60px_rgba(0,0,0,.6)]"
-      >
-        <h2 className="mb-3 text-lg font-bold text-[var(--vf-text)]">Nuevo Proyecto</h2>
-        <input
-          autoFocus
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Nombre del proyecto"
-          className="mb-3 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none focus:border-[#7c6aff]"
-        />
-        {error && <p className="mb-3 text-xs text-[var(--vf-danger)]">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] px-4 py-2 text-sm text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.04)]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
-          >
-            {creating ? "Creando…" : "Crear proyecto →"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name: string) => void }) {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement | null>(null);
@@ -235,12 +173,12 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
         autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar proyectos…"
+        placeholder={t("topbar.searchProjects") || ""}
         className="mb-1.5 w-full rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-3 py-2 text-sm text-[var(--vf-text)] outline-none"
       />
       <div className="max-h-[260px] overflow-y-auto">
         {filtered.length === 0 && (
-          <p className="px-2 py-3 text-center text-xs text-[var(--vf-m)]">Sin proyectos</p>
+          <p className="px-2 py-3 text-center text-xs text-[var(--vf-m)]">{t("topbar.noProjects")}</p>
         )}
         {filtered.map((p) => (
           <button
@@ -257,6 +195,7 @@ function ProjectSearch({ onClose, onPick }: { onClose: () => void; onPick: (name
 }
 
 function TopBar({ leftOffset }: { leftOffset: number }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -274,7 +213,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
     >
       <button
         onClick={() => navigate("/app/home")}
-        title="Inicio"
+        title={t("topbar.home") || ""}
         className={
           "flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-lg border transition-colors " +
           (onHome
@@ -317,7 +256,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
         })}
         <button
           onClick={() => setShowCreate(true)}
-          title="Nueva pestaña"
+          title={t("topbar.newTab") || ""}
           className="mb-[3px] flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-dashed border-[rgba(var(--vf-fg-rgb),.22)] bg-[rgba(var(--vf-fg-rgb),.05)] text-[var(--vf-m)] hover:border-[rgba(124,106,255,.55)] hover:bg-[rgba(124,106,255,.15)] hover:text-[#a78bfa]"
         >
           +
@@ -332,7 +271,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
           className="flex min-w-[200px] items-center gap-2 rounded-lg border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.05)] px-3 py-1.5 text-[var(--vf-m)] hover:border-[rgba(124,106,255,.25)] hover:bg-[rgba(var(--vf-fg-rgb),.08)]"
         >
           <IconSearch />
-          <span className="flex-1 text-left text-[11.5px]">Buscar proyectos...</span>
+          <span className="flex-1 text-left text-[11.5px]">{t("topbar.searchProjects")}</span>
           <kbd className="rounded border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.06)] px-1 py-0.5 text-[9px] text-[var(--vf-m2)]">⌘K</kbd>
         </button>
         {showSearch && (
@@ -351,20 +290,20 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
         className="flex flex-shrink-0 items-center gap-1.5 rounded-lg px-[15px] py-1.5 text-[12.5px] font-semibold text-white shadow-[0_4px_14px_rgba(124,106,255,.38)] transition-all hover:-translate-y-px hover:opacity-90"
         style={{ background: "linear-gradient(135deg,#7c6aff,#a855f7)" }}
       >
-        <IconPlus /> Nuevo Proyecto
+        <IconPlus /> {t("topbar.newProjectPlain")}
       </button>
 
       <ActiveJobsPopup />
 
       <button
         className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.07)] hover:text-[var(--vf-text)]"
-        title="Notificaciones"
+        title={t("topbar.notifications") || ""}
       >
         <IconBell />
       </button>
 
       {showCreate && (
-        <CreateProjectModal
+        <NewProjectModal
           onClose={() => setShowCreate(false)}
           onCreated={(name) => {
             setShowCreate(false);
@@ -377,6 +316,7 @@ function TopBar({ leftOffset }: { leftOffset: number }) {
 }
 
 function AppLayoutInner() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -428,7 +368,7 @@ function AppLayoutInner() {
       <>
       <button
         onClick={() => setMobileNavOpen(true)}
-        title="Abrir menú"
+        title={t("sidebar.openMenu")}
         className="fixed left-3 top-3 z-[905] flex h-9 w-9 items-center justify-center rounded-lg md:hidden"
         style={{ background: "var(--vf-s)", border: "1px solid rgba(var(--vf-fg-rgb),.1)", color: "var(--vf-m)" }}
       >
@@ -452,27 +392,13 @@ function AppLayoutInner() {
           }`}
           style={{ borderBottom: "1px solid rgba(var(--vf-fg-rgb),.05)" }}
         >
-          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? "Studio IVR" : undefined}>
-            <div
-              className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
-              style={{
-                background: "linear-gradient(145deg,#6c56ff 0%,#a855f7 55%,#c084fc 100%)",
-                boxShadow: "0 0 0 1px rgba(168,85,247,.18), 0 4px 14px rgba(124,106,255,.42)",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="3" width="5" height="18" rx="1" fill="rgba(255,255,255,.22)" />
-                <rect x="2.8" y="5.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <rect x="2.8" y="11" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <rect x="2.8" y="16.5" width="3.2" height="2" rx=".4" fill="rgba(255,255,255,.85)" />
-                <path d="M10 7.5L21 12 10 16.5V7.5Z" fill="white" />
-              </svg>
-            </div>
+          <NavLink to="/app/home" className="flex flex-shrink-0 items-center gap-[11px]" title={effectiveCollapsed ? t("sidebar.appName") : undefined}>
+            <img src="/logo.png" alt="" className="h-[38px] w-[38px] flex-shrink-0 object-contain" />
             {!effectiveCollapsed && (
               <div>
-                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">Studio IVR</b>
+                <b className="block whitespace-nowrap text-[14.5px] font-extrabold leading-[1.2] tracking-[-0.025em] text-[var(--vf-text)]">{t("sidebar.appName")}</b>
                 <span className="mt-px block whitespace-nowrap text-[8.5px] font-semibold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
-                  AI Pipeline
+                  {t("sidebar.tagline")}
                 </span>
               </div>
             )}
@@ -480,7 +406,7 @@ function AppLayoutInner() {
           {!effectiveCollapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              title="Colapsar menú"
+              title={t("sidebar.collapseMenu")}
               className="ml-auto flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
@@ -492,7 +418,7 @@ function AppLayoutInner() {
           <div className="flex flex-shrink-0 justify-center px-2 pt-2">
             <button
               onClick={() => setCollapsed(false)}
-              title="Expandir menú"
+              title={t("sidebar.expandMenu")}
               className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.06)] hover:text-[var(--vf-text)]"
             >
               <IconMenu />
@@ -501,60 +427,60 @@ function AppLayoutInner() {
         )}
 
         <nav className="flex flex-shrink-0 flex-col gap-px px-2 pt-2.5">
-          <NavLink to="/app/home" end className={xiClass}>
-            <span className="flex h-[15px] w-[15px] flex-shrink-0 items-center justify-center opacity-70">
+          <NavLink to="/app/home" end className={xiClass} title={effectiveCollapsed ? t("sidebar.home") : undefined}>
+            <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconHome />
             </span>
-            {!effectiveCollapsed && "Inicio"}
+            {!effectiveCollapsed && t("sidebar.home")}
           </NavLink>
 
           {!effectiveCollapsed && (
             <span className="block px-[9px] pb-1 pt-[15px] text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">
-              General
+              {t("sidebar.general")}
             </span>
           )}
 
-          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? "Proyectos" : undefined}>
+          <NavLink to="/app/home" className={xiClass} title={effectiveCollapsed ? t("sidebar.projects") : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconProjects />
             </span>
-            {!effectiveCollapsed && "Proyectos"}
+            {!effectiveCollapsed && t("sidebar.projects")}
           </NavLink>
 
           <button
             onClick={() => navigate("/app/idea2video")}
-            title={effectiveCollapsed ? "Idea → Video" : undefined}
+            title={effectiveCollapsed ? t("sidebar.ideaToVideo") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconIdea />
             </span>
-            {!effectiveCollapsed && <>Idea &rarr; Video</>}
+            {!effectiveCollapsed && t("sidebar.ideaToVideo")}
           </button>
 
           <button
             onClick={() => navigate("/app/tareas")}
-            title={effectiveCollapsed ? "Tareas" : undefined}
+            title={effectiveCollapsed ? t("sidebar.tasks") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconTasks />
             </span>
-            {!effectiveCollapsed && "Tareas"}
+            {!effectiveCollapsed && t("sidebar.tasks")}
           </button>
 
-          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? "Ajustes" : undefined}>
+          <NavLink to="/app/ajustes" className={xiClass} title={effectiveCollapsed ? t("sidebar.settings") : undefined}>
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-70">
               <IconSettings />
             </span>
-            {!effectiveCollapsed && "Ajustes"}
+            {!effectiveCollapsed && t("sidebar.settings")}
           </NavLink>
         </nav>
 
         {showPipeline && (
           <div className="mt-1 flex-shrink-0 border-t border-[rgba(var(--vf-fg-rgb),.06)] px-2.5 pb-2 pt-3">
             <span className="mb-2 block px-px text-[9.5px] font-bold uppercase tracking-[0.12em] text-[var(--vf-m2)]">
-              Pipeline
+              {t("sidebar.pipelineLabel")}
             </span>
             {PIPELINE_STEPS.map((step, i) => {
               const isOn = step.page === currentPage;
@@ -575,7 +501,7 @@ function AppLayoutInner() {
                   >
                     {i + 1}
                   </span>
-                  {step.label}
+                  {t(step.labelKey)}
                 </button>
               );
             })}
@@ -588,7 +514,7 @@ function AppLayoutInner() {
           <div className="mx-2 mb-1.5 mt-3 flex flex-shrink-0 justify-center">
             <button
               onClick={() => navigate("/app/planes")}
-              title="Upgrade — Ver planes"
+              title={`${t("sidebar.upgrade")} — ${t("sidebar.viewPlans")}`}
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px]"
               style={{ background: "rgba(124,106,255,.15)", border: "1px solid rgba(124,106,255,.25)" }}
             >
@@ -604,17 +530,17 @@ function AppLayoutInner() {
               <div className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-[7px]" style={{ background: "rgba(124,106,255,.2)" }}>
                 <IconUpgrade />
               </div>
-              <span className="text-[13px] font-bold text-[#a78bfa]">Upgrade</span>
+              <span className="text-[13px] font-bold text-[#a78bfa]">{t("sidebar.upgrade")}</span>
             </div>
             <p className="mb-[9px] text-[11px] leading-[1.5] text-[var(--vf-m)]">
-              Más créditos, renders y funciones premium.
+              {t("sidebar.upgradeDesc")}
             </p>
             <button
               onClick={() => navigate("/app/planes")}
               className="flex items-center gap-1 text-xs font-semibold transition-colors hover:text-[#a78bfa]"
               style={{ color: "#7c6aff" }}
             >
-              Ver planes
+              {t("sidebar.viewPlans")}
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
@@ -625,23 +551,23 @@ function AppLayoutInner() {
         <div className="flex flex-shrink-0 flex-col gap-px px-2 pb-1 pt-[5px]">
           <button
             onClick={() => navigate("/app/documentacion")}
-            title={effectiveCollapsed ? "Documentación" : undefined}
+            title={effectiveCollapsed ? t("sidebar.docs") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconDocs />
             </span>
-            {!effectiveCollapsed && "Documentación"}
+            {!effectiveCollapsed && t("sidebar.docs")}
           </button>
           <button
             onClick={() => navigate("/app/ayuda")}
-            title={effectiveCollapsed ? "Centro de ayuda" : undefined}
+            title={effectiveCollapsed ? t("sidebar.helpCenter") : undefined}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-[var(--vf-m)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.72)]"
           >
             <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center opacity-35">
               <IconHelp />
             </span>
-            {!effectiveCollapsed && "Centro de ayuda"}
+            {!effectiveCollapsed && t("sidebar.helpCenter")}
           </button>
         </div>
 
@@ -707,7 +633,7 @@ function AppLayoutInner() {
                 <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
                   <IconSettings />
                 </span>
-                Configuración
+                {t("sidebar.configuration")}
               </button>
               <button
                 onClick={() => {
@@ -719,7 +645,7 @@ function AppLayoutInner() {
                 <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center">
                   <IconUpgrade />
                 </span>
-                Upgrade
+                {t("sidebar.upgrade")}
               </button>
               <div style={{ borderTop: "1px solid rgba(var(--vf-fg-rgb),.06)" }} />
               <button
@@ -733,7 +659,7 @@ function AppLayoutInner() {
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                 </span>
-                Cerrar sesión
+                {t("sidebar.logout")}
               </button>
               </div>,
               document.body,
@@ -749,13 +675,14 @@ function AppLayoutInner() {
         className="mt-12 flex-1 overflow-y-auto p-8 transition-[margin] duration-200"
         style={{ background: "var(--vf-bg)", marginLeft: hideSidebar ? 0 : collapsed ? 64 : 220 }}
       >
+        <UpdateNotice />
         {hideSidebar && (
           <button
             onClick={() => navigate("/app/home")}
             className="mb-4 flex items-center gap-1.5 text-sm text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)]"
           >
             <IconBack />
-            Volver
+            {t("sidebar.back")}
           </button>
         )}
         <Outlet />

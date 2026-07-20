@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VideoForge - Cookie Helper",
-  "version": "5.12",
+  "version": "5.13",
   "description": "Copia o exporta las cookies de Google Flow con un clic para usar en Imperio Studio",
   "permissions": [
     "cookies",
@@ -24,6 +24,7 @@
     "https://*.supabase.co/*",
     "https://www.meta.ai/*",
     "https://vibes.ai/*",
+    "https://www.vibes.ai/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*",
@@ -138,6 +139,11 @@
       "js": ["vibes_bridge.js"],
       "run_at": "document_idle",
       "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.vibes.ai/*"],
+      "js": ["vibes_content.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

@@ -25,7 +25,7 @@ function _csWsConnect() {
   }
   _csWs.onopen = function() {
     console.log("[Imperio CS] WS: conectado OK — registrando " + _flowAccountHash);
-    try { _csWs.send(JSON.stringify({ type: "register", account_hash: _flowAccountHash, bearer: _flowBearer || "" })); } catch(e) {}
+    try { _csWs.send(JSON.stringify({ type: "register", account_hash: _flowAccountHash, bearer: _flowBearer || "", email: _flowEmail || "" })); } catch(e) {}
   };
   _csWs.onmessage = function(ev) {
     try {
@@ -51,21 +51,22 @@ function _csWsConnect() {
 
 var _flowAccountHash  = null;
 var _flowBearer       = null;
+var _flowEmail        = null;
 var _registerPending  = false;
 var _registerAttempts = 0;
 
-function registerWithBackground(hash, bearer) {
+function registerWithBackground(hash, bearer, email) {
   if (_registerPending) return;
   _registerPending = true;
   try {
     chrome.runtime.sendMessage({
-      type: "REGISTER_ACCOUNT", accountHash: hash, bearer: bearer || null
+      type: "REGISTER_ACCOUNT", accountHash: hash, bearer: bearer || null, email: email || null
     }, function(resp) {
       _registerPending = false;
       if (chrome.runtime.lastError) {
         _registerAttempts++;
         var d = Math.min(2000 * Math.pow(1.5, Math.min(_registerAttempts - 1, 5)), 20000);
-        setTimeout(function() { registerWithBackground(hash, _flowBearer); }, d);
+        setTimeout(function() { registerWithBackground(hash, _flowBearer, _flowEmail); }, d);
         return;
       }
       _registerAttempts = 0;
@@ -74,7 +75,7 @@ function registerWithBackground(hash, bearer) {
   } catch(e) {
     _registerPending = false;
     _registerAttempts++;
-    setTimeout(function() { registerWithBackground(hash, _flowBearer); }, 2000);
+    setTimeout(function() { registerWithBackground(hash, _flowBearer, _flowEmail); }, 2000);
   }
 }
 
@@ -82,19 +83,21 @@ window.addEventListener("message", function(ev) {
   if (ev.source !== window || !ev.data) return;
   if (ev.data.type === "FLOW_ACCOUNT_HASH") {
     _flowAccountHash = ev.data.hash;
+    _flowEmail = ev.data.email || _flowEmail;
     _registerAttempts = 0;
     console.log("[Imperio] Flow account hash set: " + _flowAccountHash);
-    registerWithBackground(_flowAccountHash, _flowBearer);
+    registerWithBackground(_flowAccountHash, _flowBearer, _flowEmail);
     _csWsConnect();  // iniciar WS del content script ahora que tenemos el hash
     return;
   }
   if (ev.data.type === "FLOW_BEARER_UPDATE") {
     _flowBearer = ev.data.bearer;
+    _flowEmail = ev.data.email || _flowEmail;
     var hash = ev.data.hash || _flowAccountHash;
-    if (hash) { _registerAttempts = 0; registerWithBackground(hash, _flowBearer); }
+    if (hash) { _registerAttempts = 0; registerWithBackground(hash, _flowBearer, _flowEmail); }
     // Si WS ya está conectado pero sin bearer, re-registrar con bearer
     if (_csWs && _csWs.readyState === 1 && hash) {
-      try { _csWs.send(JSON.stringify({ type: "register", account_hash: hash, bearer: _flowBearer || "" })); } catch(e) {}
+      try { _csWs.send(JSON.stringify({ type: "register", account_hash: hash, bearer: _flowBearer || "", email: _flowEmail || "" })); } catch(e) {}
     } else if (hash) {
       _csWsConnect();  // conectar WS si aún no está conectado
     }
@@ -129,7 +132,7 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
 
 setInterval(function() {
   if (_flowAccountHash && _registerAttempts === 0)
-    registerWithBackground(_flowAccountHash, _flowBearer);
+    registerWithBackground(_flowAccountHash, _flowBearer, _flowEmail);
   // Mantener WS del content script activo
   if (_flowAccountHash) _csWsConnect();
 }, 45000);

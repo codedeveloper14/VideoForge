@@ -5,6 +5,7 @@ from src.domain.services import qwen_animation_service
 from src.presentation.schemas.qwen import (
     QwenAbrirCarpetaInSchema,
     QwenAccountInSchema,
+    QwenDetenerInSchema,
     QwenLogQuerySchema,
     QwenRegenerarInSchema,
     QwenVideoQuerySchema,
@@ -86,15 +87,16 @@ def regenerar(json_data):
 
 
 @qwen_bp.post("/detener")
-def detener():
-    qwen_animation_service.stop()
+@qwen_bp.input(QwenDetenerInSchema)
+def detener(json_data):
+    qwen_animation_service.stop(json_data["project"])
     return jsonify({"ok": True})
 
 
 @qwen_bp.get("/log")
 @qwen_bp.input(QwenLogQuerySchema, location="query")
 def log(query_data):
-    return jsonify(qwen_animation_service.get_log_state(query_data["offset"]))
+    return jsonify(qwen_animation_service.get_log_state(query_data["offset"], query_data["project"]))
 
 
 @qwen_bp.get("/videos")

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import WaveSurfer from "wavesurfer.js";
-import { audioFileUrl, loadAudio, loadScript } from "../api/script";
+import { audioFileUrl, deleteAudio, loadAudio, loadScript } from "../api/script";
 import type { LoadAudioResult } from "../api/script";
 import { cloneVoice, generateVoice, listVoices, mergeAudio } from "../api/voice";
 import { Select, SelectOption } from "../components/Select";
@@ -10,6 +11,8 @@ import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
 import { useGenerationStatus } from "../context/GenerationStatusContext";
+import ComingSoonToast from "../components/ComingSoonToast";
+import ConfirmModal from "../components/ConfirmModal";
 
 function WaveformPlayer({ src }: { src?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +73,7 @@ const XTTS_LANGS = [
 const MODELS = ["Eleven Multilingual v2", "Eleven Turbo v2", "Eleven Flash v2"];
 
 export default function VozPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(searchParams.get("project") || "");
@@ -91,8 +95,15 @@ export default function VozPage() {
   const [generating, setGenerating] = useState(false);
   const [merging, setMerging] = useState(false);
   const [error, setError] = useState("");
+  const [soonToast, setSoonToast] = useState(false);
 
   const [existingAudio, setExistingAudio] = useState<LoadAudioResult | null>(null);
+  const [audioToDelete, setAudioToDelete] = useState<string | null>(null);
+  const [deletingAudio, setDeletingAudio] = useState(false);
+
+  const [quickLang, setQuickLang] = useState("es");
+  const [quickSpeed, setQuickSpeed] = useState("normal");
+  const [quickStyle, setQuickStyle] = useState("neutral");
 
   const [cloneName, setCloneName] = useState("");
   const [cloneFile, setCloneFile] = useState<File | null>(null);
@@ -157,11 +168,11 @@ export default function VozPage() {
 
   async function handleGenerate() {
     if (provider === "xtts") {
-      alert("Próximamente.");
+      setSoonToast(true);
       return;
     }
     if (!text.trim()) {
-      setError("Escribe o carga un guión primero.");
+      setError(t("vozTool.writeOrLoadScript"));
       return;
     }
     setGenerating(true);
@@ -209,6 +220,25 @@ export default function VozPage() {
     setUseProjectScript(false);
   }
 
+  async function handleDeleteAudio() {
+    if (!audioToDelete || !project) return;
+    setDeletingAudio(true);
+    setError("");
+    try {
+      await deleteAudio(project, audioToDelete);
+      setExistingAudio((prev) => {
+        if (!prev) return prev;
+        const archivos = (prev.archivos || []).filter((f) => f !== audioToDelete);
+        return { ...prev, archivos, existe: archivos.length > 0, principal: archivos[0] };
+      });
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDeletingAudio(false);
+      setAudioToDelete(null);
+    }
+  }
+
   function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -221,7 +251,7 @@ export default function VozPage() {
   async function handleClone(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!cloneName.trim() || !cloneFile) {
-      setCloneError("Nombre y archivo de audio son obligatorios.");
+      setCloneError(t("vozTool.cloneNameFileRequired"));
       return;
     }
     setCloning(true);
@@ -241,8 +271,8 @@ export default function VozPage() {
         setCloneError(data.error);
         genStatus.finish("voz-clonar:" + cloneName, false, data.error);
       } else {
-        setCloneMsg("Voz clonada correctamente.");
-        genStatus.finish("voz-clonar:" + cloneName, true, "Voz clonada correctamente.");
+        setCloneMsg(t("vozTool.voiceCloned"));
+        genStatus.finish("voz-clonar:" + cloneName, true, t("vozTool.voiceCloned"));
       }
     } catch (err) {
       setCloneError((err as Error).message);
@@ -267,22 +297,22 @@ export default function VozPage() {
           <div className="min-w-0 flex-1">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[9.5px] uppercase tracking-widest text-[var(--vf-muted)]">
               <span className="h-[5px] w-[5px] rounded-full" style={{ background: "var(--vf-c5)", boxShadow: "0 0 6px var(--vf-c5)" }} />
-              Módulo 02 · Pipeline
+              {t("vozTool.moduleLabel")}
             </div>
             <h1 className="mb-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Estudio de{" "}
+              {t("vozTool.titlePart1")}{" "}
               <span
                 className="bg-clip-text text-transparent"
                 style={{ backgroundImage: "linear-gradient(110deg, var(--vf-c2) 0%, var(--vf-c1) 40%, var(--vf-c3) 85%)" }}
               >
-                Voz
+                {t("vozTool.titlePart2")}
               </span>
             </h1>
             <p className="mb-4 font-mono text-[12.5px] leading-relaxed text-[var(--vf-muted)]">
-              Genera voz en off con IA y guárdala en la carpeta del proyecto activo.
+              {t("vozTool.subtitle")}
             </p>
             <div className="flex flex-wrap gap-2">
-              {["🎚 Generación TTS", "☰ Multi-fragmento", "🎙 Clonación de Voz"].map((pill) => (
+              {[t("vozTool.pillTts"), t("vozTool.pillMultiFragment"), t("vozTool.pillCloning")].map((pill) => (
                 <span key={pill} className="rounded-full border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.03)] px-3 py-1 font-mono text-[10px] text-[var(--vf-muted)]">
                   {pill}
                 </span>
@@ -307,7 +337,7 @@ export default function VozPage() {
               : "border border-[var(--vf-border)] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
           }`}
         >
-          🎙️ Estudio de Voz
+          {t("vozTool.tabStudio")}
         </button>
         <button
           type="button"
@@ -318,7 +348,7 @@ export default function VozPage() {
               : "border border-[var(--vf-border)] text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
           }`}
         >
-          🔬 Clonar Voz
+          {t("vozTool.tabClone")}
         </button>
       </div>
 
@@ -329,14 +359,24 @@ export default function VozPage() {
           {existingAudio?.existe && (
             <div className="mb-5 rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
               <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                // Audio existente en el proyecto
+                {t("vozTool.existingAudio")}
               </div>
               <ul className="space-y-2">
                 {(existingAudio.archivos || []).map((f) => (
                   <li key={f}>
-                    <div className="mb-1 truncate font-mono text-[11px] text-[var(--vf-muted)]">
-                      {f}
-                      {existingAudio.principal === f && <span className="ml-2 text-[var(--vf-success)]">(principal)</span>}
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <div className="min-w-0 truncate font-mono text-[11px] text-[var(--vf-muted)]">
+                        {f}
+                        {existingAudio.principal === f && <span className="ml-2 text-[var(--vf-success)]">{t("vozTool.principal")}</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAudioToDelete(f)}
+                        title={t("vozTool.deleteAudio") || ""}
+                        className="flex-shrink-0 rounded-md border border-[rgba(var(--vf-fg-rgb),.1)] px-2 py-0.5 font-mono text-[10px] text-[var(--vf-danger)] hover:bg-[rgba(var(--vf-fg-rgb),.06)]"
+                      >
+                        🗑
+                      </button>
                     </div>
                     <WaveformPlayer src={audioFileUrl(project, f)} />
                   </li>
@@ -348,9 +388,9 @@ export default function VozPage() {
           {/* Steps bar */}
           <div className="mb-7 flex items-center">
             {[
-              { n: 1, label: "Configurar" },
-              { n: 2, label: "Generar" },
-              { n: 3, label: "Fusionar" },
+              { n: 1, label: t("vozTool.stepConfigure") },
+              { n: 2, label: t("vozTool.stepGenerate") },
+              { n: 3, label: t("vozTool.stepMerge") },
             ].map((s, i, arr) => (
               <div key={s.n} className="flex flex-1 items-center">
                 <div className="flex flex-col items-center gap-1.5">
@@ -375,7 +415,7 @@ export default function VozPage() {
               <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
                   <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    ⚙ Configuración de voz
+                    {t("vozTool.voiceConfigTitle")}
                   </div>
 
                   <div className="mb-3 flex gap-1 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] p-0.5">
@@ -386,7 +426,7 @@ export default function VozPage() {
                         provider === "ivr" ? "bg-[var(--vf-c1)] text-white" : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                       }`}
                     >
-                      ⚡ IVR Voices
+                      {t("vozTool.ivrVoicesLabel")}
                     </button>
                     <button
                       type="button"
@@ -395,56 +435,56 @@ export default function VozPage() {
                         provider === "xtts" ? "bg-[var(--vf-c1)] text-white" : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                       }`}
                     >
-                      🎤 XTTS v2
+                      {t("vozTool.xttsLabel")}
                     </button>
                   </div>
 
                   <div className="mb-1 flex items-center justify-between">
-                    <label className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">Voz</label>
+                    <label className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">{t("vozTool.voice")}</label>
                     <button
                       type="button"
                       onClick={loadVoiceList}
                       className="rounded-md border border-[rgba(124,106,255,.28)] bg-[rgba(124,106,255,.12)] px-2 py-0.5 font-mono text-[9.5px] text-[var(--vf-c2)]"
                     >
-                      ↺ Refrescar
+                      {t("vozTool.refresh")}
                     </button>
                   </div>
 
                   {provider === "ivr" ? (
-                    <select
+                    <Select
                       value={voiceId}
-                      onChange={(e) => setVoiceId(e.target.value)}
+                      onChange={setVoiceId}
                       disabled={voicesLoading}
                       className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                     >
-                      {voicesLoading && <option>Cargando voces...</option>}
-                      {!voicesLoading && voices.length === 0 && <option value="">Sin voces disponibles</option>}
+                      {voicesLoading && <SelectOption value="">{t("vozTool.loadingVoices")}</SelectOption>}
+                      {!voicesLoading && voices.length === 0 && <SelectOption value="">{t("vozTool.noVoicesAvailable")}</SelectOption>}
                       {voices.map((v) => {
-                        const id = v["ID Voz"] || v.id || v.voice_id;
+                        const id = v["ID Voz"] || v.id || v.voice_id || "";
                         const name = v["Nombre Voz"] || v.name || id;
                         return (
-                          <option key={id} value={id}>
+                          <SelectOption key={id} value={id}>
                             {name}
-                          </option>
+                          </SelectOption>
                         );
                       })}
-                    </select>
+                    </Select>
                   ) : (
-                    <select
+                    <Select
                       value={xttsVoice}
-                      onChange={(e) => setXttsVoice(e.target.value)}
+                      onChange={setXttsVoice}
                       className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                     >
                       {XTTS_VOICES.map((v) => (
-                        <option key={v}>{v}</option>
+                        <SelectOption key={v} value={v}>{v}</SelectOption>
                       ))}
-                    </select>
+                    </Select>
                   )}
 
                   {provider === "ivr" ? (
                     <>
                       <label className="mb-1.5 mt-2 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                        Modelo
+                        {t("vozTool.model")}
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
                         {MODELS.map((m) => (
@@ -466,29 +506,29 @@ export default function VozPage() {
                   ) : (
                     <>
                       <label className="mb-1.5 mt-2 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-                        Idioma
+                        {t("vozTool.language")}
                       </label>
-                      <select
+                      <Select
                         value={xttsLang}
-                        onChange={(e) => setXttsLang(e.target.value)}
+                        onChange={setXttsLang}
                         className="w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
                       >
                         {XTTS_LANGS.map((l) => (
-                          <option key={l.value} value={l.value}>
+                          <SelectOption key={l.value} value={l.value}>
                             {l.label}
-                          </option>
+                          </SelectOption>
                         ))}
-                      </select>
+                      </Select>
                     </>
                   )}
                 </div>
 
                 <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
                   <div className="mb-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    ☰ Guión
+                    {t("vozTool.scriptSectionTitle")}
                   </div>
                   <div className="mb-1 flex items-center justify-between">
-                    <label className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">Guión</label>
+                    <label className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">{t("vozTool.script")}</label>
                     <label className="flex cursor-pointer items-center gap-1.5 font-mono text-[9px] text-[var(--vf-muted)]">
                       <input
                         type="checkbox"
@@ -496,13 +536,13 @@ export default function VozPage() {
                         onChange={(e) => handleToggleUseScript(e.target.checked)}
                         className="h-3 w-3 accent-[var(--vf-accent)]"
                       />
-                      Usar guión del proyecto
+                      {t("vozTool.useProjectScript")}
                     </label>
                   </div>
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="Pega tu guión aquí..."
+                    placeholder={t("vozTool.scriptPlaceholder") || ""}
                     rows={7}
                     className="w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 font-mono text-[12px] outline-none focus:border-[var(--vf-accent)]"
                   />
@@ -512,48 +552,48 @@ export default function VozPage() {
               {/* Side column */}
               <div className="flex w-[260px] flex-shrink-0 flex-col gap-3">
                 <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Consejo</div>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">{t("vozTool.tipLabel")}</div>
                   <p className="flex items-start gap-2 text-[11.5px] leading-relaxed text-[var(--vf-m)]">
                     <span>💡</span>
-                    Usa Fragmentación Automática para obtener mejores resultados y evitar cortes innecesarios.
+                    {t("vozTool.tipText")}
                   </p>
                 </div>
                 <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Vista previa de voz</div>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">{t("vozTool.previewLabel")}</div>
                   <div className="flex flex-col items-center gap-1.5 py-4 text-center text-[10.5px] text-[var(--vf-m)]">
                     <span className="opacity-40">🔊</span>
-                    Genera audio para
+                    {t("vozTool.previewHintLine1")}
                     <br />
-                    previsualizar aquí
+                    {t("vozTool.previewHintLine2")}
                   </div>
                 </div>
                 <div className="rounded-xl border border-[rgba(124,106,255,.14)] p-4" style={{ background: "var(--vf-surface)" }}>
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">Ajustes rápidos</div>
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--vf-m2)]">{t("vozTool.quickSettingsLabel")}</div>
                   <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
-                    Idioma
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>Español</option>
-                      <option>Inglés</option>
-                      <option>Portugués</option>
-                      <option>Francés</option>
-                    </select>
+                    {t("vozTool.language")}
+                    <Select value={quickLang} onChange={setQuickLang} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="es">{t("vozTool.spanish")}</SelectOption>
+                      <SelectOption value="en">{t("vozTool.english")}</SelectOption>
+                      <SelectOption value="pt">{t("vozTool.portuguese")}</SelectOption>
+                      <SelectOption value="fr">{t("vozTool.french")}</SelectOption>
+                    </Select>
                   </label>
                   <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.05)] py-2 text-[12px] text-[var(--vf-m)]">
-                    Velocidad
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>Normal (1×)</option>
-                      <option>Lento (0.8×)</option>
-                      <option>Rápido (1.2×)</option>
-                    </select>
+                    {t("vozTool.speed")}
+                    <Select value={quickSpeed} onChange={setQuickSpeed} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="normal">{t("vozTool.speedNormal")}</SelectOption>
+                      <SelectOption value="slow">{t("vozTool.speedSlow")}</SelectOption>
+                      <SelectOption value="fast">{t("vozTool.speedFast")}</SelectOption>
+                    </Select>
                   </label>
                   <label className="flex items-center justify-between py-2 text-[12px] text-[var(--vf-m)]">
-                    Estilo
-                    <select className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                      <option>Neutral</option>
-                      <option>Expresivo</option>
-                      <option>Narrativo</option>
-                      <option>Formal</option>
-                    </select>
+                    {t("vozTool.style")}
+                    <Select value={quickStyle} onChange={setQuickStyle} className="rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                      <SelectOption value="neutral">{t("vozTool.styleNeutral")}</SelectOption>
+                      <SelectOption value="expressive">{t("vozTool.styleExpressive")}</SelectOption>
+                      <SelectOption value="narrative">{t("vozTool.styleNarrative")}</SelectOption>
+                      <SelectOption value="formal">{t("vozTool.styleFormal")}</SelectOption>
+                    </Select>
                   </label>
                 </div>
               </div>
@@ -564,18 +604,18 @@ export default function VozPage() {
             <div>
               <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
                 <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  // Fragmentos generados
+                  {t("vozTool.generatedFragments")}
                 </div>
                 <div className="flex flex-col gap-3">
                   {fragments.map((frag, i) => (
                     <div key={i} className="rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] p-3">
                       <div className="mb-2 truncate font-mono text-[10px] text-[var(--vf-muted)]">
-                        {frag.chunkText?.slice(0, 80) || `Fragmento ${i + 1}`}
+                        {frag.chunkText?.slice(0, 80) || t("vozTool.fragmentFallback", { n: i + 1 })}
                       </div>
                       {frag.audio || frag.url || frag.audioUrl ? (
                         <WaveformPlayer src={frag.audio || frag.url || frag.audioUrl} />
                       ) : (
-                        <span className="font-mono text-[10px] text-[var(--vf-muted)]">Sin vista previa disponible</span>
+                        <span className="font-mono text-[10px] text-[var(--vf-muted)]">{t("vozTool.noPreviewAvailable")}</span>
                       )}
                     </div>
                   ))}
@@ -588,7 +628,7 @@ export default function VozPage() {
                 className="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, var(--vf-c5), var(--vf-c6))" }}
               >
-                {merging ? "Fusionando…" : "✅ Fusionar Todo"}
+                {merging ? t("vozTool.merging") : t("vozTool.mergeAll")}
               </button>
             </div>
           )}
@@ -597,7 +637,7 @@ export default function VozPage() {
             <div>
               <div className="mb-4 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
                 <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  // Pista Maestra
+                  {t("vozTool.masterTrack")}
                 </div>
                 {master.finalAudio ? (
                   <WaveformPlayer src={master.finalAudio} />
@@ -607,7 +647,7 @@ export default function VozPage() {
                   </pre>
                 )}
                 {project && (
-                  <p className="mt-3 font-mono text-[10px] text-[var(--vf-success)]">Guardado en el proyecto "{project}".</p>
+                  <p className="mt-3 font-mono text-[10px] text-[var(--vf-success)]">{t("vozTool.savedInProject", { project })}</p>
                 )}
               </div>
               <button
@@ -615,7 +655,7 @@ export default function VozPage() {
                 onClick={handleReset}
                 className="w-full rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] py-2.5 text-sm font-medium text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
               >
-                + Generar otro
+                {t("vozTool.generateAnother")}
               </button>
             </div>
           )}
@@ -627,10 +667,10 @@ export default function VozPage() {
                 onClick={() => navigate(`/app/guion?project=${encodeURIComponent(project)}`)}
                 className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.05)] px-4 py-2 text-[13px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.08)] hover:text-[var(--vf-text)]"
               >
-                ← Volver al guión
+                {t("vozTool.backToScript")}
               </button>
               <span className="font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--vf-m2)]">
-                Paso 2 de 5
+                {t("vozTool.stepOf5", { n: 3 })}
               </span>
               {!fragments && (
                 <button
@@ -639,7 +679,7 @@ export default function VozPage() {
                   disabled={generating}
                   className="rounded-lg bg-[rgba(124,106,255,.82)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#7c6aff] disabled:opacity-50"
                 >
-                  {generating ? "Procesando…" : "⚡ Procesar Speech"}
+                  {generating ? t("vozTool.processing") : t("vozTool.processSpeech")}
                 </button>
               )}
             </div>
@@ -654,22 +694,22 @@ export default function VozPage() {
 
           <form onSubmit={handleClone} className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
             <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-              // Clonar Nueva Voz
+              {t("vozTool.cloneNewVoice")}
             </div>
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Nombre
+              {t("vozTool.name")}
             </label>
             <input
               type="text"
               value={cloneName}
               onChange={(e) => setCloneName(e.target.value)}
-              placeholder="Ej: Narrador_Serio_01"
+              placeholder={t("vozTool.cloneNamePlaceholder") || ""}
               className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
             />
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Muestra de Audio (máx 10MB)
+              {t("vozTool.audioSample")}
             </label>
             <div className="relative mb-3 rounded-lg border border-dashed border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.015)] p-5 text-center">
               <input
@@ -680,34 +720,34 @@ export default function VozPage() {
               />
               <div className="mb-1 text-xl">🎵</div>
               <div className="font-mono text-[11px] text-[var(--vf-muted)]">
-                <strong>Clic o arrastra</strong> tu audio
+                <strong>{t("vozTool.clickOrDrag")}</strong> {t("vozTool.yourAudio")}
               </div>
               {cloneFile && <div className="mt-1 font-mono text-[10px] text-[var(--vf-success)]">{cloneFile.name}</div>}
             </div>
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Idioma
+              {t("vozTool.language")}
             </label>
             <Select
               value={cloneLang}
               onChange={(v) => setCloneLang(v)}
               className="mb-3 w-full rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--vf-accent)]"
             >
-              <SelectOption value="AUTO">Detección Automática</SelectOption>
-              <SelectOption value="ES_ES">Español</SelectOption>
-              <SelectOption value="EN_US">Inglés</SelectOption>
-              <SelectOption value="PT_BR">Portugués</SelectOption>
-              <SelectOption value="FR_FR">Francés</SelectOption>
-              <SelectOption value="DE_DE">Alemán</SelectOption>
+              <SelectOption value="AUTO">{t("vozTool.autoDetect")}</SelectOption>
+              <SelectOption value="ES_ES">{t("vozTool.spanish")}</SelectOption>
+              <SelectOption value="EN_US">{t("vozTool.english")}</SelectOption>
+              <SelectOption value="PT_BR">{t("vozTool.portuguese")}</SelectOption>
+              <SelectOption value="FR_FR">{t("vozTool.french")}</SelectOption>
+              <SelectOption value="DE_DE">{t("vozTool.german")}</SelectOption>
             </Select>
 
             <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-              Transcripción
+              {t("vozTool.transcription")}
             </label>
             <textarea
               value={cloneText}
               onChange={(e) => setCloneText(e.target.value)}
-              placeholder="Escribe exactamente lo que dice el audio..."
+              placeholder={t("vozTool.transcriptionPlaceholder") || ""}
               className="mb-3 min-h-[100px] w-full resize-y rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface-2)] px-3 py-2 font-mono text-[12px] outline-none focus:border-[var(--vf-accent)]"
             />
 
@@ -716,11 +756,21 @@ export default function VozPage() {
               disabled={cloning}
               className="w-full rounded-lg bg-[var(--vf-accent)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
             >
-              {cloning ? "Procesando…" : "🔬 Clonar y Guardar"}
+              {cloning ? t("vozTool.processing") : t("vozTool.cloneAndSave")}
             </button>
           </form>
         </div>
       )}
+      <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
+      <ConfirmModal
+        visible={audioToDelete !== null}
+        title={t("vozTool.confirmDeleteTitle")}
+        message={t("vozTool.confirmDeleteMessage", { file: audioToDelete || "" })}
+        confirmLabel={deletingAudio ? t("vozTool.deleting") : t("vozTool.deleteAudio")}
+        cancelLabel={t("vozTool.cancel")}
+        onConfirm={handleDeleteAudio}
+        onCancel={() => setAudioToDelete(null)}
+      />
     </div>
   );
 }

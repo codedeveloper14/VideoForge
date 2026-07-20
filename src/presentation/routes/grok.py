@@ -5,6 +5,7 @@ from src.domain.services import grok_animation_service
 from src.presentation.schemas.grok import (
     GrokAbrirCarpetaInSchema,
     GrokAccountInSchema,
+    GrokDetenerInSchema,
     GrokLogQuerySchema,
     GrokRegenerarInSchema,
     GrokVideoQuerySchema,
@@ -88,15 +89,16 @@ def regenerar(json_data):
 
 
 @grok_bp.post("/detener")
-def detener():
-    grok_animation_service.stop()
+@grok_bp.input(GrokDetenerInSchema)
+def detener(json_data):
+    grok_animation_service.stop(json_data["project"])
     return jsonify({"ok": True})
 
 
 @grok_bp.get("/log")
 @grok_bp.input(GrokLogQuerySchema, location="query")
 def log(query_data):
-    return jsonify(grok_animation_service.get_log_state(query_data["offset"]))
+    return jsonify(grok_animation_service.get_log_state(query_data["offset"], query_data["project"]))
 
 
 @grok_bp.get("/videos")

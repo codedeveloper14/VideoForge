@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { EditorScene, TimestampEntry } from "../../api/editor";
 
 const TIPO_PILL: Record<string, { bg: string; color: string; letter: string }> = {
@@ -43,6 +44,7 @@ export default function SceneCard({
   onToggleEnabled,
   onSearchImage,
 }: SceneCardProps) {
+  const { t } = useTranslation();
   const disabled = scene.habilitado === false;
 
   return (
@@ -70,7 +72,7 @@ export default function SceneCard({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center rounded-[7px] border border-dashed border-[var(--vf-b)] bg-[rgba(var(--vf-fg-rgb),.05)] font-mono text-[8px] text-[var(--vf-m2)]">
-            sin img
+            {t("editorTool.noImage")}
           </div>
         )}
       </div>
@@ -84,7 +86,7 @@ export default function SceneCard({
             WebkitBoxOrient: "vertical",
           }}
         >
-          {scene.texto || "(sin texto)"}
+          {scene.texto || t("editorTool.noText")}
         </p>
         <div className="mt-[5px] flex flex-wrap items-center gap-1.5">
           <TipoPill tipo={scene.tipo} />
@@ -102,7 +104,7 @@ export default function SceneCard({
             <span
               className="ml-0.5 inline-block h-2 w-2 shrink-0 rounded-full"
               style={{ background: "var(--vf-c5)" }}
-              title="Tiene imagen de referencia"
+              title={t("editorTool.hasReferenceImage") || ""}
             />
           )}
         </div>
@@ -116,7 +118,7 @@ export default function SceneCard({
           }}
           className="rounded-md border border-[var(--vf-b)] px-2 py-1 font-mono text-[9px] text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-c5)] hover:text-[var(--vf-c5)]"
         >
-          Buscar img
+          {t("editorTool.searchImage")}
         </button>
         <button
           onClick={(e) => {
@@ -125,7 +127,7 @@ export default function SceneCard({
           }}
           className="rounded-md border border-[var(--vf-b)] px-2 py-1 font-mono text-[9px] text-[var(--vf-m2)] transition-colors hover:border-[var(--vf-danger)] hover:text-[var(--vf-danger)]"
         >
-          {disabled ? "Activar" : "Desactivar"}
+          {disabled ? t("editorTool.enable") : t("editorTool.disable")}
         </button>
       </div>
     </div>

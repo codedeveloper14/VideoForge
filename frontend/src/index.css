@@ -121,6 +121,91 @@ body {
   color: #e9d5ff;
 }
 
+/* ── "Próximamente" toast — branded replacement for the native alert() ──
+   Matches ActiveJobsPopup/Select's floating-popup recipe: var(--vf-p)
+   surface, translucent border, large soft shadow, fixed + portalled to
+   <body>. Amber accent (icon chip + border) instead of the purple used by
+   other popups, so it reads as "pending" rather than an active feature. */
+.soon-toast-wrap {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 9600;
+  pointer-events: none;
+}
+
+.soon-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: var(--vf-p);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  box-shadow:
+    0 18px 48px rgba(2, 6, 16, 0.45),
+    inset 0 1px 0 rgba(var(--vf-fg-rgb), 0.05);
+  pointer-events: auto;
+  animation: soon-toast-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.soon-toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.22), rgba(251, 191, 36, 0.08));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: var(--vf-c4);
+}
+
+.soon-toast-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+}
+
+.soon-toast-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--vf-text);
+  line-height: 1.4;
+}
+
+.soon-toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--vf-muted);
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.soon-toast-close:hover {
+  opacity: 1;
+  color: var(--vf-text);
+}
+
+@keyframes soon-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .flow-select,
 .flow-input {
   width: 100%;

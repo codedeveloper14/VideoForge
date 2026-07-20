@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
 from src.core.config import config
@@ -33,6 +34,22 @@ def setup_logging() -> None:
     root_logger.setLevel(logging.DEBUG if config.debug else logging.INFO)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
+
+    # En desarrollo, ademas del log en %APPDATA%/.../logs, escribe a ./logs/backend.log
+    # (raiz del repo) para poder hacer tail sin navegar al directorio de datos de la
+    # app -- ver [[project-dead-code-audit]]/auditoria de logging. Solo con config.debug
+    # activo: en un build empaquetado no existe una "raiz del repo" junto al ejecutable.
+    if config.debug:
+        dev_log_dir = Path(__file__).resolve().parents[2] / "logs"
+        dev_log_dir.mkdir(parents=True, exist_ok=True)
+        dev_file_handler = RotatingFileHandler(
+            dev_log_dir / "backend.log",
+            maxBytes=_MAX_BYTES,
+            backupCount=_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        dev_file_handler.setFormatter(formatter)
+        root_logger.addHandler(dev_file_handler)
 
     _configured = True
 

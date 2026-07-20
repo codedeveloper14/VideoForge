@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listJobs } from "../../api/quickRender";
 import type { MultitaskJob } from "../../api/quickRender";
 
@@ -27,6 +28,7 @@ function formatTime(ts?: number) {
 }
 
 export default function JobsPanel() {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<MultitaskJob[]>([]);
   const [error, setError] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -58,10 +60,10 @@ export default function JobsPanel() {
     <div className="rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-5">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-mono text-xs uppercase tracking-wider text-[var(--vf-muted)]">
-          Actividad reciente
+          {t("jobsPanel.recentActivity")}
         </h2>
         <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-          {jobs.length} tarea{jobs.length !== 1 ? "s" : ""}
+          {t("jobsPanel.taskCount", { count: jobs.length })}
         </span>
       </div>
 
@@ -69,7 +71,7 @@ export default function JobsPanel() {
 
       {jobs.length === 0 ? (
         <p className="text-sm text-[var(--vf-muted)]">
-          No hay tareas activas ni recientes.
+          {t("jobsPanel.noActiveOrRecentTasks")}
         </p>
       ) : (
         <ul className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-1">
@@ -80,7 +82,7 @@ export default function JobsPanel() {
             >
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="truncate font-mono text-[11px] text-[var(--vf-text)]">
-                  {job.tipo || "tarea"}
+                  {job.tipo || t("jobsPanel.taskFallback")}
                   {job.proyecto ? ` · ${job.proyecto}` : ""}
                 </span>
                 <span
@@ -109,7 +111,7 @@ export default function JobsPanel() {
                   className="mt-2 inline-block text-[11px] text-[var(--vf-accent)] hover:underline"
                   download
                 >
-                  Descargar video
+                  {t("jobsPanel.downloadVideo")}
                 </a>
               )}
             </li>

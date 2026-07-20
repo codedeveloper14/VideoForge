@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 
 interface EyeToggleProps {
@@ -47,10 +48,11 @@ function strengthOf(pwd: string): number {
 }
 
 const STRENGTH_PCT = ["0%", "25%", "50%", "75%", "100%"];
-const STRENGTH_LABEL = ["", "Débil", "Aceptable", "Buena", "Fuerte"];
+const STRENGTH_LABEL_KEYS = ["", "register.strengthWeak", "register.strengthOk", "register.strengthGood", "register.strengthStrong"];
 const STRENGTH_COLOR = ["#ff5544", "#ff7733", "#fbbf24", "#22d3a0"];
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const { register } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -70,11 +72,11 @@ export default function RegisterPage() {
     setError("");
 
     if (password.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
+      setError(t("register.errorPasswordLength"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Las contraseñas no coinciden.");
+      setError(t("register.errorPasswordMismatch"));
       return;
     }
 
@@ -119,28 +121,14 @@ export default function RegisterPage() {
         >
           {/* Logo */}
           <div className="mb-7 flex items-center justify-center gap-3.5">
-            <div
-              className="relative flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl"
-              style={{
-                background: "linear-gradient(145deg,#4f35d6 0%,#7c6aff 45%,#a855f7 100%)",
-                boxShadow: "0 0 0 1px rgba(168,85,247,.2), 0 8px 28px rgba(124,106,255,.55), 0 0 60px rgba(124,106,255,.12)",
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="19" height="19" className="relative z-10">
-                <rect x="2" y="4" width="4" height="16" rx="1" fill="rgba(var(--vf-fg-rgb),.22)" />
-                <rect x="2.5" y="6" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <rect x="2.5" y="11" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <rect x="2.5" y="16" width="3" height="2" rx=".5" fill="rgba(var(--vf-fg-rgb),.6)" />
-                <path d="M9 8.5L18.5 12 9 15.5V8.5Z" fill="white" />
-              </svg>
-            </div>
+            <img src="/logo.png" alt="" className="h-[46px] w-[46px] flex-shrink-0 object-contain" />
             <div className="flex flex-col gap-0.5">
               <span className="text-[21px] font-extrabold leading-none tracking-[-0.6px]">Studio IVR</span>
               <span
                 className="text-[9px] uppercase tracking-[0.15em]"
                 style={{ fontFamily: "var(--vf-mono)", color: "rgba(167,139,250,.65)" }}
               >
-                AI Pipeline
+                {t("register.tagline")}
               </span>
             </div>
           </div>
@@ -152,14 +140,14 @@ export default function RegisterPage() {
               className="flex flex-1 items-center justify-center rounded-[9px] border border-transparent px-3 py-2.5 text-center text-[11px] font-medium tracking-[0.04em] text-[rgba(var(--vf-fg-rgb),0.4)] transition-colors hover:bg-[rgba(var(--vf-fg-rgb),0.04)] hover:text-[rgba(var(--vf-fg-rgb),0.6)]"
               style={{ fontFamily: "var(--vf-mono)" }}
             >
-              Iniciar sesión
+              {t("register.signIn")}
             </Link>
             <button
               type="button"
               className="flex-1 rounded-[9px] border border-[rgba(124,106,255,0.2)] bg-[rgba(124,106,255,0.18)] px-3 py-2.5 text-[11px] font-medium tracking-[0.04em] text-white"
               style={{ fontFamily: "var(--vf-mono)" }}
             >
-              Crear cuenta
+              {t("register.createAccount")}
             </button>
           </div>
 
@@ -186,13 +174,13 @@ export default function RegisterPage() {
                     </>
                   }
                 />
-                Nombre de usuario
+                {t("register.username")}
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="mi_usuario"
+                placeholder={t("register.usernamePlaceholder")}
                 autoComplete="username"
                 autoCapitalize="off"
                 spellCheck="false"
@@ -219,13 +207,13 @@ export default function RegisterPage() {
                     </>
                   }
                 />
-                Correo electrónico
+                {t("register.email")}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="correo@ejemplo.com"
+                placeholder={t("register.emailPlaceholder")}
                 autoComplete="email"
                 required
                 className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
@@ -245,14 +233,14 @@ export default function RegisterPage() {
                     </>
                   }
                 />
-                Contraseña
+                {t("register.password")}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder={t("register.passwordPlaceholder")}
                   autoComplete="new-password"
                   minLength={8}
                   required
@@ -278,7 +266,7 @@ export default function RegisterPage() {
                       color: strength > 0 ? STRENGTH_COLOR[strength - 1] : "rgba(var(--vf-fg-rgb),.28)",
                     }}
                   >
-                    {STRENGTH_LABEL[strength]}
+                    {strength > 0 ? t(STRENGTH_LABEL_KEYS[strength]) : ""}
                   </span>
                 )}
               </div>
@@ -297,14 +285,14 @@ export default function RegisterPage() {
                     </>
                   }
                 />
-                Confirmar contraseña
+                {t("register.confirmPassword")}
               </label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repite la contraseña"
+                  placeholder={t("register.confirmPasswordPlaceholder")}
                   autoComplete="new-password"
                   required
                   className="w-full rounded-xl border border-[rgba(var(--vf-fg-rgb),0.07)] bg-[rgba(var(--vf-fg-rgb),0.035)] px-[15px] py-3 pr-[42px] text-sm font-medium tracking-[-0.2px] text-[var(--vf-text)] outline-none transition-colors focus:border-[rgba(124,106,255,0.45)] focus:bg-[rgba(124,106,255,0.04)]"
@@ -319,7 +307,7 @@ export default function RegisterPage() {
                     color: matches ? "var(--vf-success)" : "var(--vf-danger)",
                   }}
                 >
-                  {matches ? "✓ Las contraseñas coinciden" : "✗ No coinciden"}
+                  {matches ? t("register.passwordsMatch") : t("register.passwordsMismatch")}
                 </div>
               )}
             </div>
@@ -334,17 +322,17 @@ export default function RegisterPage() {
                 boxShadow: "0 4px 24px rgba(124,106,255,.38), 0 0 60px rgba(124,106,255,.08)",
               }}
             >
-              {submitting ? "Creando cuenta…" : "Crear cuenta →"}
+              {submitting ? t("register.creatingAccount") : t("register.createAccountCta")}
             </button>
           </form>
 
           <p className="mt-5 text-center text-sm text-[var(--vf-muted)]">
-            Empiezas en el plan Básico — puedes cambiarlo luego en Planes.
+            {t("register.startsOnBasic")}
           </p>
           <p className="mt-2 text-center text-sm text-[var(--vf-muted)]">
-            ¿Ya tienes cuenta?{" "}
+            {t("register.alreadyHaveAccount")}{" "}
             <Link to="/login" className="text-[var(--vf-accent)] hover:underline">
-              Inicia sesión
+              {t("register.signInLink")}
             </Link>
           </p>
         </div>

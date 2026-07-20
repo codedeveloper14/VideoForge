@@ -6,8 +6,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import * as authApi from "../api/auth";
 import type { LoginResult } from "../api/auth";
+import { useIdleTimer } from "../hooks/useIdleTimer";
+import SessionWarningModal from "../components/SessionWarningModal";
 
 interface AuthContextValue {
   user: string | null;
@@ -30,8 +33,10 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const [user, setUser] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -80,11 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const handleIdleExpire = useCallback(async () => {
+    setShowIdleWarning(false);
+    try {
+      await logout();
+    } finally {
+      navigate("/login?expired=1");
+    }
+  }, [logout, navigate]);
+
+  useIdleTimer({
+    enabled: !!user,
+    onWarn: () => setShowIdleWarning(true),
+    onExpire: handleIdleExpire,
+  });
+
   return (
     <AuthContext.Provider
       value={{ user, loading, login, register, changePassword, logout, refresh }}
     >
       {children}
+      <SessionWarningModal visible={showIdleWarning} onStay={() => setShowIdleWarning(false)} />
     </AuthContext.Provider>
   );
 }

@@ -9,6 +9,7 @@ PUBLIC_ROUTES = {
     "/api/change-password",
     "/api/logout",
     "/api/health",
+    "/api/updates/check",
     "/stripe-success",
     "/favicon.ico",
     # Contenido del centro de ayuda: publico en el original (sin auth), igual aqui.

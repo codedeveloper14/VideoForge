@@ -226,7 +226,14 @@ def _gen_batch(
                     if content:
                         if prompt_mode == "stick":
                             return {batch[0]["bloque_global_id"]: content.strip()}
-                        return _parse_batch_output(content, batch)
+                        parsed = _parse_batch_output(content, batch)
+                        if len(parsed) < n_scenes:
+                            logger.warning(
+                                "[prompt-batch] HTTP 200 pero parseo incompleto (%d/%d escenas) con %s. "
+                                "Contenido: %r",
+                                len(parsed), n_scenes, model, content[:300],
+                            )
+                        return parsed
                     continue
                 logger.warning("[prompt-batch] HTTP %s %s %s", r.status_code, model, str(d)[:100])
                 if r.status_code == 401:
@@ -264,14 +271,21 @@ def _gen_batch(
 
 
 def _gen_batch_safe(
-    batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature
+    batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature, _retried=False
 ) -> dict:
     """Si OpenRouter devuelve menos lineas de las esperadas, subdivide el lote
     hasta completar o agotar sublotes."""
     if not batch:
         return {}
     mapping = _gen_batch(batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature)
-    if len(mapping) >= len(batch) or len(batch) <= 1:
+    if len(mapping) >= len(batch):
+        return mapping
+    if len(batch) <= 1:
+        if not _retried:
+            logger.warning("[prompt-batch] escena unica sin prompt, reintentando una vez")
+            return _gen_batch_safe(
+                batch, guion_text, estilo_efectivo, prompt_mode, active_sys, or_models, temperature, _retried=True
+            )
         return mapping
     missing_ratio = 1.0 - (len(mapping) / max(1, len(batch)))
     if missing_ratio <= 0.08:
@@ -376,7 +390,7 @@ def generate_prompts(
                 b["prompt_imagen"] = mapping[gid]
 
     missing = [b for b in bloques if not (b.get("prompt_imagen") or "").strip()]
-    if missing and len(bloques) >= 180:
+    if missing:
         try:
             retry_cap = int((os.environ.get("OPENROUTER_MISSING_RETRY_CAP") or "120").strip())
         except ValueError:

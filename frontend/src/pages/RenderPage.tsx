@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { listProjects } from "../api/projects";
 import type { Project } from "../types";
 import {
@@ -21,6 +22,7 @@ import { useGenerationStatus } from "../context/GenerationStatusContext";
 type WizardStep = 1 | 2 | 3;
 
 export default function RenderPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState(searchParams.get("project") || "");
@@ -110,20 +112,20 @@ export default function RenderPage() {
     setStep1Error("");
     if (usesProjectFlow) {
       if (!project) {
-        setStep1Error("Selecciona un proyecto en la barra superior.");
+        setStep1Error(t("renderTool.selectProjectTopbar"));
         return;
       }
     } else {
       if (!audioFile) {
-        setStep1Error("Sube un archivo de audio.");
+        setStep1Error(t("renderTool.uploadAudioFile"));
         return;
       }
       if (!images.length) {
-        setStep1Error("Sube al menos una imagen.");
+        setStep1Error(t("renderTool.uploadAtLeastOneImage"));
         return;
       }
       if (!guion.trim()) {
-        setStep1Error("Escribe el guión (una línea por escena).");
+        setStep1Error(t("renderTool.writeScriptOneLinePerScene"));
         return;
       }
     }
@@ -157,7 +159,7 @@ export default function RenderPage() {
           audioFile: useProjectAudio ? null : audioFile,
         });
         setDownloadUrl(getRenderDownloadUrl(data.job_id));
-        setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: "Iniciando..." });
+        setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: t("renderTool.startingJob") });
         setStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
         startPolling(data.job_id);
@@ -176,15 +178,15 @@ export default function RenderPage() {
           imageFiles: images.map((i) => i.file),
         });
         setDownloadUrl(getQuickRenderDownloadUrl(data.job_id));
-        setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: "Iniciando..." });
+        setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: t("renderTool.startingJob") });
         setStep(3);
         window.scrollTo({ top: 0, behavior: "smooth" });
         startPolling(data.job_id);
       }
     } catch (err) {
       const error = err as Error & { limit_reached?: boolean };
-      setStep1Error(error.message || "Ocurrió un error al iniciar el render.");
-      genStatus.finish(genIdRef.current, false, error.message || "Error al iniciar el render.");
+      setStep1Error(error.message || t("renderTool.renderStartError"));
+      genStatus.finish(genIdRef.current, false, error.message || t("renderTool.renderStartError"));
       setStep(2);
     } finally {
       setSubmitting(false);
@@ -212,30 +214,36 @@ export default function RenderPage() {
   const sceneCount = guion.split("\n").filter((l) => l.trim()).length;
 
   const motionLabels: Record<string, string> = {
-    none: "Sin movimiento",
-    ken_burns: "Ken Burns",
-    zoom_in: "Zoom In",
-    zoom_out: "Zoom Out",
-    pan_left: "Pan ←",
-    pan_right: "Pan →",
+    none: t("projectRenderPanel.motionNone"),
+    ken_burns: t("projectRenderPanel.motionKenBurns"),
+    zoom_in: t("projectRenderPanel.motionZoomIn"),
+    zoom_out: t("projectRenderPanel.motionZoomOut"),
+    pan_left: t("renderTool.motionPanLeftArrow"),
+    pan_right: t("renderTool.motionPanRightArrow"),
   };
   const transLabels: Record<string, string> = {
-    none: "Sin transición",
-    dissolve: "Dissolve",
-    slide_left: "Slide ←",
-    slide_right: "Slide →",
-    zoom: "Zoom",
-    fade: "Fade",
+    none: t("projectRenderPanel.transitionNone"),
+    dissolve: t("renderTool.transitionDissolveShort"),
+    slide_left: t("renderTool.transitionSlideLeftArrow"),
+    slide_right: t("renderTool.transitionSlideRightArrow"),
+    zoom: t("renderTool.transitionZoomShort"),
+    fade: t("renderTool.transitionFadeShort"),
   };
 
   const summaryPills = [
-    { label: `📸 ${images.length || 0} imágenes` },
-    { label: `🎵 ${audioFile ? audioFile.name.split(".").pop()?.toUpperCase() : useProjectAudio ? "Proyecto" : "?"}` },
-    { label: `📄 ${sceneCount} escenas` },
-    { label: `🖥 ${resolucion.replace("x", "×")}` },
-    { label: `🎥 ${motionLabels[movimiento] || movimiento}` },
-    { label: `✨ ${transLabels[transicion] || transicion}` },
-    { label: `🤖 Whisper ${modelo}` },
+    { label: t("renderTool.pillImages", { count: images.length || 0 }) },
+    {
+      label: audioFile
+        ? `🎵 ${audioFile.name.split(".").pop()?.toUpperCase()}`
+        : useProjectAudio
+          ? t("renderTool.pillAudioProject")
+          : t("renderTool.pillAudioUnknown"),
+    },
+    { label: t("renderTool.pillScenes", { count: sceneCount }) },
+    { label: t("renderTool.pillResolution", { res: resolucion.replace("x", "×") }) },
+    { label: t("renderTool.pillMotion", { motion: motionLabels[movimiento] || movimiento }) },
+    { label: t("renderTool.pillTransition", { trans: transLabels[transicion] || transicion }) },
+    { label: t("renderTool.pillWhisper", { model: modelo }) },
   ];
 
   return (
@@ -244,9 +252,9 @@ export default function RenderPage() {
 
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="tool-h1 text-2xl font-semibold">Render</h1>
+          <h1 className="tool-h1 text-2xl font-semibold">{t("renderTool.title")}</h1>
           <p className="mt-1 text-sm text-[var(--vf-muted)]">
-            Ensambla guión, audio e imágenes/escenas en el video final.
+            {t("renderTool.subtitle")}
           </p>
         </div>
       </div>

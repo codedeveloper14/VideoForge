@@ -33,6 +33,11 @@ class AudioArchivoQuerySchema(Schema):
     file = String(required=True)
 
 
+class AudioEliminarInSchema(Schema):
+    project = String(required=True)
+    file = String(required=True)
+
+
 class AnalyzeImageInSchema(Schema):
     image_base64 = String(required=True)
     mime_type = String(load_default="image/png")

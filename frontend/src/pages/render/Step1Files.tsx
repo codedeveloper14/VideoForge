@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Project } from "../../types";
 import { loadScript } from "../../api/script";
+import { Select, SelectOption } from "../../components/Select";
 import { Card, DropZone, RENDER_MODES, WizardPageHeader, formatSize } from "./wizardShared";
 
 export interface ImageEntry {
@@ -57,6 +59,7 @@ export default function Step1Files({
   error,
   onContinue,
 }: Step1FilesProps) {
+  const { t } = useTranslation();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const usesProject = renderMode !== "images";
 
@@ -97,10 +100,10 @@ export default function Step1Files({
 
   return (
     <div>
-      <WizardPageHeader title="Sube tus archivos" sub="Audio, contenido y guión del video" />
+      <WizardPageHeader title={t("projectRenderPanel.wizardStep1Title")} sub={t("projectRenderPanel.wizardStep1Sub")} />
 
       {/* Modo de Renderizado */}
-      <Card icon="⚙️" iconBg="rgba(56,189,248,.12)" title="Modo de Renderizado" sub="¿Qué contenido usar?" full>
+      <Card icon="⚙️" iconBg="rgba(56,189,248,.12)" title={t("projectRenderPanel.renderModeTitleCased")} sub={t("projectRenderPanel.renderModeSub")} full>
         <div className="flex flex-wrap gap-2.5">
           {RENDER_MODES.map((m) => (
             <label
@@ -119,8 +122,8 @@ export default function Step1Files({
                 onChange={() => onRenderModeChange(m.value as RenderModeValue)}
                 className="accent-[var(--vf-accent)]"
               />
-              {m.icon} {m.label}
-              {m.desc && <small className="ml-1 text-[var(--vf-muted)]">({m.desc})</small>}
+              {m.icon} {t(m.labelKey)}
+              {m.descKey && <small className="ml-1 text-[var(--vf-muted)]">({t(m.descKey)})</small>}
             </label>
           ))}
         </div>
@@ -130,7 +133,7 @@ export default function Step1Files({
             {hideProjectPicker ? (
               <div className="mb-2.5 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Proyecto activo:
+                  {t("projectRenderPanel.activeProject")}
                 </span>
                 <span className="rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] px-3 py-2 font-mono text-xs text-[var(--vf-text)]">
                   {project}
@@ -139,25 +142,25 @@ export default function Step1Files({
             ) : (
               <div className="mb-2.5 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  Proyecto activo:
+                  {t("projectRenderPanel.activeProject")}
                 </span>
-                <select
+                <Select
                   value={project}
-                  onChange={(e) => onProjectChange(e.target.value)}
+                  onChange={onProjectChange}
                   className="rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
                 >
-                  <option value="">— Sin proyecto seleccionado —</option>
+                  <SelectOption value="">{t("tools.noProjectSelected")}</SelectOption>
                   {projects.map((p) => (
-                    <option key={p.nombre} value={p.nombre}>
+                    <SelectOption key={p.nombre} value={p.nombre}>
                       {p.nombre}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
             {!project && (
               <p className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.05)] p-3 text-sm text-[var(--vf-muted)]">
-                Selecciona un proyecto para continuar en este modo.
+                {t("projectRenderPanel.selectProjectToContinue")}
               </p>
             )}
           </div>
@@ -166,7 +169,7 @@ export default function Step1Files({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {/* Audio */}
-        <Card icon="🎵" iconBg="rgba(124,106,255,.15)" title="Audio" sub="mp3, wav, m4a">
+        <Card icon="🎵" iconBg="rgba(124,106,255,.15)" title={t("projectRenderPanel.audioTitle")} sub="mp3, wav, m4a">
           {usesProject && (
             <label className="mb-2.5 flex items-center gap-2 font-mono text-[11px] text-[var(--vf-muted)]">
               <input
@@ -175,7 +178,7 @@ export default function Step1Files({
                 onChange={(e) => onUseProjectAudioChange(e.target.checked)}
                 className="h-3.5 w-3.5 accent-[var(--vf-accent)]"
               />
-              Usar audio del proyecto
+              {t("projectRenderPanel.useProjectAudio")}
             </label>
           )}
           {!(usesProject && useProjectAudio) && (
@@ -185,10 +188,10 @@ export default function Step1Files({
                   icon="🎙️"
                   label={
                     <>
-                      <strong className="text-[var(--vf-c2)]">Clic o arrastra</strong> tu audio
+                      <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong> {t("projectRenderPanel.yourAudio")}
                     </>
                   }
-                  hint="MP3 · WAV · M4A · OGG"
+                  hint={t("projectRenderPanel.audioFormats") || ""}
                   accept=".mp3,.wav,.m4a,.ogg,.aac"
                   onFiles={(files) => onAudioFileChange(files[0])}
                 />
@@ -213,15 +216,15 @@ export default function Step1Files({
         </Card>
 
         {/* Imagenes */}
-        <Card icon="🖼️" iconBg="rgba(251,191,36,.12)" title={`Imágenes (${images.length})`} sub="jpg, png, webp · orden alfabético">
+        <Card icon="🖼️" iconBg="rgba(251,191,36,.12)" title={t("projectRenderPanel.imagesCountTitle", { count: images.length })} sub={t("projectRenderPanel.imagesFormats") || ""}>
           <DropZone
             icon="📸"
             label={
               <>
-                <strong className="text-[var(--vf-c2)]">Clic o arrastra</strong> las imágenes
+                <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong> {t("projectRenderPanel.theImages")}
               </>
             }
-            hint="Selecciona múltiples a la vez"
+            hint={t("projectRenderPanel.selectMultipleAtOnce") || ""}
             accept=".jpg,.jpeg,.png,.webp"
             multiple
             onFiles={addImages}
@@ -229,7 +232,7 @@ export default function Step1Files({
           {images.length > 0 && (
             <>
               <p className="mt-2 font-mono text-xs text-[var(--vf-success)]">
-                ✓ {images.length} imagen{images.length !== 1 ? "es" : ""} cargada{images.length !== 1 ? "s" : ""}
+                {t("videoShared.imageLoadedCount", { count: images.length })}
               </p>
               <ul className="mt-2 flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
                 {images.map((img, i) => (
@@ -272,7 +275,7 @@ export default function Step1Files({
         </Card>
 
         {/* Guion */}
-        <Card icon="📄" iconBg="rgba(34,211,160,.12)" title="Guión" sub="Cada línea = una escena = una imagen" full>
+        <Card icon="📄" iconBg="rgba(34,211,160,.12)" title={t("projectRenderPanel.scriptTitle")} sub={t("projectRenderPanel.scriptSub")} full>
           {usesProject && (
             <label className="mb-2.5 flex items-center gap-2 font-mono text-[11px] text-[var(--vf-muted)]">
               <input
@@ -281,8 +284,8 @@ export default function Step1Files({
                 onChange={(e) => onUseProjectScriptChange(e.target.checked)}
                 className="h-3.5 w-3.5 accent-[var(--vf-accent)]"
               />
-              Usar guión guardado del proyecto
-              {scriptLoaded && <span className="text-[var(--vf-success)]">✓ cargado</span>}
+              {t("projectRenderPanel.useProjectScript")}
+              {scriptLoaded && <span className="text-[var(--vf-success)]">{t("projectRenderPanel.scriptLoadedCheck")}</span>}
             </label>
           )}
           {!(usesProject && useProjectScript) && (
@@ -291,13 +294,11 @@ export default function Step1Files({
                 value={guion}
                 onChange={(e) => onGuionChange(e.target.value)}
                 rows={6}
-                placeholder={
-                  "Esta es la primera escena del video.\nEsta es la segunda escena con más detalles.\nEsta es la tercera escena con el cierre.\nCada línea corresponde a una imagen en orden."
-                }
+                placeholder={t("projectRenderPanel.wizardScriptPlaceholder") || ""}
                 className="w-full rounded-[10px] border border-[var(--vf-b2)] bg-[var(--vf-p)] p-3 font-mono text-[13px] leading-relaxed text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-accent)]"
               />
               <p className="mt-1.5 text-right font-mono text-[11px] text-[var(--vf-m2)]">
-                {guion.length.toLocaleString()} caracteres · {lineCount} líneas
+                {t("projectRenderPanel.charsAndLines", { count: guion.length.toLocaleString(), lines: lineCount })}
               </p>
             </>
           )}
@@ -314,7 +315,7 @@ export default function Step1Files({
           className="flex-1 rounded-xl px-4 py-4 text-base font-bold text-white shadow-[0_4px_20px_rgba(124,106,255,.3)] transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(124,106,255,.45)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           style={{ background: "linear-gradient(135deg, var(--vf-accent), #9f7aea)" }}
         >
-          Continuar — Efectos y configuración →
+          {t("projectRenderPanel.continueToEffects")}
         </button>
       </div>
     </div>

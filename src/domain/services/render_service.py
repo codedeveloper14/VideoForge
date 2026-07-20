@@ -27,6 +27,57 @@ logger = get_logger(__name__)
 _AUDIO_UPLOAD_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
 _SCENE_NUM_RE = re.compile(r"^(?:img|flow)_(\d+)$", re.IGNORECASE)
 
+# Cancelacion individual por job_id -- antes no habia forma de detener un render
+# atascado salvo reiniciar el backend entero (matando tambien cualquier OTRO
+# render corriendo en paralelo). Cada job tiene su propio threading.Event; parar
+# uno nunca toca el Event de otro job_id.
+_cancel_events: dict[str, threading.Event] = {}
+_cancel_events_lock = threading.Lock()
+
+
+class RenderCancelled(Exception):
+    """Cancelacion pedida por el usuario -- no es un error de render, no debe
+    marcarse como "estado": "error" en el job."""
+
+
+def _register_cancel_event(job_id: str) -> threading.Event:
+    ev = threading.Event()
+    with _cancel_events_lock:
+        _cancel_events[job_id] = ev
+    return ev
+
+
+def _get_cancel_event(job_id: str) -> threading.Event:
+    """Busca el Event ya registrado por start_render() antes de lanzar el hilo.
+    Si por algun motivo no existe (nunca deberia pasar en el flujo normal),
+    crea uno nuevo en vez de fallar -- mejor un checkpoint que no cancela nada
+    a una excepcion no relacionada tumbando el render."""
+    with _cancel_events_lock:
+        ev = _cancel_events.get(job_id)
+    if ev is None:
+        ev = _register_cancel_event(job_id)
+    return ev
+
+
+def _forget_cancel_event(job_id: str) -> None:
+    with _cancel_events_lock:
+        _cancel_events.pop(job_id, None)
+
+
+def stop_render(job_id: str) -> bool:
+    """Cancela un render individual sin afectar a ningun otro job_id en curso.
+    Marca el job como "cancelado" de inmediato (el frontend no tiene que esperar
+    a que el hilo de fondo llegue al proximo checkpoint para enterarse)."""
+    with _cancel_events_lock:
+        ev = _cancel_events.get(job_id)
+    if ev is None:
+        return False
+    ev.set()
+    job = job_registry.get_job(job_id)
+    if job is not None:
+        job_registry.update_job(job_id, estado="cancelado", mensaje="Cancelado por el usuario")
+    return True
+
 
 def get_job(job_id: str) -> dict | None:
     return job_registry.get_job(job_id)
@@ -124,6 +175,7 @@ def start_render(
             "inicio": time.time(),
         },
     )
+    _register_cancel_event(job_id)
 
     threading.Thread(
         target=_procesar_render_inteligente,
@@ -208,6 +260,27 @@ def _procesar_render_inteligente(
             job["progreso"] = pct
         logger.info("[%s] %s", job_id, msg)
 
+    def _run_ffmpeg(cmd, timeout):
+        """Como subprocess.run, pero un TimeoutExpired (audio/video corrupto, ffmpeg
+        colgado) se trata como un fallo mas -- returncode -1 sintetico -- en vez de
+        tumbar el render entero: la logica de fallback que ya existe despues de cada
+        llamada (chequeo de os.path.exists/getsize) reacciona igual sea que ffmpeg
+        haya fallado con returncode!=0 o se haya quedado colgado."""
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **no_window_kwargs())
+        except subprocess.TimeoutExpired:
+            logger.warning("[%s] ffmpeg colgado, timeout tras %ss: %s", job_id, timeout, " ".join(cmd[:6]))
+            return subprocess.CompletedProcess(cmd, -1, "", f"timeout tras {timeout}s -- proceso colgado")
+
+    cancel_event = _get_cancel_event(job_id)
+
+    def _check_cancel():
+        """Checkpoint entre pasos -- no interrumpe un subprocess.run ya en vuelo
+        (acotado por su propio timeout), pero evita que arranque trabajo nuevo
+        (un segmento, el concat final, el mux) despues de pedido el stop."""
+        if cancel_event.is_set():
+            raise RenderCancelled()
+
     tmp_dir = tempfile.mkdtemp()
     try:
         # ── Audio duration ──────────────────────────────────────────────
@@ -230,7 +303,7 @@ def _procesar_render_inteligente(
                 )
             duracion_total = float(dur)
         except Exception as de:
-            raise Exception(f"No se pudo leer la duracion del audio: {de}")
+            raise RuntimeError(f"No se pudo leer la duracion del audio: {de}") from de
         log(f"Audio: {duracion_total:.1f}s", 7)
 
         # ── Verificar duracion maxima segun plan (server-side) ──────────
@@ -261,20 +334,20 @@ def _procesar_render_inteligente(
                 try:
                     segmentos, all_words = whisper_client.transcribe_api(audio_path, language="es")
                 except Exception as exc:
-                    raise Exception(f"Whisper API error: {exc}")
+                    raise RuntimeError(f"Whisper API error: {exc}") from exc
                 log(f"  (API: {len(all_words)} words --> {len(segmentos)} sub-segmentos)")
             elif whisper_backend == "faster":
                 log(f"Transcribiendo con faster-whisper ({modelo})...", 10)
                 try:
                     segmentos = whisper_client.transcribe_faster(audio_path, modelo)
                 except Exception as exc:
-                    raise Exception(f"faster-whisper error: {exc}")
+                    raise RuntimeError(f"faster-whisper error: {exc}") from exc
             elif whisper_backend == "whisperx_local":
                 log(f"Transcribiendo con WhisperX local ({modelo})...", 10)
                 try:
                     segmentos, all_words = whisper_client.transcribe_whisperx_local(audio_path, modelo)
                 except Exception as exc:
-                    raise Exception(f"WhisperX local error: {exc}")
+                    raise RuntimeError(f"WhisperX local error: {exc}") from exc
             elif whisper_backend == "whisperx":
                 log("Transcribiendo con WhisperX Replicate (alineacion forzada)...", 10)
                 try:
@@ -282,7 +355,7 @@ def _procesar_render_inteligente(
                         audio_path, language=None
                     )
                 except Exception as exc:
-                    raise Exception(f"WhisperX Replicate error: {exc}")
+                    raise RuntimeError(f"WhisperX Replicate error: {exc}") from exc
             else:
                 log(f"Transcribiendo con Whisper ({modelo})...", 10)
                 segmentos = whisper_client.transcribe_local(audio_path, modelo)
@@ -467,7 +540,7 @@ def _procesar_render_inteligente(
 
         # ── Compressed audio para mezcla final ───────────────────────────
         asm = os.path.join(tmp_dir, "audio_s.mp3")
-        ra = subprocess.run(
+        ra = _run_ffmpeg(
             [
                 "ffmpeg",
                 "-y",
@@ -483,9 +556,7 @@ def _procesar_render_inteligente(
                 "+faststart",
                 asm,
             ],
-            capture_output=True,
-            text=True,
-            **no_window_kwargs(),
+            120,
         )
         audio_path_mix = (
             asm if ra.returncode == 0 and os.path.exists(asm) and os.path.getsize(asm) > 1000 else audio_path
@@ -526,7 +597,7 @@ def _procesar_render_inteligente(
             else:
                 vf_s = f"{ffmpeg_utils.scale_pad_filter(w_res, h_res, FPS)},setpts=PTS-STARTPTS"
 
-            r = subprocess.run(
+            r = _run_ffmpeg(
                 [
                     "ffmpeg",
                     "-y",
@@ -553,13 +624,11 @@ def _procesar_render_inteligente(
                     "+faststart",
                     out_tmp,
                 ],
-                capture_output=True,
-                text=True,
-                **no_window_kwargs(),
+                180,
             )
 
             if os.path.exists(out_tmp) and os.path.getsize(out_tmp) > 500:
-                subprocess.run(
+                _run_ffmpeg(
                     [
                         "ffmpeg",
                         "-y",
@@ -588,14 +657,12 @@ def _procesar_render_inteligente(
                         "+faststart",
                         out,
                     ],
-                    capture_output=True,
-                    text=True,
-                    **no_window_kwargs(),
+                    120,
                 )
                 try:
                     os.remove(out_tmp)
                 except Exception:
-                    pass
+                    logger.exception("[%s] no se pudo borrar temporal %s", job_id, out_tmp)
             elif os.path.exists(out_tmp):
                 os.replace(out_tmp, out)
 
@@ -603,7 +670,7 @@ def _procesar_render_inteligente(
                 err = (r.stderr or "")[-400:].strip()
                 log(f"  [WARNING] _render_vid_clip E{sc['escena_idx'] + 1} fallback: {err[-200:]}")
                 vf_fb = f"{ffmpeg_utils.scale_pad_filter(w_res, h_res, FPS)},setpts=PTS-STARTPTS"
-                subprocess.run(
+                _run_ffmpeg(
                     [
                         "ffmpeg",
                         "-y",
@@ -636,9 +703,7 @@ def _procesar_render_inteligente(
                         "+faststart",
                         out,
                     ],
-                    capture_output=True,
-                    text=True,
-                    **no_window_kwargs(),
+                    180,
                 )
             return out if (os.path.exists(out) and os.path.getsize(out) > 500) else None
 
@@ -703,7 +768,7 @@ def _procesar_render_inteligente(
                         fb = os.path.join(tmp_dir, f"seg_{seg_idx:03d}_b{bi:02d}_fb_{j:02d}.mp4")
                         img_path = sc.get("img_path", "")
                         if img_path and os.path.exists(img_path):
-                            subprocess.run(
+                            _run_ffmpeg(
                                 [
                                     "ffmpeg",
                                     "-y",
@@ -732,14 +797,14 @@ def _procesar_render_inteligente(
                                     "+faststart",
                                     fb,
                                 ],
-                                capture_output=True,
-                                text=True,
-                                **no_window_kwargs(),
+                                120,
                             )
                         if os.path.exists(fb) and os.path.getsize(fb) > 500:
                             batch_clips.append(fb)
                     if not batch_clips:
-                        raise Exception(f"Modal seg {seg_idx} batch {bi}: request error {merr}. {merr.body}")
+                        raise RuntimeError(
+                            f"Modal seg {seg_idx} batch {bi}: request error {merr}. {merr.body}"
+                        ) from merr
                     if len(batch_clips) == 1:
                         bp = batch_clips[0]
                     else:
@@ -794,7 +859,9 @@ def _procesar_render_inteligente(
                 try:
                     decoded_video = base64.b64decode(video_b64)
                 except Exception as b64_err:
-                    raise Exception(f"Modal seg {seg_idx} batch {bi}: base64 invalido ({b64_err})")
+                    raise RuntimeError(
+                        f"Modal seg {seg_idx} batch {bi}: base64 invalido ({b64_err})"
+                    ) from b64_err
                 with open(bp, "wb") as f:
                     f.write(decoded_video)
                 if not os.path.exists(bp) or os.path.getsize(bp) <= 500:
@@ -822,7 +889,7 @@ def _procesar_render_inteligente(
                     "+faststart",
                     bp_n,
                 ]
-                subprocess.run(cmd, capture_output=True, text=True, **no_window_kwargs())
+                _run_ffmpeg(cmd, 120)
                 if os.path.exists(bp_n) and os.path.getsize(bp_n) > 500:
                     os.replace(bp_n, bp)
                 clips.append(bp)
@@ -850,6 +917,7 @@ def _procesar_render_inteligente(
                         ],
                         capture_output=True,
                         text=True,
+                        timeout=30,
                         **no_window_kwargs(),
                     )
                     st_v = json.loads(pr_v.stdout).get("streams", [{}])
@@ -862,7 +930,9 @@ def _procesar_render_inteligente(
                         )
                         continue
                 except Exception:
-                    pass
+                    logger.exception(
+                        "[%s] seg%s: no se pudo validar dimensiones de %s", job_id, seg_idx, bp_v
+                    )
                 clips_ok.append(bp_v)
             if not clips_ok:
                 raise Exception(f"seg {seg_idx}: todos los batches tienen dimensiones invalidas - abortando")
@@ -878,12 +948,13 @@ def _procesar_render_inteligente(
                         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", bp],
                         capture_output=True,
                         text=True,
+                        timeout=30,
                         **no_window_kwargs(),
                     )
                     bd = float(json.loads(pr.stdout).get("format", {}).get("duration", 0))
                     log(f"  batch{bi}: {os.path.basename(bp)} dur={bd:.3f}s")
                 except Exception:
-                    pass
+                    logger.exception("[%s] seg%s: no se pudo leer duracion de batch %s", job_id, seg_idx, bp)
             # Normalizar resolucion de cada batch antes de concatenar - sin esto, si
             # Modal devuelve clips con dimensiones distintas, FFmpeg falla el concat.
             fc_inputs = []
@@ -927,13 +998,16 @@ def _procesar_render_inteligente(
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
+                    timeout=30,
                     **no_window_kwargs(),
                 )
                 sd = float(json.loads(pr2.stdout).get("format", {}).get("duration", 0))
                 esp = sum(sc["duracion"] for sc in img_scenes)
                 log(f"  seg{seg_idx} concat: dur={sd:.3f}s esperado={esp:.3f}s delta={sd - esp:+.3f}s")
             except Exception:
-                pass
+                logger.exception(
+                    "[%s] seg%s: no se pudo verificar duracion del concat de imagenes", job_id, seg_idx
+                )
             return seg_idx, co
 
         # ── _render_vid_segment: procesa clips de video en paralelo con FFmpeg ─
@@ -958,7 +1032,7 @@ def _procesar_render_inteligente(
                 img_path = sc.get("img_path", "")
                 img_ok = img_path and os.path.exists(img_path)
                 if img_ok:
-                    subprocess.run(
+                    _run_ffmpeg(
                         [
                             "ffmpeg",
                             "-y",
@@ -987,11 +1061,10 @@ def _procesar_render_inteligente(
                             "+faststart",
                             fb,
                         ],
-                        capture_output=True,
-                        **no_window_kwargs(),
+                        120,
                     )
                 if not img_ok or not (os.path.exists(fb) and os.path.getsize(fb) > 500):
-                    subprocess.run(
+                    _run_ffmpeg(
                         [
                             "ffmpeg",
                             "-y",
@@ -1016,8 +1089,7 @@ def _procesar_render_inteligente(
                             "+faststart",
                             fb,
                         ],
-                        capture_output=True,
-                        **no_window_kwargs(),
+                        60,
                     )
                 if os.path.exists(fb) and os.path.getsize(fb) > 500:
                     clip_paths.append(fb)
@@ -1072,6 +1144,7 @@ def _procesar_render_inteligente(
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
+                    timeout=30,
                     **no_window_kwargs(),
                 )
                 vd = float(json.loads(prv.stdout).get("format", {}).get("duration", 0))
@@ -1115,13 +1188,16 @@ def _procesar_render_inteligente(
                             co_corr,
                         ],
                         capture_output=True,
+                        timeout=120,
                         **no_window_kwargs(),
                     )
                     if os.path.exists(co_corr) and os.path.getsize(co_corr) > 500:
                         os.replace(co_corr, co)
                         log(f"  [OK] seg{seg_idx} drift corregido: {drift:+.3f}s --> 0.000s")
             except Exception:
-                pass
+                logger.exception(
+                    "[%s] seg%s: no se pudo verificar/corregir drift del concat de video", job_id, seg_idx
+                )
             return seg_idx, co
 
         # ── Agrupar escenas en segmentos consecutivos por tipo ───────────
@@ -1145,6 +1221,7 @@ def _procesar_render_inteligente(
 
         def _process_segment(args):
             seg_idx, (seg_type, seg_scenes) = args
+            _check_cancel()
             if seg_type == "image":
                 return _render_img_segment((seg_idx, seg_scenes))
             return _render_vid_segment((seg_idx, seg_scenes))
@@ -1171,6 +1248,7 @@ def _procesar_render_inteligente(
                     ],
                     capture_output=True,
                     text=True,
+                    timeout=30,
                     **no_window_kwargs(),
                 )
                 log(f"  seg{idx}: {os.path.basename(p)} - {pr.stdout[:200].strip()}")
@@ -1178,6 +1256,7 @@ def _procesar_render_inteligente(
                 log(f"  seg{idx}: {os.path.basename(p)}")
         if not seg_paths_raw:
             raise Exception("No se generaron clips de segmentos")
+        _check_cancel()
 
         log("Liberando espacio temporal...", 84)
         seg_finals = set(p for _, p in seg_paths_raw)
@@ -1235,6 +1314,7 @@ def _procesar_render_inteligente(
         )
 
         # ── Mezcla de audio final (alineado a duracion del audio maestro; sin -shortest) ─
+        _check_cancel()
         log("Mezclando audio...", 90)
         video_final = os.path.join(out_dir, f"render_{job_id}.mp4")
         try:
@@ -1259,9 +1339,16 @@ def _procesar_render_inteligente(
         open_folder(video_final)
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    except RenderCancelled:
+        # estado="cancelado" ya lo puso stop_render() al instante -- este bloque
+        # solo confirma en el log y libera la carpeta temporal.
+        log("Render cancelado por el usuario.")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
     except Exception as exc:
         logger.exception("[%s] render fallo", job_id)
         err_msg = str(exc)
         log(f"Error: {err_msg}")
         log(f"Carpeta temporal conservada para diagnostico: {tmp_dir}")
         job_registry.update_job(job_id, estado="error", error=err_msg, tmp_dir=tmp_dir)
+    finally:
+        _forget_cancel_event(job_id)

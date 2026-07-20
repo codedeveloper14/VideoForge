@@ -8,10 +8,29 @@ from src.utils.platform_utils import get_app_data_dir
 
 load_dotenv()
 
+# Fallback para builds compilados: en un instalador real no hay .env (no se le
+# puede pedir a un cliente final que cree uno) -- _local_secrets.py (gitignored,
+# ofuscado por PyArmor junto con el resto de src/) llena los huecos que .env no
+# cubrio. setdefault() nunca pisa una variable ya seteada por .env/el sistema,
+# asi que en dev con .env presente esto no cambia nada.
+try:
+    from src.core._local_secrets import SECRETS as _LOCAL_SECRETS
+except ImportError:
+    _LOCAL_SECRETS = {}
+
+for _key, _value in _LOCAL_SECRETS.items():
+    os.environ.setdefault(_key, _value)
+
 
 @dataclass(frozen=True)
 class Config:
-    app_name: str = "VideoForge"
+    app_name: str = "Studio IVR"
+    # Version del paquete instalable (instalador/actualizaciones), NO del refactor en
+    # si -- reinicia en 1.0.0 porque este relanzamiento es el primer release real de
+    # produccion de la app (ver decision de versionado). Bump manual antes de cada
+    # release nueva; el chequeo de actualizaciones compara esto contra el ultimo tag
+    # de GitHub Releases.
+    app_version: str = "1.0.0"
     flask_host: str = "0.0.0.0"
     flask_port: int = 8080
     docs_port: int = 8081

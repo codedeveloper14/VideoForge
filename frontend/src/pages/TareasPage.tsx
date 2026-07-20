@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../components/Select";
+import ConfirmModal from "../components/ConfirmModal";
 
 type TaskStatus = "todo" | "progress" | "done";
 type TaskPriority = "low" | "normal" | "high";
@@ -17,17 +19,17 @@ const STORAGE_KEY = "vf_tasks";
 
 type FilterId = "all" | TaskStatus;
 
-const TABS: { id: FilterId; label: string }[] = [
-  { id: "all", label: "Todas" },
-  { id: "todo", label: "Pendiente" },
-  { id: "progress", label: "En progreso" },
-  { id: "done", label: "Hecho" },
+const TABS: { id: FilterId; labelKey: string }[] = [
+  { id: "all", labelKey: "tasks.filterAll" },
+  { id: "todo", labelKey: "tasks.filterTodo" },
+  { id: "progress", labelKey: "tasks.filterProgress" },
+  { id: "done", labelKey: "tasks.filterDone" },
 ];
 
-const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
-  { value: "normal", label: "Normal" },
-  { value: "high", label: "Alta" },
-  { value: "low", label: "Baja" },
+const PRIORITY_OPTIONS: { value: TaskPriority; labelKey: string }[] = [
+  { value: "normal", labelKey: "tasks.priorityNormal" },
+  { value: "high", labelKey: "tasks.priorityHigh" },
+  { value: "low", labelKey: "tasks.priorityLow" },
 ];
 
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
@@ -36,10 +38,10 @@ const PRIORITY_STYLES: Record<TaskPriority, string> = {
   low: "bg-[rgba(var(--vf-fg-rgb),0.05)] text-[rgba(var(--vf-fg-rgb),0.35)] border border-[rgba(var(--vf-fg-rgb),0.1)]",
 };
 
-const PRIORITY_LABELS: Record<TaskPriority, string> = {
-  high: "Alta",
-  normal: "Normal",
-  low: "Baja",
+const PRIORITY_LABEL_KEYS: Record<TaskPriority, string> = {
+  high: "tasks.priorityHigh",
+  normal: "tasks.priorityNormal",
+  low: "tasks.priorityLow",
 };
 
 function loadTasks(): Task[] {
@@ -80,6 +82,7 @@ function NewTaskModal({
   onClose: () => void;
   onSave: (title: string, description: string, priority: TaskPriority) => void;
 }) {
+  const { t: tr } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("normal");
@@ -99,30 +102,30 @@ function NewTaskModal({
         className="w-full max-w-[480px] rounded-2xl border border-[rgba(var(--vf-fg-rgb),0.1)] bg-[var(--vf-s)] p-7 shadow-[0_24px_64px_rgba(0,0,0,.5)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-5 text-base font-bold text-[var(--vf-text)]">Nueva tarea</div>
+        <div className="mb-5 text-base font-bold text-[var(--vf-text)]">{tr("tasks.modalTitle")}</div>
 
         <div className="mb-3.5">
           <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            Título
+            {tr("tasks.modalFieldTitle")}
           </label>
           <input
             autoFocus
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Título de la tarea..."
+            placeholder={tr("tasks.modalTitlePlaceholder")}
             className="w-full rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.09)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           />
         </div>
 
         <div className="mb-3.5">
           <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            Descripción (opcional)
+            {tr("tasks.modalDescription")}
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Detalles..."
+            placeholder={tr("tasks.modalDescriptionPlaceholder")}
             style={{ minHeight: 60 }}
             className="w-full resize-y rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.09)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-3.5 py-2.5 text-sm text-[var(--vf-text)] outline-none transition-colors focus:border-[var(--vf-c1)]/50 focus:shadow-[0_0_0_3px_rgba(108,86,255,.1)]"
           />
@@ -130,7 +133,7 @@ function NewTaskModal({
 
         <div className="mb-1">
           <label className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--vf-muted)]">
-            Prioridad
+            {tr("tasks.modalPriority")}
           </label>
           <Select
             value={priority}
@@ -139,7 +142,7 @@ function NewTaskModal({
           >
             {PRIORITY_OPTIONS.map((p) => (
               <SelectOption key={p.value} value={p.value}>
-                {p.label}
+                {tr(p.labelKey)}
               </SelectOption>
             ))}
           </Select>
@@ -150,13 +153,13 @@ function NewTaskModal({
             onClick={handleSave}
             className="flex-1 rounded-[9px] border-none bg-gradient-to-br from-[#7c6aff] to-[#5b42f3] py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5"
           >
-            Guardar
+            {tr("tasks.save")}
           </button>
           <button
             onClick={onClose}
             className="flex-1 rounded-[9px] border border-[rgba(var(--vf-fg-rgb),0.1)] bg-transparent py-2.5 text-[13px] text-[var(--vf-muted)] transition-colors hover:text-[var(--vf-text)] hover:border-[rgba(var(--vf-fg-rgb),0.25)]"
           >
-            Cancelar
+            {tr("tasks.cancel")}
           </button>
         </div>
       </div>
@@ -165,9 +168,11 @@ function NewTaskModal({
 }
 
 export default function TareasPage() {
+  const { t: tr } = useTranslation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filter, setFilter] = useState<FilterId>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     setTasks(loadTasks());
@@ -197,8 +202,10 @@ export default function TareasPage() {
     );
   }
 
-  function handleDelete(id: string) {
-    if (!confirm("¿Eliminar esta tarea?")) return;
+  function performDelete() {
+    const id = deleteTarget;
+    if (!id) return;
+    setDeleteTarget(null);
     persist(tasks.filter((t) => t.id !== id));
   }
 
@@ -217,21 +224,21 @@ export default function TareasPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="mb-7 text-[34px] font-bold tracking-tight bg-gradient-to-r from-[var(--vf-text)] to-[var(--vf-c2)] bg-clip-text text-transparent">
-        Tareas
+        {tr("tasks.title")}
       </h1>
 
       <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
         <div className="flex w-fit flex-wrap gap-1 rounded-[14px] border border-[rgba(var(--vf-fg-rgb),0.06)] bg-[rgba(var(--vf-fg-rgb),0.03)] p-1">
-          {TABS.map((t) => (
+          {TABS.map((tab) => (
             <button
-              key={t.id}
-              onClick={() => setFilter(t.id)}
+              key={tab.id}
+              onClick={() => setFilter(tab.id)}
               className={`whitespace-nowrap rounded-[10px] px-4.5 py-2 text-xs font-semibold transition-colors ${
-                filter === t.id ? "bg-[rgba(var(--vf-fg-rgb),0.08)] text-[var(--vf-text)]" : "text-[rgba(var(--vf-fg-rgb),0.4)] hover:text-[rgba(var(--vf-fg-rgb),0.7)]"
+                filter === tab.id ? "bg-[rgba(var(--vf-fg-rgb),0.08)] text-[var(--vf-text)]" : "text-[rgba(var(--vf-fg-rgb),0.4)] hover:text-[rgba(var(--vf-fg-rgb),0.7)]"
               }`}
             >
-              {t.label}
-              {counts[t.id] ? ` (${counts[t.id]})` : ""}
+              {tr(tab.labelKey)}
+              {counts[tab.id] ? ` (${counts[tab.id]})` : ""}
             </button>
           ))}
         </div>
@@ -244,7 +251,7 @@ export default function TareasPage() {
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Nueva tarea
+          {tr("tasks.newTask")}
         </button>
       </div>
 
@@ -253,7 +260,7 @@ export default function TareasPage() {
           <div className="py-15 text-center text-[rgba(var(--vf-fg-rgb),0.4)]">
             <div className="mb-3 text-[32px] opacity-50">&#10003;</div>
             <div className="text-sm">
-              {tasks.length === 0 ? "¡Sin tareas! Crea la primera." : "Sin tareas en esta categoría."}
+              {tasks.length === 0 ? tr("tasks.noTasksYet") : tr("tasks.noTasksInCategory")}
             </div>
           </div>
         ) : (
@@ -268,7 +275,7 @@ export default function TareasPage() {
               >
                 <button
                   type="button"
-                  title={`Estado: ${t.status}. Clic para cambiar.`}
+                  title={tr("tasks.statusTitle", { status: t.status })}
                   onClick={() => handleCycleStatus(t.id)}
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition-colors ${
                     isDone
@@ -303,11 +310,11 @@ export default function TareasPage() {
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-bold tracking-wide ${PRIORITY_STYLES[t.priority]}`}
                     >
-                      {PRIORITY_LABELS[t.priority]}
+                      {tr(PRIORITY_LABEL_KEYS[t.priority])}
                     </span>
                     {t.status === "progress" && (
                       <span className="rounded px-2 py-0.5 text-[10px] font-bold tracking-wide text-[var(--vf-c2)]">
-                        En progreso
+                        {tr("tasks.inProgress")}
                       </span>
                     )}
                     {formatDate(t.createdAt) && (
@@ -318,8 +325,8 @@ export default function TareasPage() {
 
                 <button
                   type="button"
-                  title="Eliminar"
-                  onClick={() => handleDelete(t.id)}
+                  title={tr("tasks.delete")}
+                  onClick={() => setDeleteTarget(t.id)}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[rgba(var(--vf-fg-rgb),0.2)] transition-colors hover:bg-[var(--vf-danger)]/[0.08] hover:text-[var(--vf-danger)]/70"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -336,6 +343,16 @@ export default function TareasPage() {
       </div>
 
       {modalOpen && <NewTaskModal onClose={() => setModalOpen(false)} onSave={handleCreate} />}
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title={tr("tasks.confirmDeleteTitle")}
+        message={tr("tasks.confirmDelete")}
+        confirmLabel={tr("tasks.delete")}
+        cancelLabel={tr("tasks.cancel")}
+        onConfirm={performDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

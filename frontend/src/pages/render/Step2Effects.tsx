@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { Select, SelectOption } from "../../components/Select";
 import {
   Card,
   MODELOS,
@@ -52,13 +54,17 @@ export default function Step2Effects({
   onSubmit,
   submitting,
 }: Step2EffectsProps) {
+  const { t } = useTranslation();
+  const motionOptions = MOTIONS.map((m) => ({ value: m.value, label: t(m.labelKey), sub: t(m.subKey), icon: m.icon }));
+  const transitionOptions = TRANSITIONS.map((tr) => ({ value: tr.value, label: t(tr.labelKey), sub: t(tr.subKey), icon: tr.icon }));
+
   return (
     <div>
-      <WizardPageHeader title="Efectos y configuración" sub="Movimiento de cámara, transiciones y ajustes de salida" />
+      <WizardPageHeader title={t("projectRenderPanel.wizardStep2Title")} sub={t("projectRenderPanel.wizardStep2Sub")} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card icon="🎥" iconBg="rgba(56,189,248,.12)" title="Movimiento de cámara" sub="Efecto sobre cada imagen">
-          <OptionGrid options={MOTIONS} value={movimiento} onChange={onMovimientoChange} cols={2} />
+        <Card icon="🎥" iconBg="rgba(56,189,248,.12)" title={t("projectRenderPanel.cameraMotionTitle")} sub={t("projectRenderPanel.cameraMotionSub")}>
+          <OptionGrid options={motionOptions} value={movimiento} onChange={onMovimientoChange} cols={2} />
           <div className="mt-4 flex items-center gap-2.5 border-t border-dashed border-[var(--vf-b2)] pt-3">
             <input
               type="checkbox"
@@ -68,16 +74,16 @@ export default function Step2Effects({
               className="h-4 w-4 cursor-pointer accent-[var(--vf-accent)]"
             />
             <label htmlFor="chkShake" className="cursor-pointer select-none text-xs text-[var(--vf-text)]">
-              Activar sacudida de lente (Shake/Jitter)
+              {t("projectRenderPanel.enableShakeFull")}
             </label>
           </div>
         </Card>
 
-        <Card icon="✨" iconBg="rgba(251,146,60,.12)" title="Transición entre clips" sub="Efecto al cambiar de una imagen a la siguiente">
-          <OptionGrid options={TRANSITIONS} value={transicion} onChange={onTransicionChange} cols={3} />
+        <Card icon="✨" iconBg="rgba(251,146,60,.12)" title={t("projectRenderPanel.transitionTitle")} sub={t("projectRenderPanel.transitionSub")}>
+          <OptionGrid options={transitionOptions} value={transicion} onChange={onTransicionChange} cols={3} />
           {transicion !== "none" && (
             <>
-              <SectionLabel>Duración de transición</SectionLabel>
+              <SectionLabel>{t("projectRenderPanel.transitionDurationLabel")}</SectionLabel>
               <div className="flex items-center gap-3">
                 <input
                   type="range"
@@ -94,55 +100,55 @@ export default function Step2Effects({
           )}
         </Card>
 
-        <Card icon="⚙️" iconBg="rgba(244,114,182,.12)" title="Configuración" sub="Resolución y modelo" full>
+        <Card icon="⚙️" iconBg="rgba(244,114,182,.12)" title={t("projectRenderPanel.configurationTitle")} sub={t("projectRenderPanel.configurationSub")} full>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
-                RESOLUCIÓN
+                {t("projectRenderPanel.resolutionUpper")}
               </label>
-              <select
+              <Select
                 value={resolucion}
-                onChange={(e) => onResolucionChange(e.target.value)}
+                onChange={onResolucionChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {RESOLUCIONES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
+                  <SelectOption key={r.value} value={r.value}>
+                    {t(r.labelKey)}
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
-                MODELO WHISPER
+                {t("projectRenderPanel.whisperModelUpper")}
               </label>
-              <select
+              <Select
                 value={modelo}
-                onChange={(e) => onModeloChange(e.target.value)}
+                onChange={onModeloChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {MODELOS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
+                  <SelectOption key={m.value} value={m.value}>
+                    {t(m.labelKey)}
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[11px] tracking-wide text-[var(--vf-muted)]">
-                MOTOR WHISPER
+                {t("projectRenderPanel.whisperEngineUpper")}
               </label>
-              <select
+              <Select
                 value={whisperBackend}
-                onChange={(e) => onWhisperBackendChange(e.target.value)}
+                onChange={onWhisperBackendChange}
                 className="w-full rounded-lg border border-[var(--vf-b2)] bg-[var(--vf-p)] p-2 font-mono text-xs text-[var(--vf-text)]"
               >
                 {WHISPER_BACKENDS.map((w) => (
-                  <option key={w.value} value={w.value}>
-                    {w.label}
-                  </option>
+                  <SelectOption key={w.value} value={w.value}>
+                    {t(w.labelKey)}
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </Card>
@@ -154,7 +160,7 @@ export default function Step2Effects({
           onClick={onBack}
           className="rounded-xl border-[1.5px] border-[var(--vf-b2)] bg-transparent px-7 py-3.5 text-sm font-semibold text-[var(--vf-muted)] transition-colors hover:border-[var(--vf-c2)] hover:text-[var(--vf-text)]"
         >
-          ← Volver
+          {t("projectRenderPanel.backArrow")}
         </button>
         <button
           type="button"
@@ -163,7 +169,7 @@ export default function Step2Effects({
           className="flex-1 rounded-xl px-4 py-3.5 text-base font-bold text-white shadow-[0_4px_20px_rgba(124,106,255,.3)] transition-all hover:-translate-y-px hover:shadow-[0_8px_30px_rgba(124,106,255,.45)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           style={{ background: "linear-gradient(135deg, var(--vf-accent), #9f7aea)" }}
         >
-          {submitting ? "Enviando..." : "⚡ Generar Video"}
+          {submitting ? t("projectRenderPanel.sending") : t("projectRenderPanel.generateVideoButton")}
         </button>
       </div>
     </div>

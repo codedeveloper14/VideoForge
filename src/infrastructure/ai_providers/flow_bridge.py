@@ -31,9 +31,27 @@ _ws_clients_lock = threading.Lock()
 _http_seen: dict[str, float] = {}
 _http_seen_lock = threading.Lock()
 
-# La extension envia su bearer fresco al registrarse: {account_hash: {"bearer","ts"}}
+# La extension envia su bearer fresco al registrarse: {account_hash: {"bearer","ts","email"}}
 _bearer_cache: dict[str, dict] = {}
 _bearer_cache_lock = threading.Lock()
+
+# Callbacks fn(account_hash, email, bearer) para que otros modulos (ver
+# flow_animation_service._on_bridge_session) persistan la sesion en cuanto llega,
+# sin que este modulo tenga que importarlos (evita el ciclo de imports: ellos ya
+# importan flow_bridge).
+_session_listeners: list = []
+
+
+def add_session_listener(fn) -> None:
+    _session_listeners.append(fn)
+
+
+def _notify_session_listeners(account_hash: str, email: str, bearer: str) -> None:
+    for fn in list(_session_listeners):
+        try:
+            fn(account_hash, email, bearer)
+        except Exception:
+            pass
 
 
 def get_cached_bearer(account_hash: str) -> str:
@@ -42,9 +60,19 @@ def get_cached_bearer(account_hash: str) -> str:
         return entry["bearer"] if entry else ""
 
 
-def set_cached_bearer(account_hash: str, bearer: str) -> None:
+def get_cached_email(account_hash: str) -> str:
     with _bearer_cache_lock:
-        _bearer_cache[account_hash] = {"bearer": bearer, "ts": time.time()}
+        entry = _bearer_cache.get(account_hash)
+        return entry.get("email", "") if entry else ""
+
+
+def set_cached_bearer(account_hash: str, bearer: str, email: str = "") -> None:
+    with _bearer_cache_lock:
+        prev = _bearer_cache.get(account_hash) or {}
+        resolved_email = email or prev.get("email", "")
+        _bearer_cache[account_hash] = {"bearer": bearer, "ts": time.time(), "email": resolved_email}
+    if bearer and resolved_email:
+        _notify_session_listeners(account_hash, resolved_email, bearer)
 
 
 def get_connected_accounts() -> list[str]:
@@ -119,8 +147,20 @@ def get_ws_clients() -> dict:
 
 
 def remove_ws_client(account_hash: str) -> None:
+    """Saca la cuenta del registro server-side. Ademas de popear el dict, cierra el
+    socket real -- si solo se borra la entrada, background.js sigue viendo
+    _ws.readyState===1 (conectado) y wsConnect() nunca reintenta registrar (arranca
+    con "if ya conectado, return"). Sin este close(), server y cliente quedan
+    desincronizados para siempre tras el primer timeout: funciona la primera
+    generacion, la segunda encuentra get_connected_accounts() vacio. close() dispara
+    el onclose real del lado extension, que si reconecta y re-registra solo."""
     with _ws_clients_lock:
-        _ws_clients.pop(account_hash, None)
+        ws = _ws_clients.pop(account_hash, None)
+    if ws is not None:
+        try:
+            ws.close()
+        except Exception:
+            pass
 
 
 def get_http_seen_accounts() -> set[str]:
@@ -164,6 +204,38 @@ def cleanup_waiter(request_id: str) -> None:
         _bridge_results.pop(request_id, None)
 
 
+def get_live_accounts() -> list[dict]:
+    """Cuentas vistas por el bridge (WS, HTTP polling o bearer en cache) con su
+    email si la extension lo mando -- consumido por la UI para el indicador de
+    conexion en tiempo real (FlowPanel.tsx), sin depender de que haya una
+    generacion corriendo ni de que el usuario toque nada.
+
+    "connected" usa la MISMA definicion que get_connected_accounts() (WS, HTTP
+    reciente o bearer cacheado <10min) -- si no coincidieran, la UI podria marcar
+    una cuenta como desconectada y deshabilitar "Generar" mientras el motor de
+    generacion (_pick_account) la seguiria usando sin problema."""
+    with _ws_clients_lock:
+        ws_hashes = set(_ws_clients.keys())
+    http_hashes = get_http_seen_accounts()
+    with _bearer_cache_lock:
+        entries = dict(_bearer_cache)
+    now = time.time()
+    bearer_fresh = {h for h, e in entries.items() if e.get("bearer") and now - e.get("ts", 0) < 600}
+    result = []
+    for h in ws_hashes | http_hashes | set(entries.keys()):
+        entry = entries.get(h, {})
+        result.append(
+            {
+                "account_hash": h,
+                "email": entry.get("email", ""),
+                "connected": h in ws_hashes or h in http_hashes or h in bearer_fresh,
+                "has_bearer": bool(entry.get("bearer")),
+                "age_seconds": round(now - entry["ts"]) if entry.get("ts") else None,
+            }
+        )
+    return result
+
+
 def status() -> dict:
     with _bridge_q_lock:
         pending = len(_bridge_queue)
@@ -176,6 +248,7 @@ def status() -> dict:
         "ws_port": WS_PORT,
         "bridge_ok": _bind_ok["bridge"],
         "ws_ok": _bind_ok["ws"],
+        "accounts": get_live_accounts(),
     }
 
 
@@ -205,9 +278,11 @@ def start_ws_server(log) -> None:
                         with _ws_clients_lock:
                             _ws_clients[account_hash] = ws
                         bearer_from_ext = msg.get("bearer", "")
+                        email_from_ext = msg.get("email", "")
                         if bearer_from_ext:
-                            set_cached_bearer(account_hash, bearer_from_ext)
-                            log(f"[Flow] WS: cuenta registrada {account_hash} (bearer OK)")
+                            set_cached_bearer(account_hash, bearer_from_ext, email_from_ext)
+                            suffix = f" ({email_from_ext})" if email_from_ext else ""
+                            log(f"[Flow] WS: cuenta registrada {account_hash} (bearer OK){suffix}")
                             ws_drain_queue(account_hash)
                         else:
                             log(f"[Flow] WS: cuenta registrada {account_hash} (sin bearer)")
@@ -346,9 +421,11 @@ def start_bridge(log) -> None:
                     body = self._read_body()
                     account = body.get("account", "")
                     bearer = body.get("bearer", "")
+                    email = body.get("email", "")
                     if account and bearer:
-                        set_cached_bearer(account, bearer)
-                        log(f"[Flow] Bearer recibido de extension: {account[:8]}...")
+                        set_cached_bearer(account, bearer, email)
+                        suffix = f" ({email})" if email else ""
+                        log(f"[Flow] Bearer recibido de extension: {account[:8]}...{suffix}")
                     self._json_resp(200, {"ok": True})
                 except Exception:
                     self._json_resp(400, {"ok": False})

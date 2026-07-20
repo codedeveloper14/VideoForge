@@ -338,13 +338,17 @@ def _sanitize_overlay(text, tipo: str) -> str | None:
     return t.strip() or None
 
 
-def _call_openrouter_batch(system_prompt: str, user_text: str, api_key: str) -> dict:
+def _call_openrouter_batch(system_prompt: str, user_text: str, api_key: str) -> list:
+    """Prueba cada modelo de _MODELS en orden. Un modelo que responde HTTP 200 pero
+    con contenido que _robust_parse no logra interpretar NO se acepta como exito:
+    se sigue probando el siguiente modelo antes de rendirse (evita degradar el lote
+    entero a 'normal' por un solo modelo con salida mal formada)."""
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://studio-ivr.app",
     }
-    resp, last_err = None, None
+    last_err = None
     for model in _MODELS:
         try:
             payload = {
@@ -357,24 +361,29 @@ def _call_openrouter_batch(system_prompt: str, user_text: str, api_key: str) -> 
                 "temperature": 0.5,
             }
             resp = requests.post(_OPENROUTER_URL, headers=headers, json=payload, timeout=90)
-            if resp.status_code == 200:
-                if (resp.json().get("choices", [{}])[0].get("finish_reason", "")) == "length":
-                    last_err = f"{model} truncado"
-                    continue
-                break
-            last_err = f"HTTP {resp.status_code} {model}: {resp.text[:120]}"
+            if resp.status_code != 200:
+                last_err = f"HTTP {resp.status_code} {model}: {resp.text[:120]}"
+                continue
+            resp_json = resp.json()
+            if (resp_json.get("choices", [{}])[0].get("finish_reason", "")) == "length":
+                last_err = f"{model} truncado"
+                continue
+            if "choices" not in resp_json:
+                err = resp_json.get("error") or {}
+                msg = err.get("message") if isinstance(err, dict) else str(resp_json)
+                last_err = f"OpenRouter sin 'choices' ({model}): {str(msg)[:200]}"
+                continue
+            raw = resp_json["choices"][0]["message"]["content"].strip()
+            try:
+                return _robust_parse(raw)
+            except Exception as exc:
+                last_err = f"parse error {model}: {exc}"
+                logger.warning("editor_analizar: %s", last_err)
+                continue
         except Exception as exc:
             last_err = str(exc)
 
-    if resp is None or resp.status_code != 200:
-        raise Exception(last_err or "Todos los modelos fallaron")
-
-    resp_json = resp.json()
-    if "choices" not in resp_json:
-        err = resp_json.get("error") or {}
-        msg = err.get("message") if isinstance(err, dict) else str(resp_json)
-        raise Exception(f"OpenRouter sin 'choices': {str(msg)[:200]}")
-    return resp_json
+    raise Exception(last_err or "Todos los modelos fallaron")
 
 
 def _build_keywords(scene: dict) -> set[str]:
@@ -433,12 +442,12 @@ def analizar_escenas(escenas: list[dict], project_name: str) -> list[dict]:
             f"siglas/etiquetas-->lower_third, conceptos visuales-->google_fullscreen.\n"
             f"Devuelve EXACTAMENTE {n} objetos JSON en el array, uno por escena, en orden."
         )
-        resp_json = _call_openrouter_batch(_SYSTEM_PROMPT, user_text, api_key)
-        raw = resp_json["choices"][0]["message"]["content"].strip()
         try:
-            lote = _robust_parse(raw)
+            lote = _call_openrouter_batch(_SYSTEM_PROMPT, user_text, api_key)
         except Exception as exc:
-            logger.info("editor_analizar: parse error lote %d: %s", bi + 1, exc)
+            logger.warning(
+                "editor_analizar: lote %d fallo con todos los modelos, uso fallback 'normal': %s", bi + 1, exc
+            )
             lote = [{"tipo": "normal"} for _ in sub]
 
         if not isinstance(lote, list):

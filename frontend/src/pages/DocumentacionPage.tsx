@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listDocs } from "../api/docs";
 import type { Doc } from "../api/docs";
 
@@ -15,6 +16,7 @@ function docThumbUrl(doc: Doc): string {
 }
 
 export default function DocumentacionPage() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState<Record<string, Doc[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,7 +58,7 @@ export default function DocumentacionPage() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15,18 9,12 15,6" />
           </svg>
-          Volver
+          {t("docs.back")}
         </button>
 
         <h1 className="mb-2 text-2xl font-bold text-[var(--vf-text)]">{activeDoc.title}</h1>
@@ -88,7 +90,7 @@ export default function DocumentacionPage() {
                   </p>
                 ))
             ) : (
-              <p className="text-sm text-[var(--vf-muted)]">Sin contenido disponible.</p>
+              <p className="text-sm text-[var(--vf-muted)]">{t("docs.noContentAvailable")}</p>
             )}
             {activeDoc.url && (
               <a
@@ -97,7 +99,7 @@ export default function DocumentacionPage() {
                 rel="noreferrer"
                 className="mt-4 inline-block text-sm text-[var(--vf-accent)] hover:underline"
               >
-                Ver recurso →
+                {t("docs.viewResource")}
               </a>
             )}
           </div>
@@ -117,18 +119,18 @@ export default function DocumentacionPage() {
           backgroundClip: "text",
         }}
       >
-        Documentación
+        {t("docs.title")}
       </h1>
       <p className="mb-7 text-[11.5px] text-[var(--vf-muted)]">
-        Tutoriales, guías y recursos para VideoForge
+        {t("docs.subtitle")}
       </p>
 
       {error && <p className="mb-4 text-sm text-[var(--vf-danger)]">{error}</p>}
 
       {loading ? (
-        <p className="text-[var(--vf-muted)]">Cargando…</p>
+        <p className="text-[var(--vf-muted)]">{t("docs.loading")}</p>
       ) : categoryNames.length === 0 ? (
-        <p className="text-[var(--vf-muted)]">No hay contenidos publicados aún.</p>
+        <p className="text-[var(--vf-muted)]">{t("docs.noPublishedContent")}</p>
       ) : (
         <>
           <div className="mb-6 flex flex-wrap items-center gap-2.5">
@@ -165,7 +167,7 @@ export default function DocumentacionPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar..."
+                placeholder={t("docs.searchPlaceholder") || ""}
                 className="w-[220px] rounded-xl border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.05)] py-2 pl-9 pr-3.5 text-sm text-[var(--vf-text)] outline-none focus:border-[var(--vf-accent)]/45"
               />
             </div>
@@ -173,7 +175,7 @@ export default function DocumentacionPage() {
 
           {visibleDocs.length === 0 ? (
             <p className="py-16 text-center text-[var(--vf-muted)]">
-              No hay contenidos en esta categoría.
+              {t("docs.noContentInCategory")}
             </p>
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -228,7 +230,7 @@ export default function DocumentacionPage() {
                             : "border-[var(--vf-c5)]/15 bg-[var(--vf-c5)]/[0.08] text-[var(--vf-c5)]"
                         }`}
                       >
-                        {isVideo ? "▶ Video" : "☰ Texto"}
+                        {isVideo ? t("docs.video") : t("docs.text")}
                       </span>
                       <p className="mb-1.5 text-sm font-bold leading-snug text-[var(--vf-text)]">
                         {doc.title}

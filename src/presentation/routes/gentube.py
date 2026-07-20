@@ -42,6 +42,7 @@ def run_prompts(json_data):
             json_data["output_dir"],
             json_data["ratio"],
             json_data["quality"],
+            browser_mode=json_data.get("browser_mode", "chromium"),
         )
         return jsonify(result)
     except (ValueError, RuntimeError) as exc:

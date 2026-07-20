@@ -188,9 +188,9 @@ function _refillPool() {
   for (var i = 0; i < needed; i++) _fetchOneToken();
 }
 
-function _sendBearerToBackground(hash, bearer) {
+function _sendBearerToBackground(hash, bearer, email) {
   if (!hash || !bearer) return;
-  window.postMessage({ type: "FLOW_BEARER_UPDATE", hash: hash, bearer: bearer }, "*");
+  window.postMessage({ type: "FLOW_BEARER_UPDATE", hash: hash, bearer: bearer, email: email || "" }, "*");
   console.log("[Imperio] Bearer enviado al background para " + hash);
 }
 
@@ -390,12 +390,15 @@ function _refreshSession() {
       var identity = user.email || user.name || "";
       var bearer   = data.access_token || "";
       if (identity) {
-        var hash = djb2Hash(identity);
+        // Prefijo "flow:" -- namespacea frente a VIBES_ACCOUNT_HASH ("vibes:default")
+        // en el bridge compartido (background.js/flow_bridge.py), para que un hash de
+        // una plataforma nunca se pueda confundir con uno de la otra.
+        var hash = "flow:" + djb2Hash(identity);
         _currentHash   = hash;
         _currentBearer = bearer;
-        window.postMessage({type: "FLOW_ACCOUNT_HASH", hash: hash}, "*");
+        window.postMessage({type: "FLOW_ACCOUNT_HASH", hash: hash, email: identity}, "*");
         console.log("[Imperio] Flow account hash: " + hash + " (" + identity + ")");
-        if (bearer) _sendBearerToBackground(hash, bearer);
+        if (bearer) _sendBearerToBackground(hash, bearer, identity);
       }
     })
     .catch(function(e) { console.log("[Imperio] Could not get Flow account: " + e.message); });

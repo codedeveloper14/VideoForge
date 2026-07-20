@@ -1,25 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Select, SelectOption } from "../../components/Select";
 import {
   flowAbrirCarpeta,
   flowAccounts,
-  flowChromiumStatus,
+  flowBridgeStatus,
   flowImages,
   flowImageUrl,
   flowLogin,
   flowOpenAll,
   flowResetChromium,
+  flowResetLock,
   flowRetry,
   flowRunPrompts,
   flowStatus,
   flowStop,
 } from "../../api/flow";
-import type { FlowAccount, FlowChromiumProfile } from "../../api/flow";
+import type { FlowAccount, FlowBridgeAccount, FlowBrowserMode } from "../../api/flow";
+import type { ApiError } from "../../api/client";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
 import { useGenerationStatus } from "../../context/GenerationStatusContext";
+import ConfirmModal from "../../components/ConfirmModal";
+import { loadScript } from "../../api/script";
 
 const POLL_MS = 2000;
 
@@ -35,7 +40,8 @@ interface Progress {
   label: string;
 }
 
-export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
+export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPanelProps) {
+  const { t } = useTranslation();
   const [prompts, setPrompts] = useState("");
   const [slots, setSlots] = useState(2);
   const [aspect, setAspect] = useState("IMAGE_ASPECT_RATIO_LANDSCAPE");
@@ -43,18 +49,34 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const [maxRetries, setMaxRetries] = useState(2);
   const [referenceImage, setReferenceImage] = useState("");
   const [referenceImageName, setReferenceImageName] = useState("");
+  const [browserMode, setBrowserMode] = useState<FlowBrowserMode>("auto");
 
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: "Listo para generar" });
+  const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: t("flowPanel.readyToGenerate") });
   const [logLines, setLogLines] = useState<string[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [error, setError] = useState("");
+  const [lockConflict, setLockConflict] = useState(false);
 
   const [accounts, setAccounts] = useState<FlowAccount[]>([]);
-  const [chromiumProfiles, setChromiumProfiles] = useState<FlowChromiumProfile[]>([]);
+  const [noBrowserConnected, setNoBrowserConnected] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+
+  // Estado del Puente B (extension <-> bridge WS/HTTP 5556/5557) — se consulta
+  // siempre, no solo mientras corre una generacion, para que el indicador de la UI
+  // se ponga verde solo con abrir Google Flow en Chrome, sin que el usuario toque
+  // nada. bridgeChecked evita que el aviso "sin cuentas" parpadee antes del primer poll.
+  const [bridgeAccounts, setBridgeAccounts] = useState<FlowBridgeAccount[]>([]);
+  const [bridgeChecked, setBridgeChecked] = useState(false);
 
   const sinceRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // El backend acepta el job y arranca el hilo de fondo al instante (siempre
+  // "responde bien"), pero _pick_account() se queda esperando en silencio si
+  // ningun navegador con la extension esta conectado al bridge -- sin este
+  // aviso, el usuario solo ve la barra de progreso quieta sin saber por que.
+  const disconnectedSinceRef = useRef<number | null>(null);
+  const NO_BROWSER_WARNING_MS = 15000;
   const dirRef = useRef(outputDir);
   const refInputRef = useRef<HTMLInputElement | null>(null);
   const genStatus = useGenerationStatus();
@@ -69,7 +91,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
     if (!file) return;
     const isImage = file.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|bmp)$/i.test(file.name);
     if (!isImage) {
-      setError("Elige un archivo de imagen (JPG, PNG, WebP, etc.).");
+      setError(t("flowPanel.chooseImageFile"));
       return;
     }
     const reader = new FileReader();
@@ -77,7 +99,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       setReferenceImage(reader.result as string);
       setReferenceImageName(file.name);
     };
-    reader.onerror = () => setError("No se pudo leer la imagen de referencia.");
+    reader.onerror = () => setError(t("flowPanel.couldNotReadRefImage"));
     reader.readAsDataURL(file);
   }
 
@@ -86,10 +108,17 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       .then((d) => setAccounts(d.accounts || []))
       .catch(() => {});
   }
-  function loadChromium() {
-    flowChromiumStatus()
-      .then((d) => setChromiumProfiles(d.profiles || []))
-      .catch(() => {});
+
+  // "ok" (sesion valida, via bridge WS/HTTP o cookie en disco) y "open" (hay un
+  // Chromium de Playwright abierto para ese perfil) son senales independientes --
+  // una cuenta conectada por el Chrome real del usuario nunca tiene "open" en true,
+  // y por eso antes convivian dos listas que parecian contradecirse (conectado arriba,
+  // inactivo abajo). Un solo estado combinado por cuenta evita esa lectura confusa.
+  function accountStatus(a: FlowAccount): { label: string; color: string } {
+    if (a.ok && a.open) return { label: t("flowPanel.connectedPlaywright"), color: "var(--vf-c5)" };
+    if (a.ok) return { label: t("flowPanel.connected"), color: "var(--vf-c5)" };
+    if (a.open) return { label: t("flowPanel.openingProfile"), color: "var(--vf-c2)" };
+    return { label: t("flowPanel.disconnected"), color: "var(--vf-m2)" };
   }
 
   function refreshImages() {
@@ -116,7 +145,11 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         if (typeof d.done === "number" || typeof d.total === "number") {
           const done = d.done ?? 0;
           const total = d.total ?? 0;
-          setProgress({ done, total, label: d.label || (d.running ? "Generando…" : "Completado") });
+          setProgress({
+            done,
+            total,
+            label: d.label || (d.running ? t("flowPanel.generating") : t("flowPanel.completed")),
+          });
           genStatus.update(GEN_ID, {
             pct: total > 0 ? Math.round((done / total) * 100) : null,
             message: d.label || `${done}/${total} imágenes`,
@@ -127,18 +160,55 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
+            disconnectedSinceRef.current = null;
+            setNoBrowserConnected(false);
           }
-          genStatus.finish(GEN_ID, true, "Completado.");
+          genStatus.finish(GEN_ID, true, t("flowPanel.completed"));
         }
         refreshImages();
       })
       .catch(() => {});
   }
 
+  // Poll continuo del Puente B, siempre activo (no solo mientras corre un batch):
+  // es lo que hace que "Conectado como <email>" aparezca solo con abrir Flow en
+  // Chrome con la extension puesta, sin ninguna accion del usuario en esta app.
   useEffect(() => {
-    loadAccounts();
-    loadChromium();
+    // loadAccounts() (tarjetas "Perfiles Chromium") corre en el mismo poll que
+    // flowBridgeStatus() (el aviso de arriba) -- antes se cargaba una sola vez al
+    // montar y de nuevo al apretar "Login", pero ANTES de que el usuario terminara
+    // de loguearse en la ventana de Playwright que se acababa de abrir. La tarjeta
+    // quedaba pegada en "abriendo..." para siempre aunque el login ya hubiera
+    // terminado y el aviso de arriba (que si refrescaba) mostrara la cuenta
+    // conectada y habilitara generar.
+    function pollBridge() {
+      flowBridgeStatus()
+        .then((d) => {
+          const accs = d.accounts || [];
+          setBridgeAccounts(accs);
+          setBridgeChecked(true);
+          const connected = accs.some((a) => a.connected);
+          if (connected) {
+            disconnectedSinceRef.current = null;
+            setNoBrowserConnected(false);
+            return;
+          }
+          if (disconnectedSinceRef.current === null) disconnectedSinceRef.current = Date.now();
+          setNoBrowserConnected(Date.now() - disconnectedSinceRef.current > NO_BROWSER_WARNING_MS);
+        })
+        .catch(() => setBridgeChecked(true));
+      loadAccounts();
+    }
+    pollBridge();
+    // Sync inicial de "running" contra el backend real -- sin esto, si el batch
+    // sigue corriendo (o el lock quedo colgado) de una sesion anterior, el
+    // frontend arranca creyendo running=false: el poll de progreso nunca arranca,
+    // el boton "Detener" queda deshabilitado, y el usuario se queda sin forma de
+    // ver ni liberar el estado hasta que reintenta "Generar" y ve el 409.
+    pollOnce();
+    const id = setInterval(pollBridge, 2500);
     return () => {
+      clearInterval(id);
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,16 +234,17 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
 
   async function handleStart() {
     setError("");
+    setLockConflict(false);
     const list = prompts
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean);
     if (!list.length) {
-      setError("Escribe al menos un prompt.");
+      setError(t("flowPanel.writeAtLeastOnePrompt"));
       return;
     }
     if (!outputDir) {
-      setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
+      setError(t("flowPanel.selectActiveProject"));
       return;
     }
     genStatus.start(GEN_ID, "Imágenes · Flow", "Iniciando...");
@@ -188,9 +259,38 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         model,
         max_retries: maxRetries,
         reference_image: referenceImage || undefined,
+        auto_open: true,
+        browser_mode: browserMode,
       });
       setRunning(true);
       pollOnce();
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 409) {
+        setError(t("flowPanel.lockConflictError"));
+        setLockConflict(true);
+        // El 409 significa que el backend YA tiene un batch activo -- puede ser de
+        // esta misma sesion o de otra que quedo colgada; en ambos casos hay que
+        // reflejarlo en el estado local para que el boton "Detener" deje de estar
+        // deshabilitado (sin esto el usuario no tiene forma de intervenir).
+        setRunning(true);
+        pollOnce();
+      } else {
+        setError(apiErr.message);
+      }
+    }
+  }
+
+  async function handleForceResetLock() {
+    try {
+      await flowResetLock();
+      setLockConflict(false);
+      setError("");
+      setRunning(false);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     } catch (err) {
       setError((err as Error).message);
       genStatus.finish(GEN_ID, false, (err as Error).message);
@@ -201,11 +301,31 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
     try {
       await flowStop();
       setRunning(false);
+      setLockConflict(false);
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
       genStatus.finish(GEN_ID, false, "Detenido por el usuario.");
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  async function handleLoadFromScript() {
+    setError("");
+    if (!project) {
+      setError(t("flowPanel.selectActiveProject"));
+      return;
+    }
+    try {
+      const data = await loadScript(project);
+      const loaded = typeof data.prompts === "string" ? data.prompts.trim() : "";
+      if (!loaded) {
+        setError(t("flowPanel.noPromptsInScript"));
+        return;
+      }
+      setPrompts(loaded);
     } catch (err) {
       setError((err as Error).message);
     }
@@ -235,16 +355,18 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   }
 
   async function handleResetChromium() {
-    if (!confirm("¿Reiniciar todos los perfiles de Chromium? Esto cerrará sesiones activas.")) return;
+    setConfirmResetOpen(false);
     try {
       await flowResetChromium();
-      loadChromium();
+      loadAccounts();
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const hasLiveAccount = bridgeAccounts.some((a) => a.connected);
+  const showNoAccountsWarning = bridgeChecked && !hasLiveAccount;
 
   return (
     <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4 px-2">
@@ -254,10 +376,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       >
         <div className="flex flex-shrink-0 gap-1.5 sm:absolute sm:right-5 sm:top-5">
           <span className="rounded-md border border-[rgba(124,106,255,.22)] bg-[rgba(124,106,255,.1)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--vf-c2)]">
-            Módulo 03
+            {t("flowPanel.module03")}
           </span>
           <span className="rounded-md border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2 py-1 text-[9px] font-semibold tracking-[0.06em] text-[var(--vf-m2)]">
-            Labs
+            {t("flowPanel.labsTag")}
           </span>
         </div>
         <div className="flex items-center gap-5">
@@ -271,24 +393,23 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 </svg>
               </div>
               <div className="flex flex-col gap-[1px]">
-                <div className="text-[10px] font-bold tracking-[0.18em] text-[rgba(124,106,255,.6)]">Módulo 03 · Producción IA</div>
+                <div className="text-[10px] font-bold tracking-[0.18em] text-[rgba(124,106,255,.6)]">{t("flowPanel.moduleLabelFull")}</div>
                 <h1 className="m-0 text-[26px] font-bold leading-[1.1] tracking-[-0.025em] text-[var(--vf-text)]">
-                  Imágenes con{" "}
+                  {t("flowPanel.titlePart1")}{" "}
                   <span
                     className="bg-clip-text text-transparent"
                     style={{ backgroundImage: "linear-gradient(90deg,var(--vf-c2),var(--vf-c3))" }}
                   >
-                    Google Flow
+                    {t("flowPanel.titlePart2")}
                   </span>
                 </h1>
               </div>
             </div>
             <p className="mb-3.5 max-w-[560px] text-[13.5px] leading-[1.55] text-[var(--vf-m)]">
-              Generación por lotes con Google Labs. Las imágenes se guardan en la carpeta de imágenes
-              del proyecto activo. Ajusta slots, ratio y modelo a la derecha.
+              {t("flowPanel.subtitle")}
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {["📦 Lotes", "👥 Multi-cuenta", "🖼 Referencia visual", "🧪 Google Labs"].map((chip, i) => (
+              {[t("flowPanel.chipBatches"), t("flowPanel.chipMultiAccount"), t("flowPanel.chipVisualRef"), t("flowPanel.chipGoogleLabs")].map((chip, i) => (
                 <span
                   key={chip}
                   className={
@@ -308,12 +429,12 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
 
       <div className="flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)] px-3 py-2">
         <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
-          Destino:
+          {t("flowPanel.destination")}
         </span>
         <span className="flex-1 truncate font-mono text-[11px] text-[var(--vf-c5)]">
           {resolvingDir
-            ? "Resolviendo carpeta del proyecto…"
-            : outputDir || "— selecciona un proyecto arriba —"}
+            ? t("flowPanel.resolvingProjectFolder")
+            : outputDir || t("flowPanel.selectProjectAbove")}
         </span>
       </div>
 
@@ -322,9 +443,16 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           <section className="flow-card">
             <div className="mb-3 flex items-center justify-between gap-2.5">
               <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
-                Prompts · {countPrompts(prompts)}
+                {t("flowPanel.promptsTitle", { count: countPrompts(prompts) })}
               </span>
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleLoadFromScript}
+                  className="flow-btn flow-btn--ghost"
+                >
+                  {t("flowPanel.loadFromScript")}
+                </button>
                 <button
                   type="button"
                   onClick={() => setPrompts("")}
@@ -337,7 +465,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
             <textarea
               value={prompts}
               onChange={(e) => setPrompts(e.target.value)}
-              placeholder={"Un prompt por línea. Ejemplo:\nCinematic wide shot, golden hour, anamorphic flare\nMinimal product still life, soft gradient backdrop"}
+              placeholder={t("flowPanel.promptPlaceholder") || ""}
               className="flow-textarea"
             />
           </section>
@@ -345,10 +473,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           <section className="flow-card">
             <div className="mb-3 flex items-center justify-between gap-2.5">
               <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
-                Referencia visual
+                {t("flowPanel.visualReference")}
               </span>
               <span className="font-mono text-[9px] text-[var(--vf-muted)] opacity-75">
-                Opcional · guía de estilo
+                {t("flowPanel.optionalStyleGuide")}
               </span>
             </div>
             <input
@@ -366,10 +494,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex min-w-0 flex-col gap-1 text-left">
                     <div className="font-mono text-xs font-semibold tracking-wide text-[var(--vf-text)]">
-                      Imagen adjunta
+                      {t("flowPanel.attachedImageLabel")}
                     </div>
                     <div className="font-mono text-[9px] leading-relaxed text-[var(--vf-m2)] opacity-90">
-                      Clic o arrastra para reemplazar
+                      {t("flowPanel.clickOrDragToReplace")}
                     </div>
                   </div>
                   <div className="relative flex min-h-[104px] min-w-[112px] items-center justify-center p-1.5">
@@ -387,7 +515,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                       }}
                       type="button"
                       className="flow-ref-x"
-                      aria-label="Quitar"
+                      aria-label={t("flowPanel.remove") || ""}
                     >
                       ×
                     </button>
@@ -399,10 +527,10 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     <span className="flow-ref-ico" aria-hidden="true" />
                     <div>
                       <div className="mb-1 font-mono text-[11px] font-semibold tracking-wide text-[var(--vf-text)]">
-                        Adjuntar imagen
+                        {t("flowPanel.attachImage")}
                       </div>
                       <span className="block font-mono text-[10px] leading-relaxed text-[var(--vf-m2)]">
-                        Arrastra aquí o haz clic · JPG, PNG, WebP
+                        {t("flowPanel.dragOrClickFormats")}
                       </span>
                     </div>
                   </div>
@@ -416,16 +544,16 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           <section className="flow-card" style={{ padding: "14px 16px" }}>
             <div className="mb-3 flex items-center justify-between gap-2.5">
               <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
-                Parámetros
+                {t("flowPanel.parameters")}
               </span>
               <span className="font-mono text-[9px] text-[var(--vf-muted)] opacity-75">
-                Slots · ratio · modelo
+                Slots · ratio · {t("flowPanel.model").toLowerCase()}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1">
               <div className="col-span-2 flex flex-col gap-2 max-[400px]:col-span-1">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
-                  Slots paralelos · <span className="font-semibold text-[var(--vf-c2)]">{slots}</span>
+                  {t("flowPanel.parallelSlots")} <span className="font-semibold text-[var(--vf-c2)]">{slots}</span>
                 </label>
                 <input
                   type="range"
@@ -438,30 +566,30 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
-                  Aspect ratio
+                  {t("flowPanel.aspectRatio")}
                 </label>
                 <Select
                   value={aspect}
                   onChange={(value) => setAspect(value)}
                   className="flow-select"
                 >
-                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">16:9 · Landscape</SelectOption>
-                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">9:16 · Portrait</SelectOption>
-                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">1:1 · Cuadrado</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_LANDSCAPE">{t("flowPanel.aspectLandscape")}</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_PORTRAIT">{t("flowPanel.aspectPortrait")}</SelectOption>
+                  <SelectOption value="IMAGE_ASPECT_RATIO_SQUARE">{t("flowPanel.aspectSquare")}</SelectOption>
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
-                  Modelo
+                  {t("flowPanel.model")}
                 </label>
-                <select value={model} onChange={(e) => setModel(e.target.value)} className="flow-select">
-                  <option value="NANO_BANANA_2">Nano Banana 2 · calidad</option>
-                  <option value="IMAGE_GENERATION_001_IMAGEN4">Imagen 4 · rapidez</option>
-                </select>
+                <Select value={model} onChange={setModel} className="flow-select">
+                  <SelectOption value="NANO_BANANA_2">{t("flowPanel.modelQuality")}</SelectOption>
+                  <SelectOption value="IMAGE_GENERATION_001_IMAGEN4">{t("flowPanel.modelSpeed")}</SelectOption>
+                </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
-                  Reintentos
+                  {t("flowPanel.retries")}
                 </label>
                 <Select
                   value={maxRetries}
@@ -469,11 +597,65 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   className="flow-select"
                 >
                   <SelectOption value={1}>1</SelectOption>
-                  <SelectOption value={2}>2 · equilibrado</SelectOption>
-                  <SelectOption value={3}>3 · máx. tolerancia</SelectOption>
+                  <SelectOption value={2}>{t("flowPanel.retriesBalanced")}</SelectOption>
+                  <SelectOption value={3}>{t("flowPanel.retriesMaxTolerance")}</SelectOption>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
+                  {t("flowPanel.browserMode")}
+                </label>
+                <Select
+                  value={browserMode}
+                  onChange={(value) => setBrowserMode(value as FlowBrowserMode)}
+                  className="flow-select"
+                >
+                  <SelectOption value="auto">{t("flowPanel.browserModeAuto")}</SelectOption>
+                  <SelectOption value="chrome">{t("flowPanel.browserModeChrome")}</SelectOption>
+                  <SelectOption value="chromium">{t("flowPanel.browserModeChromium")}</SelectOption>
                 </Select>
               </div>
             </div>
+          </section>
+
+          <section className="flow-card" style={{ padding: "14px 16px" }}>
+            <div className="mb-2.5 flex items-center gap-2">
+              <span className="font-mono text-[11px] font-semibold text-[var(--vf-text)]">
+                {t("flowPanel.bridgeStatusTitle")}
+              </span>
+            </div>
+            {!bridgeChecked || bridgeAccounts.length === 0 ? (
+              <div
+                className="flex items-center gap-2 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(245,158,11,.35)",
+                  background: "rgba(245,158,11,.08)",
+                  color: "#f5a623",
+                }}
+              >
+                <span>{t("flowPanel.bridgeConnecting")}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {bridgeAccounts.map((a) => (
+                  <div
+                    key={a.account_hash}
+                    className="flex items-center gap-2 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                    style={
+                      a.connected
+                        ? { borderColor: "rgba(34,197,94,.35)", background: "rgba(34,197,94,.08)", color: "#22c55e" }
+                        : { borderColor: "rgba(245,158,11,.35)", background: "rgba(245,158,11,.08)", color: "#f5a623" }
+                    }
+                  >
+                    <span>
+                      {a.connected
+                        ? t("flowPanel.bridgeConnectedAs", { email: a.email || a.account_hash })
+                        : t("flowPanel.bridgeReconnecting", { email: a.email || a.account_hash })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="flow-card" style={{ padding: "14px 16px" }}>
@@ -484,14 +666,26 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
             <div className="flow-progress-track mb-3.5">
               <div className="flow-progress-fill" style={{ width: `${pct}%` }} />
             </div>
+            {showNoAccountsWarning && (
+              <div
+                className="mb-3 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(248,113,113,.4)",
+                  background: "rgba(248,113,113,.1)",
+                  color: "#f87171",
+                }}
+              >
+                {t("flowPanel.noActiveAccountsWarning")}
+              </div>
+            )}
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleStart}
-                disabled={running}
+                disabled={running || showNoAccountsWarning}
                 className="flow-btn flow-btn--primary"
               >
-                ⚡ Iniciar generación
+                {t("flowPanel.startGeneration")}
               </button>
               <button
                 type="button"
@@ -499,54 +693,68 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                 disabled={!running}
                 className="flow-btn flow-btn--danger"
               >
-                ⏹ Detener
+                {t("flowPanel.stop")}
               </button>
             </div>
             <ErrorText message={error} />
+            {lockConflict && (
+              <button
+                type="button"
+                onClick={handleForceResetLock}
+                className="mt-1.5 font-mono text-[10.5px] text-[var(--vf-c2)] underline"
+              >
+                {t("flowPanel.forceResetLock")}
+              </button>
+            )}
+            {running && noBrowserConnected && (
+              <div
+                className="mt-2.5 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"
+                style={{
+                  borderColor: "rgba(245,158,11,.35)",
+                  background: "rgba(245,158,11,.1)",
+                  color: "#f5a623",
+                }}
+              >
+                {t("flowPanel.noBrowserConnected")}
+              </div>
+            )}
 
             <details className="mt-2.5 overflow-hidden rounded-[10px] border border-[var(--vf-border)] bg-[var(--vf-s)]">
               <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                <span>// Perfiles Chromium</span>
-                <span className="text-[8px] text-[var(--vf-m2)]">Cada perfil = cuota independiente</span>
+                <span>{t("flowPanel.perfilesChromiumTitle")}</span>
+                <span className="text-[8px] text-[var(--vf-m2)]">{t("flowPanel.perfilQuotaNote")}</span>
               </summary>
               <div className="flex flex-col gap-1.5 px-2.5 pb-2.5">
-                {accounts.length === 0 && chromiumProfiles.length === 0 ? (
-                  <div className="font-mono text-[10px] text-[var(--vf-m2)]">Sin datos aún</div>
+                {accounts.length === 0 ? (
+                  <div className="font-mono text-[10px] text-[var(--vf-m2)]">{t("flowPanel.noDataYet")}</div>
                 ) : (
-                  <>
-                    {accounts.map((a, i) => (
+                  accounts.map((a, i) => {
+                    const status = accountStatus(a);
+                    return (
                       <div
                         key={i}
                         className="flex items-center justify-between rounded-md border border-[var(--vf-border)] px-2 py-1"
                       >
                         <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                          {a.name || `Cuenta ${i}`}
+                          {a.email || t("flowPanel.accountFallback", { n: i + 1 })}
                         </span>
                         <div className="flex items-center gap-2">
-                          <span
-                            className="font-mono text-[9px]"
-                            style={{ color: a.logged_in ? "var(--vf-c5)" : "var(--vf-m2)" }}
-                          >
-                            {a.logged_in ? "conectado" : "desconectado"}
+                          <span className="font-mono text-[9px]" style={{ color: status.color }}>
+                            {status.label}
                           </span>
                           <button
                             onClick={() => handleLogin(i)}
                             className="font-mono text-[9px] text-[var(--vf-c2)] underline"
                           >
-                            Login
+                            {t("flowPanel.login")}
                           </button>
                         </div>
                       </div>
-                    ))}
-                    {chromiumProfiles.map((p, i) => (
-                      <div key={`ch-${i}`} className="font-mono text-[9px] text-[var(--vf-m2)]">
-                        Perfil {i}: {p.status || (p.active ? "activo" : "inactivo")}
-                      </div>
-                    ))}
-                  </>
+                    );
+                  })
                 )}
                 <p className="px-0.5 font-mono text-[9px] text-[var(--vf-m2)]">
-                  Abre un perfil con la extensión activa. Inicia sesión en Google.
+                  {t("flowPanel.openProfileHint")}
                 </p>
                 <div className="mt-1 flex gap-2">
                   <button
@@ -554,14 +762,14 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                     onClick={() => flowOpenAll().catch(() => {})}
                     className="flow-btn flow-btn--ghost flow-btn--xs flex-1"
                   >
-                    Abrir todos
+                    {t("flowPanel.openAll")}
                   </button>
                   <button
                     type="button"
-                    onClick={handleResetChromium}
+                    onClick={() => setConfirmResetOpen(true)}
                     className="flow-btn flow-btn--ghost flow-btn--xs flex-1"
                   >
-                    Reset
+                    {t("flowPanel.reset")}
                   </button>
                 </div>
               </div>
@@ -573,7 +781,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       <section className="flow-card pb-4">
         <div className="mb-3 flex items-center justify-between gap-2.5">
           <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[var(--vf-m2)]">
-            Galería
+            {t("flowPanel.gallery")}
           </span>
           <div className="flex gap-2">
             <button
@@ -581,7 +789,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
               onClick={refreshImages}
               className="flow-btn flow-btn--ghost flow-btn--xs"
             >
-              ↺ Actualizar
+              {t("flowPanel.refresh")}
             </button>
             <button
               type="button"
@@ -593,7 +801,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
           </div>
         </div>
         {images.length === 0 ? (
-          <div className="flow-gallery-empty">Sin imágenes todavía</div>
+          <div className="flow-gallery-empty">{t("flowPanel.noImagesYet")}</div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(112px,1fr))] gap-2.5">
             {images.map((img, i) => (
@@ -603,7 +811,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
                   <button
                     onClick={() => handleRetry(img, i)}
                     className="flow-retry-btn"
-                    title="Reintentar"
+                    title={t("flowPanel.retryTitle") || ""}
                   >
                     ↺
                   </button>
@@ -619,12 +827,22 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
 
       <details>
         <summary className="cursor-pointer font-mono text-[10px] text-[var(--vf-muted)]">
-          Ver log completo
+          {t("flowPanel.viewFullLog")}
         </summary>
         <div className="mt-2">
           <LogConsole lines={logLines} />
         </div>
       </details>
+
+      <ConfirmModal
+        visible={confirmResetOpen}
+        title={t("flowPanel.confirmResetTitle")}
+        message={t("flowPanel.confirmResetChromium")}
+        confirmLabel={t("flowPanel.reset")}
+        cancelLabel={t("flowPanel.cancel")}
+        onConfirm={handleResetChromium}
+        onCancel={() => setConfirmResetOpen(false)}
+      />
     </div>
   );
 }

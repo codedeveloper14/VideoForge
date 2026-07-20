@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import * as grokApi from "../../api/grok";
 import { Select, SelectOption } from "../../components/Select";
 import ProviderPanel from "./ProviderPanel";
@@ -27,13 +28,13 @@ const api: ProviderApi = {
 };
 
 const ASPECT_OPTIONS = [
-  { value: "2:3", label: "2:3 — Vertical" },
-  { value: "9:16", label: "9:16 — Reels" },
-  { value: "1:1", label: "1:1 — Cuadrado" },
-  { value: "16:9", label: "16:9 — Horizontal" },
-  { value: "4:3", label: "4:3" },
-  { value: "3:4", label: "3:4" },
-  { value: "3:2", label: "3:2" },
+  { value: "2:3", labelKey: "grokPanel.aspectVertical" },
+  { value: "9:16", labelKey: "grokPanel.aspectReels" },
+  { value: "1:1", labelKey: "grokPanel.aspectSquare" },
+  { value: "16:9", labelKey: "grokPanel.aspectHorizontal" },
+  { value: "4:3", labelKey: "" },
+  { value: "3:4", labelKey: "" },
+  { value: "3:2", labelKey: "" },
 ];
 const DURATION_OPTIONS = [4, 6, 8, 10];
 const RES_OPTIONS = ["480p", "720p", "1080p"];
@@ -43,6 +44,7 @@ export interface GrokPanelProps {
 }
 
 export default function GrokPanel({ project }: GrokPanelProps) {
+  const { t } = useTranslation();
   return (
     <ProviderPanel
       project={project}
@@ -58,12 +60,12 @@ export default function GrokPanel({ project }: GrokPanelProps) {
       extraOptions={({ options, setOption }) => (
         <div>
           <label className="mb-2 block font-mono text-[9.5px] uppercase tracking-wider text-[var(--vf-muted)]">
-            Parámetros de video
+            {t("providerPanel.videoParams")}
           </label>
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                Aspect Ratio
+                {t("grokPanel.aspectRatio")}
               </label>
               <Select
                 value={options.aspect_ratio as string}
@@ -72,14 +74,14 @@ export default function GrokPanel({ project }: GrokPanelProps) {
               >
                 {ASPECT_OPTIONS.map((o) => (
                   <SelectOption key={o.value} value={o.value}>
-                    {o.label}
+                    {o.labelKey ? t(o.labelKey) : o.value}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                Duración
+                {t("grokPanel.duration")}
               </label>
               <Select
                 value={options.video_length as number}
@@ -88,14 +90,14 @@ export default function GrokPanel({ project }: GrokPanelProps) {
               >
                 {DURATION_OPTIONS.map((d) => (
                   <SelectOption key={d} value={d}>
-                    {d} seg
+                    {t("grokPanel.durationSeconds", { d })}
                   </SelectOption>
                 ))}
               </Select>
             </div>
             <div>
               <label className="mb-1.5 block font-mono text-[9px] uppercase tracking-[.1em] text-[var(--vf-m)]">
-                Resolución
+                {t("grokPanel.resolution")}
               </label>
               <Select
                 value={options.resolution as string}

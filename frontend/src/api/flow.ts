@@ -1,8 +1,11 @@
 import { api } from "./client";
 
 export interface FlowAccount {
-  name?: string;
-  logged_in?: boolean;
+  index?: number;
+  ok?: boolean;
+  email?: string | null;
+  cookie?: boolean;
+  open?: boolean;
 }
 
 export interface FlowAccountsResult {
@@ -31,6 +34,8 @@ export interface FlowImagesResult {
   images?: string[];
 }
 
+export type FlowBrowserMode = "auto" | "chrome" | "chromium";
+
 export interface FlowRunPromptsParams {
   prompts: string[];
   output_dir?: string;
@@ -40,6 +45,7 @@ export interface FlowRunPromptsParams {
   max_retries?: number;
   reference_image?: string;
   auto_open?: boolean;
+  browser_mode?: FlowBrowserMode;
 }
 
 export interface FlowRetryParams {
@@ -57,14 +63,37 @@ export function flowLogin(account: number) {
   return api.post<{ ok: boolean }>("/flow/login", { account }).then((r) => r.data);
 }
 
+export interface FlowSaveCookieResult {
+  ok: boolean;
+  email?: string;
+  hash?: string;
+  error?: string;
+}
+
 export function flowSaveCookie(account: number, cookie: string) {
   return api
-    .post<{ ok: boolean }>("/flow/save-cookie", { account, cookie })
+    .post<FlowSaveCookieResult>("/flow/save-cookie", { account, cookie })
     .then((r) => r.data);
 }
 
+export interface FlowBridgeAccount {
+  account_hash: string;
+  email?: string;
+  connected: boolean;
+  has_bearer?: boolean;
+  age_seconds?: number | null;
+}
+
+export interface FlowBridgeStatus {
+  pending?: number;
+  ws_clients?: string[];
+  bridge_ok?: boolean;
+  ws_ok?: boolean;
+  accounts?: FlowBridgeAccount[];
+}
+
 export function flowBridgeStatus() {
-  return api.get<{ ok: boolean }>("/flow/bridge-status").then((r) => r.data);
+  return api.get<FlowBridgeStatus>("/flow/bridge-status").then((r) => r.data);
 }
 
 export function flowChromiumStatus() {
@@ -94,6 +123,7 @@ export function flowRunPrompts({
   max_retries = 2,
   reference_image,
   auto_open,
+  browser_mode,
 }: FlowRunPromptsParams) {
   const body: Record<string, unknown> = {
     prompts,
@@ -105,11 +135,16 @@ export function flowRunPrompts({
   };
   if (reference_image !== undefined) body.reference_image = reference_image;
   if (auto_open !== undefined) body.auto_open = auto_open;
+  if (browser_mode !== undefined) body.browser_mode = browser_mode;
   return api.post<{ ok: boolean }>("/flow/run-prompts", body).then((r) => r.data);
 }
 
 export function flowStop() {
   return api.post<{ ok: boolean }>("/flow/stop").then((r) => r.data);
+}
+
+export function flowResetLock() {
+  return api.post<{ ok: boolean; was_running?: boolean }>("/flow/reset-lock").then((r) => r.data);
 }
 
 export function flowRetry({ output_dir, index, filename, fallback_prompts }: FlowRetryParams) {

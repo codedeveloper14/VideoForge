@@ -103,13 +103,15 @@ export function qwenRegenerar({
     .then((r) => r.data);
 }
 
-export function qwenDetener() {
-  return api.post<{ ok: boolean }>("/qwen/detener").then((r) => r.data);
+export function qwenDetener(project = "") {
+  return api
+    .post<{ ok: boolean }>("/qwen/detener", { project })
+    .then((r) => r.data);
 }
 
-export function qwenLog(offset = 0) {
+export function qwenLog(offset = 0, project = "") {
   return api
-    .get<QwenLogResult>("/qwen/log", { params: { offset } })
+    .get<QwenLogResult>("/qwen/log", { params: { offset, project } })
     .then((r) => r.data);
 }
 

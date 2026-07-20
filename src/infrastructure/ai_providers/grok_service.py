@@ -9,10 +9,37 @@ from pathlib import Path
 
 import requests
 
+try:
+    from curl_cffi import requests as _cf_requests
+    from curl_cffi.requests.exceptions import HTTPError as _CfHTTPError
+
+    HAS_CURL_CFFI = True
+except Exception:
+    _cf_requests = None
+    _CfHTTPError = None
+    HAS_CURL_CFFI = False
+
 from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# requests.Session() usa el stack TLS de Python (OpenSSL/urllib3), cuyo
+# ClientHello (JA3) es distinguible de un Chrome real -- Cloudflare (delante
+# de xAI, ver headers `server: cloudflare`) puede fingerprintear eso antes de
+# leer ningun header de aplicacion (statsig_id, user-agent, etc. no importan
+# si el handshake ya delata que no es un browser). curl_cffi reproduce el
+# ClientHello exacto de Chrome. "chrome124" (no el generico "chrome", que
+# apunta a una version mucho mas nueva) para que coincida con el
+# User-Agent Chrome/124.0.0.0 declarado en http_browser_fingerprint().
+_HTTP_EXCEPTIONS = (requests.exceptions.HTTPError, _CfHTTPError) if _CfHTTPError else (requests.exceptions.HTTPError,)
+
+
+def _make_session():
+    if HAS_CURL_CFFI:
+        return _cf_requests.Session(impersonate="chrome124")
+    return requests.Session()
+
 
 GROK_BASE = "https://grok.com"
 UPLOAD_URL = f"{GROK_BASE}/rest/app-chat/upload-file"
@@ -117,6 +144,24 @@ def _hdrs(ref: str = f"{GROK_BASE}/imagine", session_meta: dict | None = None) -
     return h
 
 
+class GrokPremiumRequiredError(Exception):
+    """La cuenta no tiene un plan de Grok que habilite generacion de video
+    (Grok Imagine). Confirmado exhaustivamente (ver memoria de investigacion
+    2026-07-20): el mismo 403 aparece incluso ejecutando el request desde un
+    navegador real logueado, sin ningun cliente HTTP externo de por medio --
+    no es un bug de codigo, es un gate de cuenta/plan del lado de xAI."""
+
+
+def _is_premium_required(status_code: int, body_text: str) -> bool:
+    """Distingue el 403 especifico de plan/cuenta (code:7 'anti-bot rules')
+    de otros 401/403 transitorios (sesion vencida, etc.) que si vale la pena
+    reintentar."""
+    if status_code != 403:
+        return False
+    body_lower = (body_text or "").lower()
+    return '"code":7' in body_lower or "anti-bot rules" in body_lower
+
+
 def _resolve(raw: str) -> str:
     return raw if raw.startswith("http") else f"{ASSET_BASE}/{raw.lstrip('/')}"
 
@@ -166,7 +211,7 @@ class GrokAccountClient:
         self.session_meta = session_meta or {}
         self.cookies_dict = dict(cookies_dict)
         self.sse_dump_dir = sse_dump_dir
-        self.session = requests.Session()
+        self.session = _make_session()
         for name, value in self.cookies_dict.items():
             self.session.cookies.set(name, value, domain=".grok.com")
 
@@ -190,6 +235,13 @@ class GrokAccountClient:
                     logger.warning("[%s] %s upload", self.label, r.status_code)
                     continue
                 if not r.ok:
+                    if _is_premium_required(r.status_code, r.text):
+                        logger.error(
+                            "[%s] [ERROR] Se requiere una cuenta de Grok con suscripcion "
+                            "activa (X Premium / Grok Pro) para generar video.",
+                            self.label,
+                        )
+                        raise GrokPremiumRequiredError()
                     logger.error("[%s] Upload %s: %s", self.label, r.status_code, r.text[:200])
                     return None, None
                 data = r.json()
@@ -208,6 +260,8 @@ class GrokAccountClient:
                 )
                 logger.info("[%s] fileId=%s", self.label, fid)
                 return fid, aurl
+            except GrokPremiumRequiredError:
+                raise
             except Exception as exc:
                 logger.error("[%s] Upload err: %s", self.label, exc)
                 return None, None
@@ -234,7 +288,11 @@ class GrokAccountClient:
         video_id = None
         lines = []
         uid = self.session.cookies.get("x-userid", "")
-        for raw in response.iter_lines(decode_unicode=True):
+        # decode_unicode=True no esta soportado por curl_cffi (NotImplementedError) --
+        # decodificamos a mano, lo cual funciona igual con requests (que sin
+        # decode_unicode tambien entrega bytes).
+        for raw_line in response.iter_lines():
+            raw = raw_line.decode("utf-8", errors="replace") if isinstance(raw_line, bytes) else (raw_line or "")
             lines.append(raw or "")
             if not raw:
                 continue
@@ -315,10 +373,19 @@ class GrokAccountClient:
                     logger.warning("[%s] %s", self.label, r.status_code)
                     continue
                 if not r.ok:
+                    if _is_premium_required(r.status_code, r.text):
+                        logger.error(
+                            "[%s] [ERROR] Se requiere una cuenta de Grok con suscripcion "
+                            "activa (X Premium / Grok Pro) para generar video.",
+                            self.label,
+                        )
+                        raise GrokPremiumRequiredError()
                     logger.error("[%s] Conv %s: %s", self.label, r.status_code, r.text[:200])
                     return None
                 logger.info("[%s] [3/3] Esperando SSE...", self.label)
                 return self._parse_sse(r)
+            except GrokPremiumRequiredError:
+                raise
             except Exception as exc:
                 logger.error("[%s] Animate: %s", self.label, exc)
                 return None
@@ -334,31 +401,41 @@ class GrokAccountClient:
         attempt = 0
         while time.time() < deadline:
             attempt += 1
+            # curl_cffi.requests.Response no implementa el protocolo de context
+            # manager (a diferencia de requests.Response) -- se cierra a mano en
+            # el finally, valido para ambas librerias.
+            r = None
             try:
-                with self.session.get(url, stream=True, timeout=180, headers=hdrs) as r:
-                    if r.status_code == 404:
-                        logger.info("[%s] CDN 404 intento %d - 20s...", self.label, attempt)
-                        time.sleep(20)
-                        continue
-                    r.raise_for_status()
-                    with open(dest, "wb") as f:
-                        for chunk in r.iter_content(65536):
-                            f.write(chunk)
-                    logger.info(
-                        "[%s] [OK] %s (%dKB) intento %d",
-                        self.label,
-                        dest.name,
-                        dest.stat().st_size // 1024,
-                        attempt,
-                    )
-                    return True
-            except requests.exceptions.HTTPError as exc:
-                code = exc.response.status_code if exc.response else "?"
+                r = self.session.get(url, stream=True, timeout=180, headers=hdrs)
+                if r.status_code == 404:
+                    logger.info("[%s] CDN 404 intento %d - 20s...", self.label, attempt)
+                    time.sleep(20)
+                    continue
+                r.raise_for_status()
+                with open(dest, "wb") as f:
+                    for chunk in r.iter_content(65536):
+                        f.write(chunk)
+                logger.info(
+                    "[%s] [OK] %s (%dKB) intento %d",
+                    self.label,
+                    dest.name,
+                    dest.stat().st_size // 1024,
+                    attempt,
+                )
+                return True
+            except _HTTP_EXCEPTIONS as exc:
+                code = exc.response.status_code if getattr(exc, "response", None) else "?"
                 logger.warning("[%s] HTTP %s intento %d", self.label, code, attempt)
                 time.sleep(20)
             except Exception as exc:
                 logger.warning("[%s] DL err %d: %s", self.label, attempt, exc)
                 time.sleep(20)
+            finally:
+                if r is not None:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
         logger.error("[%s] [ERROR] Timeout descarga: %s", self.label, url)
         with pending_file.open("a") as f:
             f.write(url + "\n")
@@ -534,6 +611,9 @@ def delete_account_session(accounts_dir: Path, account_name: str) -> None:
 
 
 def _valid_statsig_id(sid) -> bool:
+    """Rechaza tokens vacios/fuera de rango y errores JS que el script de
+    fingerprint de Grok a veces serializa como si fuera un statsig_id valido
+    (ej. un TypeError en base64 en vez del fingerprint real)."""
     if not sid or not isinstance(sid, str):
         return False
     sid = sid.strip()
@@ -549,7 +629,14 @@ def _valid_statsig_id(sid) -> bool:
         "nan",
         "syntaxerror",
     )
-    return not any(bad in sid.lower() for bad in bad_markers)
+    if any(bad in sid.lower() for bad in bad_markers):
+        return False
+    try:
+        padded = sid + "=" * (-len(sid) % 4)
+        decoded = base64.b64decode(padded, validate=False).decode("utf-8", errors="ignore")
+    except Exception:
+        decoded = ""
+    return not any(bad in decoded.lower() for bad in bad_markers)
 
 
 def _valid_sentry_release(release) -> bool:

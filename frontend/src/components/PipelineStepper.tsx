@@ -1,14 +1,15 @@
 // Shared in-page pipeline stepper shown at the top of each pipeline page's content
 // once a project is active (ported from the legacy .vf-pg-nav / .vf-ptabs markup).
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import type { PipelinePage } from "../context/WorkspaceContext";
 
-const STEPS: { page: PipelinePage; label: string }[] = [
-  { page: "guion", label: "Guión escrito" },
-  { page: "imagen", label: "Generación de imágenes" },
-  { page: "voz", label: "Generación de voz" },
-  { page: "video", label: "Generación de video" },
-  { page: "render", label: "Renderizado" },
+const STEPS: { page: PipelinePage; labelKey: string }[] = [
+  { page: "guion", labelKey: "sidebar.pipelineScript" },
+  { page: "imagen", labelKey: "sidebar.pipelineImages" },
+  { page: "voz", labelKey: "sidebar.pipelineVoice" },
+  { page: "video", labelKey: "sidebar.pipelineVideo" },
+  { page: "render", labelKey: "sidebar.pipelineRender" },
 ];
 
 interface PipelineStepperProps {
@@ -17,6 +18,7 @@ interface PipelineStepperProps {
 }
 
 export function PipelineStepper({ project, current }: PipelineStepperProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const currentIndex = STEPS.findIndex((s) => s.page === current);
 
@@ -26,7 +28,7 @@ export function PipelineStepper({ project, current }: PipelineStepperProps) {
       style={{ background: "rgba(var(--vf-bg-rgb),.6)", borderBottom: "1px solid rgba(124,106,255,.1)" }}
     >
       <div className="mr-4 flex-shrink-0 whitespace-nowrap font-mono text-[8.5px] uppercase tracking-[0.18em]" style={{ color: "rgba(124,106,255,.45)" }}>
-        Paso {currentIndex + 1} de {STEPS.length}
+        {t("sidebar.stepOfTotal", { n: currentIndex + 1, total: STEPS.length })}
       </div>
       <div className="flex min-w-0 flex-1 items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         {STEPS.map((step, i) => {
@@ -75,7 +77,7 @@ export function PipelineStepper({ project, current }: PipelineStepperProps) {
               >
                 {i + 1}
               </span>
-              {step.label}
+              {t(step.labelKey)}
             </button>
           );
         })}

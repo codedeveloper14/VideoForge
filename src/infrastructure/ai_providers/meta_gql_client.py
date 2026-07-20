@@ -1,3 +1,11 @@
+"""REEMPLAZADO -- Meta migro la generacion de video a Vibes (vibes.ai). Confirmado
+por el usuario en DevTools contra una generacion real (2026-07-16): nuevo dominio,
+nueva auth (OIDC + cookie propia), nuevos endpoints REST + SSE, nada de esto (GraphQL
+persisted-query doc_id, generatedVideo, meta.ai) sigue vigente. Ver
+src/infrastructure/ai_providers/vibes_client.py:generate_video() -- ese es el flujo
+real ahora. Este modulo queda sin llamar desde meta_animation_service.py; no se borro
+por si algo de Meta AI (no video) todavia lo necesita."""
+
 import copy
 import json
 import re
@@ -16,6 +24,13 @@ META_BASE = "https://www.meta.ai"
 META_GQL = f"{META_BASE}/api/graphql"
 META_UPLOAD_BASE = "https://rupload.meta.ai/gen_ai_document_gen_ai_tenant"
 
+# doc_id de persisted-query GraphQL de meta.ai/create -- Meta los regenera en cada
+# deploy de su frontend. Meta movio la generacion de video a Vibe.ai; estos 5 son
+# el sospechoso #1 de cualquier falla de "Generar video" via Meta AI (modo http):
+# probablemente ya no resuelven a la query de generacion de video. No adivinar
+# valores nuevos sin capturarlos de una sesion real de Vibe.ai (Network tab, POST a
+# .../api/graphql, campo "doc_id" del body) -- swapear un doc_id a ciegas falla
+# silencioso (mismo sintoma que ahora) en vez de dar un error claro.
 _META_DOC_WARMUP = "e7f802582dbfed8e181b012e010993eb"
 _META_DOC_MODE = "c32bbe999c48e64e855dc63177d5153f"
 _META_DOC_CARD = "344570a4b8110dd9848829731d35c74a"
@@ -396,6 +411,20 @@ def generate_http(
                 retry_wait = min(3 + gen_attempt * 2, 20)
                 log(f"[S{slot_id}] Stream caido sin event:complete --> reintentando gen en {retry_wait}s...")
                 time.sleep(retry_wait)
+            elif not had_progress and gen_attempt == 1:
+                # El PRIMER intento nunca vio "status":"IN_PROGRESS" -- el stream no
+                # arranco la generacion en absoluto, no es una caida a medio camino.
+                # Huella tipica de un doc_id de persisted-query que ya no resuelve a
+                # la mutation de generar video (ver comentario en _META_DOC_* arriba:
+                # Meta movio esto a Vibe.ai). Reintentar 8 veces la misma llamada rota
+                # no cambia el resultado -- fallar rapido con el motivo probable en
+                # vez de quemar el timeout completo sin pista.
+                result["error"] = (
+                    "Meta AI nunca inicio la generacion (sin IN_PROGRESS en el primer intento). "
+                    "Probable causa: doc_id de GraphQL obsoleto tras la migracion de Meta a Vibe.ai "
+                    "-- ver _META_DOC_* en meta_gql_client.py."
+                )
+                return result
             else:
                 result["error"] = f"Stream SSE termino sin generatedVideo URL (intentos={gen_attempt})"
                 return result

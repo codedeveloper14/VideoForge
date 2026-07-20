@@ -1,5 +1,6 @@
 import os
 import threading
+import time
 
 from src.infrastructure.ai_providers import gentube_service
 from src.utils.logger import get_logger
@@ -14,6 +15,9 @@ _state = {
     "images_saved": 0,
     "log": [],
     "output_dir": "",
+    "last_error": "",
+    "started_at": 0.0,
+    "last_activity": 0.0,
     "accounts": [
         {"id": i, "logged_in": False, "user": "", "has_cookie": False}
         for i in range(gentube_service.NUM_ACCOUNTS)
@@ -22,10 +26,39 @@ _state = {
 _lock = threading.Lock()
 _stop_event = threading.Event()
 
+# Salvavidas: si un batch se cuelga (browser sin responder, red caida) sin
+# levantar excepcion, "running" quedaria en True para siempre y el usuario nunca
+# podria reintentar. Dos condiciones lo liberan, la que ocurra primero (misma
+# logica que flow_animation_service._release_if_stale): inactividad real (sin
+# lineas de log nuevas) o un techo absoluto de seguridad.
+INACTIVITY_TIMEOUT_SECONDS = 180
+MAX_RUN_SECONDS = 21600  # 6h -- backstop puro, la inactividad ya cubre el caso "colgado"
+
+
+def _release_if_stale() -> None:
+    went_stale = False
+    reason = ""
+    with _lock:
+        started = _state.get("started_at") or 0.0
+        last_activity = _state.get("last_activity") or started
+        now = time.time()
+        if _state["running"] and started:
+            if last_activity and (now - last_activity) > INACTIVITY_TIMEOUT_SECONDS:
+                reason = "Generacion sin actividad - liberada automaticamente"
+            elif (now - started) > MAX_RUN_SECONDS:
+                reason = "Tiempo de espera agotado"
+        if reason:
+            _state.update(running=False, step="idle", last_error=reason)
+            _stop_event.set()
+            went_stale = True
+    if went_stale:
+        _log(f"[gentube] Lock de generacion liberado automaticamente ({reason})")
+
 
 def _log(msg: str) -> None:
     with _lock:
         _state["log"].append(msg)
+        _state["last_activity"] = time.time()
         if len(_state["log"]) > 600:
             _state["log"] = _state["log"][-600:]
     logger.info("[gentube] %s", msg)
@@ -45,6 +78,7 @@ def sync_profiles_async() -> None:
 
 
 def get_status() -> dict:
+    _release_if_stale()
     with _lock:
         st = {
             "running": _state["running"],
@@ -54,6 +88,7 @@ def get_status() -> dict:
             "images_saved": _state["images_saved"],
             "log": list(_state["log"]),
             "output_dir": _state["output_dir"],
+            "last_error": _state.get("last_error", ""),
             "accounts": [dict(a) for a in _state["accounts"]],
         }
     st["playwright_ok"] = gentube_service.playwright_available()
@@ -84,17 +119,29 @@ def start_login(account_id: int, cookie: str = "") -> dict:
     return {"ok": True}
 
 
-def start_run(prompts: list[str], slots: int, repeat: int, output_dir: str, ratio: str, quality: str) -> dict:
+def start_run(
+    prompts: list[str],
+    slots: int,
+    repeat: int,
+    output_dir: str,
+    ratio: str,
+    quality: str,
+    browser_mode: str = "chromium",
+) -> dict:
     global _stop_event
     prompts = [p for p in prompts if str(p).strip()]
     slots = max(1, min(8, slots))
     repeat = max(1, min(20, repeat))
     output_dir = (output_dir or "").strip()
+    if browser_mode not in ("chrome", "chromium"):
+        browser_mode = "chromium"
 
     if not prompts:
         raise ValueError("Sin prompts")
     if not output_dir:
         raise ValueError("Sin output_dir")
+
+    _release_if_stale()
     with _lock:
         if _state.get("running"):
             raise RuntimeError("Ya hay una generacion en curso")
@@ -104,13 +151,25 @@ def start_run(prompts: list[str], slots: int, repeat: int, output_dir: str, rati
         _state["progress"] = 0
         _state["total"] = len(prompts) * repeat
         _state["images_saved"] = 0
+        _state["last_error"] = ""
+        _state["started_at"] = time.time()
+        _state["last_activity"] = time.time()
 
     _stop_event = threading.Event()
-    threading.Thread(
-        target=gentube_service.run_batch,
-        args=(prompts, slots, repeat, output_dir, _state, _lock, _stop_event, _log),
-        daemon=True,
-    ).start()
+    stop_event = _stop_event
+
+    def _run_and_release():
+        try:
+            gentube_service.run_batch(
+                prompts, slots, repeat, output_dir, _state, _lock, stop_event, _log, browser_mode=browser_mode
+            )
+        except Exception as exc:
+            logger.exception("[gentube] error fatal en batch")
+            with _lock:
+                _state.update(running=False, step="idle", last_error=str(exc))
+            _log(f"[gentube] ERROR fatal en batch: {exc}")
+
+    threading.Thread(target=_run_and_release, daemon=True).start()
     return {"ok": True, "message": f"Iniciado {len(prompts) * repeat} imagenes"}
 
 

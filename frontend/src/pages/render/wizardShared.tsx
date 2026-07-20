@@ -1,50 +1,54 @@
 // Shared pieces for the Render wizard (Archivos -> Efectos -> Render),
 // styled after the legacy reference (.pg-render / .card / .opt-btn / .drop-zone idiom).
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
+// label/sub quedan como *Key -- estos son consts a nivel de modulo (fuera de
+// cualquier componente), asi que no pueden llamar useTranslation() aca. Cada
+// Step*.tsx los resuelve con t() al consumirlos.
 export const RESOLUCIONES = [
-  { value: "1920x1080", label: "1920×1080 — YouTube" },
-  { value: "1080x1920", label: "1080×1920 — Reels/TikTok" },
-  { value: "1080x1080", label: "1080×1080 — Instagram" },
-  { value: "1280x720", label: "1280×720 — HD" },
+  { value: "1920x1080", labelKey: "projectRenderPanel.resYoutube" },
+  { value: "1080x1920", labelKey: "projectRenderPanel.resReels" },
+  { value: "1080x1080", labelKey: "projectRenderPanel.resInstagram" },
+  { value: "1280x720", labelKey: "projectRenderPanel.resHd" },
 ];
 
 export const MODELOS = [
-  { value: "tiny", label: "tiny — Muy rápido" },
-  { value: "base", label: "base — Recomendado" },
-  { value: "small", label: "small — Preciso" },
-  { value: "medium", label: "medium — Muy preciso" },
+  { value: "tiny", labelKey: "projectRenderPanel.modelTiny" },
+  { value: "base", labelKey: "projectRenderPanel.modelBase" },
+  { value: "small", labelKey: "projectRenderPanel.modelSmall" },
+  { value: "medium", labelKey: "projectRenderPanel.modelMedium" },
 ];
 
 export const WHISPER_BACKENDS = [
-  { value: "whisperx", label: "WhisperX API — Timestamps precisos" },
-  { value: "api", label: "API" },
-  { value: "faster", label: "Faster-whisper" },
-  { value: "local", label: "Local — Estándar" },
+  { value: "whisperx", labelKey: "projectRenderPanel.whisperXApi" },
+  { value: "api", labelKey: "projectRenderPanel.whisperApi" },
+  { value: "faster", labelKey: "projectRenderPanel.whisperFaster" },
+  { value: "local", labelKey: "projectRenderPanel.whisperLocal" },
 ];
 
 export const RENDER_MODES = [
-  { value: "images", label: "Solo Imágenes", icon: "🖼️", desc: "" },
-  { value: "smart", label: "Mezcla Inteligente", icon: "🧠", desc: "usa videos disponibles + imágenes para el resto" },
-  { value: "videos", label: "Solo Videos del proyecto", icon: "🎬", desc: "" },
+  { value: "images", labelKey: "projectRenderPanel.modeImagesOnly", icon: "🖼️", descKey: "" },
+  { value: "smart", labelKey: "projectRenderPanel.modeSmartMix", icon: "🧠", descKey: "projectRenderPanel.modeSmartMixDesc" },
+  { value: "videos", labelKey: "projectRenderPanel.modeVideosOnly", icon: "🎬", descKey: "" },
 ];
 
 export const MOTIONS = [
-  { value: "none", label: "Sin movimiento", sub: "Imagen estática", icon: "⬜" },
-  { value: "ken_burns", label: "Ken Burns", sub: "Zoom + pan diagonal", icon: "🎬" },
-  { value: "zoom_in", label: "Zoom In", sub: "Acerca lentamente", icon: "🔍" },
-  { value: "zoom_out", label: "Zoom Out", sub: "Aleja lentamente", icon: "🔭" },
-  { value: "pan_left", label: "Pan Izquierda", sub: "Desliza horizontal", icon: "⬅️" },
-  { value: "pan_right", label: "Pan Derecha", sub: "Desliza horizontal", icon: "➡️" },
+  { value: "none", labelKey: "projectRenderPanel.motionNone", subKey: "projectRenderPanel.motionNoneSub", icon: "⬜" },
+  { value: "ken_burns", labelKey: "projectRenderPanel.motionKenBurns", subKey: "projectRenderPanel.motionKenBurnsSub", icon: "🎬" },
+  { value: "zoom_in", labelKey: "projectRenderPanel.motionZoomIn", subKey: "projectRenderPanel.motionZoomInSub", icon: "🔍" },
+  { value: "zoom_out", labelKey: "projectRenderPanel.motionZoomOut", subKey: "projectRenderPanel.motionZoomOutSub", icon: "🔭" },
+  { value: "pan_left", labelKey: "projectRenderPanel.motionPanLeft", subKey: "projectRenderPanel.motionPanLeftSub", icon: "⬅️" },
+  { value: "pan_right", labelKey: "projectRenderPanel.motionPanRight", subKey: "projectRenderPanel.motionPanRightSub", icon: "➡️" },
 ];
 
 export const TRANSITIONS = [
-  { value: "none", label: "Sin transición", sub: "Corte directo", icon: "✂️" },
-  { value: "dissolve", label: "Desvanecido", sub: "Mezcla suave sin pasar por negro", icon: "✦" },
-  { value: "slide_left", label: "Slide Izquierda", sub: "Desliza al entrar", icon: "◀️" },
-  { value: "slide_right", label: "Slide Derecha", sub: "Desliza al entrar", icon: "▶️" },
-  { value: "zoom", label: "Zoom", sub: "Acerca al entrar", icon: "🔮" },
-  { value: "fade", label: "Fade negro", sub: "Funde a negro", icon: "⬛" },
+  { value: "none", labelKey: "projectRenderPanel.transitionNone", subKey: "projectRenderPanel.transitionNoneSub", icon: "✂️" },
+  { value: "dissolve", labelKey: "projectRenderPanel.transitionDissolve", subKey: "projectRenderPanel.transitionDissolveSub", icon: "✦" },
+  { value: "slide_left", labelKey: "projectRenderPanel.transitionSlideLeft", subKey: "projectRenderPanel.transitionSlideLeftSub", icon: "◀️" },
+  { value: "slide_right", labelKey: "projectRenderPanel.transitionSlideRight", subKey: "projectRenderPanel.transitionSlideRightSub", icon: "▶️" },
+  { value: "zoom", labelKey: "projectRenderPanel.transitionZoom", subKey: "projectRenderPanel.transitionZoomSub", icon: "🔮" },
+  { value: "fade", labelKey: "projectRenderPanel.transitionFade", subKey: "projectRenderPanel.transitionFadeSub", icon: "⬛" },
 ];
 
 export function formatSize(bytes: number) {
@@ -61,13 +65,14 @@ interface WizardProgressProps {
   step: 1 | 2 | 3;
 }
 
-const STEPS: { id: 1 | 2 | 3; label: string; dot: string }[] = [
-  { id: 1, label: "Archivos", dot: "1" },
-  { id: 2, label: "Efectos", dot: "2" },
-  { id: 3, label: "Render", dot: "🎬" },
+const STEPS: { id: 1 | 2 | 3; labelKey: string; dot: string }[] = [
+  { id: 1, labelKey: "projectRenderPanel.stepFiles", dot: "1" },
+  { id: 2, labelKey: "projectRenderPanel.stepEffects", dot: "2" },
+  { id: 3, labelKey: "projectRenderPanel.stepRender", dot: "🎬" },
 ];
 
 export function WizardProgress({ step }: WizardProgressProps) {
+  const { t } = useTranslation();
   return (
     <div className="mx-auto mb-8 flex max-w-[560px] items-center gap-0">
       {STEPS.map((s, i) => {
@@ -116,7 +121,7 @@ export function WizardProgress({ step }: WizardProgressProps) {
                       : "var(--vf-muted)",
               }}
             >
-              {s.label}
+              {t(s.labelKey)}
             </div>
           </div>
         );

@@ -15,6 +15,11 @@ class QwenRegenerarInSchema(Schema):
 
 class QwenLogQuerySchema(Schema):
     offset = Integer(load_default=0)
+    project = String(load_default="")
+
+
+class QwenDetenerInSchema(Schema):
+    project = String(load_default="")
 
 
 class QwenVideosQuerySchema(Schema):

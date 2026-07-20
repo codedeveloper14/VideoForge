@@ -3,11 +3,17 @@
 .env.*
 !.env.example
 
+# Credenciales de produccion embebidas en el build compilado (PyArmor las
+# ofusca al empaquetar) -- mismo nivel de secreto que .env, JAMAS subir.
+src/core/_local_secrets.py
+
 venv/
 dist/
 dist_final/
 dist_ofuscado/
 build/
+installer_output/
+*.exe
 *.app
 *.dmg
 
@@ -58,3 +64,6 @@ logs/*
 # Frontend (Vite + React)
 frontend/node_modules/
 frontend/dist/
+
+# graphify (knowledge graph, regenerable, no subir)
+graphify-out/

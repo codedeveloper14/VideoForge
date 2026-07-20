@@ -1,22 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { analyzeImage, loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { GuionHeaderArt } from "../components/GuionHeaderArt";
 import { useGenerationStatus } from "../context/GenerationStatusContext";
+import { Select, SelectOption } from "../components/Select";
+import ComingSoonToast from "../components/ComingSoonToast";
 
 type ActivePanel = "prompts" | "guion";
 type PromptMode = "general" | "stick" | "ultrarealismo";
 
-const PROMPT_MODE_LABELS: Record<PromptMode, string> = {
-  general: "General",
-  stick: "Stick Animado",
-  ultrarealismo: "Ultrarrealismo",
-};
-
 export default function GuionPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(searchParams.get("project") || "");
@@ -25,10 +23,14 @@ export default function GuionPage() {
   const [outputMode, setOutputMode] = useState("con_prompts");
   const [promptMode, setPromptMode] = useState<PromptMode>("general");
   const [promptStyle, setPromptStyle] = useState<"default" | "history">("default");
+  const [scriptLang, setScriptLang] = useState("es");
+  const [scriptTone, setScriptTone] = useState("inspiring");
+  const [scriptAudience, setScriptAudience] = useState("general");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [soonToast, setSoonToast] = useState(false);
 
   const [result, setResult] = useState<N8nProxyResult | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>("prompts");
@@ -92,9 +94,9 @@ export default function GuionPage() {
     if (!guion.trim()) return { label: "—", pct: 0 };
     const sentences = guion.split(/[.!?]+/).filter((s) => s.trim());
     const avgWordsPerSentence = sentences.length ? wordCount / sentences.length : 0;
-    if (avgWordsPerSentence < 12) return { label: "Baja", pct: 30 };
-    if (avgWordsPerSentence < 22) return { label: "Media", pct: 62 };
-    return { label: "Alta", pct: 90 };
+    if (avgWordsPerSentence < 12) return { label: t("guionTool.complexityLow"), pct: 30 };
+    if (avgWordsPerSentence < 22) return { label: t("guionTool.complexityMedium"), pct: 62 };
+    return { label: t("guionTool.complexityHigh"), pct: 90 };
   })();
 
   function extractText(res: N8nProxyResult | string | null, keys: string[]): string {
@@ -107,12 +109,26 @@ export default function GuionPage() {
     return JSON.stringify(res, null, 2);
   }
 
-  const promptsText = result
-    ? extractText(result, ["prompts", "prompts_texto", "output", "resultado", "texto_prompts"])
-    : "";
-  const guionOutText = result
-    ? extractText(result, ["guion", "guion_con_saltos", "guion_texto", "texto"])
-    : "";
+  // El backend real (scene_prompt_service.generate_prompts) devuelve
+  // { metadata: {...}, escenas: [{bloque_global_id, texto_original, prompt_imagen, ...}] },
+  // no los campos de texto plano del viejo flujo n8n -- armamos los paneles y los
+  // totales a partir de `escenas`, que es la forma que de verdad llega.
+  const scenes = Array.isArray(result?.escenas) ? (result!.escenas as Record<string, unknown>[]) : [];
+  const totalEscenas = result?.metadata?.total_escenas ?? scenes.length;
+  const totalPrompts =
+    result?.metadata?.total_prompts ?? scenes.filter((s) => (s.prompt_imagen as string | undefined)?.trim()).length;
+  const totalFragmentos = result?.metadata?.total_fragmentos ?? "—";
+
+  const promptsText = scenes.length
+    ? scenes.map((s) => `${s.bloque_global_id}. ${(s.prompt_imagen as string) || ""}`).join("\n\n")
+    : result
+      ? extractText(result, ["prompts", "prompts_texto", "output", "resultado", "texto_prompts"])
+      : "";
+  const guionOutText = scenes.length
+    ? scenes.map((s) => `${s.bloque_global_id}. ${(s.texto_original as string) || ""}`).join("\n")
+    : result
+      ? extractText(result, ["guion", "guion_con_saltos", "guion_texto", "texto"])
+      : "";
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -142,14 +158,14 @@ export default function GuionPage() {
 
   async function handleSaveScript() {
     if (!project) {
-      setError("Selecciona un proyecto antes de guardar.");
+      setError(t("guionTool.selectProjectFirst"));
       return;
     }
-    setSaveStatus("Guardando…");
+    setSaveStatus(t("guionTool.saving"));
     setError("");
     try {
       await saveScript(project, guion, promptsText || "");
-      setSaveStatus("Guardado ✓");
+      setSaveStatus(t("guionTool.saved"));
       setTimeout(() => setSaveStatus(""), 2500);
     } catch (err) {
       setError((err as Error).message);
@@ -194,7 +210,7 @@ export default function GuionPage() {
   }
 
   function notImplemented() {
-    alert("Próximamente.");
+    setSoonToast(true);
   }
 
   function syncLineScroll() {
@@ -232,32 +248,38 @@ export default function GuionPage() {
             </div>
             <div className="min-w-0">
               <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "rgba(124,106,255,.6)" }}>
-                Pipeline · Producción IA
+                {t("guionTool.pipelineLabel")}
               </div>
               <h1 className="text-[26px] font-bold leading-[1.1] tracking-[-0.025em] text-[var(--vf-text)]">
-                Guión{" "}
+                {t("guionTool.titlePart1")}{" "}
                 <span
                   className="bg-clip-text text-transparent"
                   style={{ backgroundImage: "linear-gradient(90deg,var(--vf-c2),var(--vf-c3))" }}
                 >
-                  y Escenas
+                  {t("guionTool.headerTitlePart2")}
                 </span>
               </h1>
             </div>
             <div className="ml-auto flex flex-shrink-0 flex-col items-end gap-[5px]">
               <span className="rounded-md border border-[rgba(124,106,255,.22)] bg-[rgba(124,106,255,.1)] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--vf-c2)]">
-                Módulo 01
+                {t("guionTool.module01")}
               </span>
               <span className="rounded-md border border-[rgba(var(--vf-fg-rgb),.08)] bg-[rgba(var(--vf-fg-rgb),.04)] px-2 py-1 text-[9px] font-semibold tracking-[0.06em] text-[var(--vf-m2)]">
-                Paso 1 de 5
+                {t("guionTool.stepOf5", { n: 1 })}
               </span>
             </div>
           </div>
           <p className="mb-3.5 max-w-[560px] text-[13.5px] leading-[1.55]" style={{ color: "var(--vf-m)" }}>
-            Escribe tu guión completo y divídelo en escenas estructuradas para el pipeline de producción IA.
+            {t("guionTool.headerSubtitle")}
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {["✂  Escenas", "🤖  Asistente IA", "🌐  Traducción", "↔  Expansión", "⚡  Análisis"].map((chip, i) => (
+            {[
+              t("guionTool.chipScenes"),
+              t("guionTool.chipAiAssistant"),
+              t("guionTool.chipTranslation"),
+              t("guionTool.chipExpansion"),
+              t("guionTool.chipAnalysis"),
+            ].map((chip, i) => (
               <span
                 key={chip}
                 className={
@@ -282,9 +304,9 @@ export default function GuionPage() {
           onClick={notImplemented}
           className="rounded-lg border border-[rgba(124,106,255,.3)] bg-[rgba(124,106,255,.16)] px-3 py-1.5 text-[12px] font-medium text-[var(--vf-text)]"
         >
-          🤖 Asistente IA
+          {t("guionTool.aiAssistantButton")}
         </button>
-        {["✦ Mejorar guión", "↔ Expander", "🌐 Traducir", "Más ▾"].map((label) => (
+        {[t("guionTool.improveScript"), t("guionTool.expand"), t("guionTool.translate"), t("guionTool.more")].map((label) => (
           <button
             key={label}
             type="button"
@@ -303,9 +325,9 @@ export default function GuionPage() {
             <div className="mb-5 rounded-2xl border border-[var(--vf-border)] bg-[var(--vf-surface)]">
               <div className="flex items-center justify-between px-5 pt-4">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                  // Guión Completo
+                  {t("guionTool.fullScript")}
                 </span>
-                <span className="font-mono text-[10px] text-[var(--vf-muted)]">{charCount} caracteres</span>
+                <span className="font-mono text-[10px] text-[var(--vf-muted)]">{t("guionTool.characters", { count: charCount })}</span>
               </div>
 
               <div className="mx-5 mt-2 flex overflow-hidden rounded-lg border border-[var(--vf-border)] bg-black/20">
@@ -320,22 +342,22 @@ export default function GuionPage() {
                   value={guion}
                   onChange={(e) => setGuion(e.target.value)}
                   onScroll={syncLineScroll}
-                  placeholder="Pega aquí tu guión completo. En un mundo donde la tecnología avanza a pasos agigantados..."
+                  placeholder={t("guionTool.scriptPlaceholder") || ""}
                   className="min-h-[220px] w-full resize-y bg-transparent px-3 py-3 font-mono text-[12.5px] leading-relaxed text-[var(--vf-text)] outline-none placeholder:text-[var(--vf-muted)]"
                 />
               </div>
 
               <div className="flex items-center justify-between px-5 pb-4 pt-2">
                 <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                  ↳ El corte siempre se hace en frase completa
+                  {t("guionTool.cutNote")}
                 </span>
                 <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                  Escenas estimadas: <strong className="text-[var(--vf-text)]">{fragEstimate}</strong>
+                  {t("guionTool.estimatedScenes")} <strong className="text-[var(--vf-text)]">{fragEstimate}</strong>
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 border-t border-[var(--vf-border)] px-5 py-3.5">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">Salida</span>
+                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">{t("guionTool.output")}</span>
                 <div className="flex gap-0.5 rounded-lg border border-[var(--vf-border)] bg-[var(--vf-p)] p-0.5">
                   <button
                     type="button"
@@ -346,7 +368,7 @@ export default function GuionPage() {
                         : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                     }`}
                   >
-                    💬 Solo saltos
+                    {t("guionTool.onlyBreaks")}
                   </button>
                   <button
                     type="button"
@@ -357,7 +379,7 @@ export default function GuionPage() {
                         : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                     }`}
                   >
-                    🖼 + Prompts
+                    {t("guionTool.withPrompts")}
                   </button>
                 </div>
               </div>
@@ -374,10 +396,10 @@ export default function GuionPage() {
                   disabled={loading || !guion.trim()}
                   className="rounded-lg bg-[var(--vf-accent)] px-5 py-2.5 text-sm font-medium text-white hover:bg-[var(--vf-accent-hover)] disabled:opacity-50"
                 >
-                  {loading ? "Procesando…" : "Procesar Guión →"}
+                  {loading ? t("guionTool.processing") : t("guionTool.processScript")}
                 </button>
                 <div className="font-mono text-[10px] text-[var(--vf-muted)]">
-                  El proceso puede tardar <strong>2–5 min</strong> según la extensión
+                  {t("guionTool.processTimeNote")} <strong>{t("guionTool.processTimeRange")}</strong> {t("guionTool.processTimeSuffix")}
                 </div>
               </div>
 
@@ -389,9 +411,9 @@ export default function GuionPage() {
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  Imagen de referencia
+                  {t("guionTool.refImageLabel")}
                   <span className="font-normal normal-case tracking-normal text-[var(--vf-m2)] opacity-60">
-                    Opcional · para guiar el estilo visual
+                    {t("guionTool.refImageOptional")}
                   </span>
                 </div>
                 {refImage ? (
@@ -400,7 +422,7 @@ export default function GuionPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono text-[11px] text-[var(--vf-text)]">{refName}</p>
                       <p className="font-mono text-[10px] text-[var(--vf-c5)]">
-                        {refAnalyzing ? "Analizando imagen…" : refDescription ? "Estilo listo ✓" : "Sin análisis disponible"}
+                        {refAnalyzing ? t("guionTool.analyzingImage") : refDescription ? t("guionTool.styleReady") : t("guionTool.noAnalysisAvailable")}
                       </p>
                     </div>
                     <button
@@ -429,10 +451,10 @@ export default function GuionPage() {
                         </svg>
                       </div>
                       <p className="mb-1 text-[13px] text-[var(--vf-muted)]">
-                        Arrastra imagen o <span className="text-[var(--vf-c2)] underline underline-offset-2">haz clic</span>
+                        {t("guionTool.dragImageOr")} <span className="text-[var(--vf-c2)] underline underline-offset-2">{t("guionTool.clickHere")}</span>
                       </p>
                       <p className="font-mono text-[10px] text-[var(--vf-m2)]">
-                        JPG · PNG · WEBP — referencia de estilo para los prompts IA
+                        {t("guionTool.refImageFormats")}
                       </p>
                     </div>
                   </div>
@@ -446,25 +468,21 @@ export default function GuionPage() {
               <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    Prompts generados
+                    {t("guionTool.promptsGenerated")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c1)]">
-                    {Array.isArray(result.prompts) ? result.prompts.length : "—"}
-                  </div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c1)]">{totalPrompts}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    Total de escenas
+                    {t("guionTool.totalScenes")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c2)]">
-                    {result.escenas ?? result.total_escenas ?? "—"}
-                  </div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c2)]">{totalEscenas}</div>
                 </div>
                 <div className="rounded-xl border border-[var(--vf-border)] bg-[var(--vf-surface)] p-4">
                   <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--vf-muted)]">
-                    Fragmentos
+                    {t("guionTool.fragments")}
                   </div>
-                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c3)]">{result.fragmentos ?? "—"}</div>
+                  <div className="mt-1 text-2xl font-bold text-[var(--vf-c3)]">{totalFragmentos}</div>
                 </div>
               </div>
 
@@ -480,7 +498,7 @@ export default function GuionPage() {
                           : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                       }`}
                     >
-                      Prompts de imagen
+                      {t("guionTool.imagePrompts")}
                     </button>
                     <button
                       type="button"
@@ -491,13 +509,13 @@ export default function GuionPage() {
                           : "text-[var(--vf-muted)] hover:text-[var(--vf-text)]"
                       }`}
                     >
-                      Guión con saltos
+                      {t("guionTool.scriptWithBreaks")}
                     </button>
                   </div>
                   <span className="font-mono text-[10px] text-[var(--vf-muted)]">
                     {activePanel === "prompts"
-                      ? "// Prompts de imagen — listos para copiar"
-                      : "// Guión con saltos"}
+                      ? t("guionTool.imagePromptsReady")
+                      : t("guionTool.scriptWithBreaksComment")}
                   </span>
                   <div className="ml-auto flex items-center gap-2">
                     {saveStatus && (
@@ -508,14 +526,14 @@ export default function GuionPage() {
                       onClick={copyActive}
                       className="rounded-lg border border-[var(--vf-border)] px-3 py-1.5 font-mono text-[10.5px] hover:bg-[var(--vf-surface-2)]"
                     >
-                      Copiar todo
+                      {t("guionTool.copyAll")}
                     </button>
                     <button
                       type="button"
                       onClick={handleSaveScript}
                       className="rounded-lg border border-[var(--vf-success)]/30 bg-[var(--vf-success)]/10 px-3 py-1.5 font-mono text-[10.5px] text-[var(--vf-success)] hover:bg-[var(--vf-success)]/20"
                     >
-                      💾 Guardar en proyecto
+                      {t("guionTool.saveToProject")}
                     </button>
                   </div>
                 </div>
@@ -533,10 +551,10 @@ export default function GuionPage() {
               onClick={() => navigate("/app/home")}
               className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.05)] px-4 py-2 text-[13px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.08)] hover:text-[var(--vf-text)]"
             >
-              ← Volver
+              {t("guionTool.back")}
             </button>
             <span className="font-mono text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--vf-m2)]">
-              Paso 1 de 5
+              {t("guionTool.stepOf5", { n: 1 })}
             </span>
             <div className="flex items-center gap-2.5">
               <button
@@ -544,14 +562,14 @@ export default function GuionPage() {
                 onClick={handleSaveScript}
                 className="rounded-lg border border-[rgba(var(--vf-fg-rgb),.1)] bg-[rgba(var(--vf-fg-rgb),.05)] px-4 py-2 text-[13px] font-medium text-[var(--vf-m)] hover:bg-[rgba(var(--vf-fg-rgb),.08)] hover:text-[var(--vf-text)]"
               >
-                Guardar borrador
+                {t("guionTool.saveDraft")}
               </button>
               <button
                 type="button"
                 onClick={() => navigate(`/app/imagen?project=${encodeURIComponent(project)}`)}
                 className="rounded-lg bg-[rgba(124,106,255,.82)] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#7c6aff]"
               >
-                Continuar →
+                {t("guionTool.continueArrow")}
               </button>
             </div>
           </div>
@@ -567,71 +585,68 @@ export default function GuionPage() {
               className="border-b border-[rgba(124,106,255,.08)] px-3.5 py-2.5 text-[8px] font-bold uppercase tracking-[0.18em]"
               style={{ color: "rgba(124,106,255,.45)", background: "rgba(var(--vf-bg-rgb),.5)" }}
             >
-              Ajustes del guión
+              {t("guionTool.scriptSettings")}
             </div>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
-              Idioma
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>Español</option>
-                <option>Inglés</option>
-                <option>Portugués</option>
-                <option>Francés</option>
-                <option>Alemán</option>
-              </select>
+              {t("guionTool.language")}
+              <Select value={scriptLang} onChange={setScriptLang} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="es">{t("guionTool.langSpanish")}</SelectOption>
+                <SelectOption value="en">{t("guionTool.langEnglish")}</SelectOption>
+                <SelectOption value="pt">{t("guionTool.langPortuguese")}</SelectOption>
+                <SelectOption value="fr">{t("guionTool.langFrench")}</SelectOption>
+                <SelectOption value="de">{t("guionTool.langGerman")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
-              Tono
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>Inspirador</option>
-                <option>Formal</option>
-                <option>Casual</option>
-                <option>Educativo</option>
-                <option>Dramático</option>
-              </select>
+              {t("guionTool.tone")}
+              <Select value={scriptTone} onChange={setScriptTone} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="inspiring">{t("guionTool.toneInspiring")}</SelectOption>
+                <SelectOption value="formal">{t("guionTool.toneFormal")}</SelectOption>
+                <SelectOption value="casual">{t("guionTool.toneCasual")}</SelectOption>
+                <SelectOption value="educational">{t("guionTool.toneEducational")}</SelectOption>
+                <SelectOption value="dramatic">{t("guionTool.toneDramatic")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
-              Público objetivo
-              <select className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
-                <option>General</option>
-                <option>Profesional</option>
-                <option>Jóvenes</option>
-                <option>Empresarial</option>
-              </select>
+              {t("guionTool.targetAudience")}
+              <Select value={scriptAudience} onChange={setScriptAudience} className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none">
+                <SelectOption value="general">{t("guionTool.audienceGeneral")}</SelectOption>
+                <SelectOption value="professional">{t("guionTool.audienceProfessional")}</SelectOption>
+                <SelectOption value="youth">{t("guionTool.audienceYouth")}</SelectOption>
+                <SelectOption value="business">{t("guionTool.audienceBusiness")}</SelectOption>
+              </Select>
             </label>
             <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
-              Modo de prompts
-              <select
-                value={PROMPT_MODE_LABELS[promptMode]}
-                onChange={(e) => {
-                  const entry = Object.entries(PROMPT_MODE_LABELS).find(([, label]) => label === e.target.value);
-                  setPromptMode((entry?.[0] as PromptMode) || "general");
-                }}
+              {t("guionTool.promptModeLabel")}
+              <Select
+                value={promptMode}
+                onChange={(v) => setPromptMode(v as PromptMode)}
                 className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none"
               >
-                <option>General</option>
-                <option>Stick Animado</option>
-                <option>Ultrarrealismo</option>
-              </select>
+                <SelectOption value="general">{t("guionTool.general")}</SelectOption>
+                <SelectOption value="stick">{t("guionTool.stickFigures")}</SelectOption>
+                <SelectOption value="ultrarealismo">{t("guionTool.ultraRealism")}</SelectOption>
+              </Select>
             </label>
             {promptMode === "stick" && (
               <label className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-[7px] text-[12.5px] font-medium text-[var(--vf-m)]">
-                Estilos
-                <select
-                  value={promptStyle === "history" ? "History Telling" : "Default"}
-                  onChange={(e) => setPromptStyle(e.target.value === "History Telling" ? "history" : "default")}
+                {t("guionTool.styles")}
+                <Select
+                  value={promptStyle}
+                  onChange={(v) => setPromptStyle(v as "default" | "history")}
                   className="max-w-[112px] rounded-md border-0 bg-transparent text-right text-[11px] text-[var(--vf-text)] outline-none"
                 >
-                  <option>Default</option>
-                  <option>History Telling</option>
-                </select>
+                  <SelectOption value="default">Default</SelectOption>
+                  <SelectOption value="history">History Telling</SelectOption>
+                </Select>
               </label>
             )}
             <div className="flex items-center justify-between border-t border-[rgba(var(--vf-fg-rgb),.05)] px-3.5 py-2 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Duración estimada
+              {t("guionTool.estimatedDuration")}
               <span className="text-[11px] font-semibold text-[var(--vf-text)]">{estimatedDuration}</span>
             </div>
             <div className="flex items-center justify-between px-3.5 py-2 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Escenas
+              {t("guionTool.scenesLabel")}
               <span className="text-[11px] font-semibold text-[var(--vf-text)]">{guion.trim() ? fragEstimate : "—"}</span>
             </div>
           </div>
@@ -644,22 +659,22 @@ export default function GuionPage() {
               className="border-b border-[rgba(124,106,255,.08)] px-3.5 py-2.5 text-[8px] font-bold uppercase tracking-[0.18em]"
               style={{ color: "rgba(124,106,255,.45)", background: "rgba(var(--vf-bg-rgb),.5)" }}
             >
-              Análisis del guión
+              {t("guionTool.scriptAnalysis")}
             </div>
             <div className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Palabras
+              {t("guionTool.words")}
               <span className="text-[11px] font-semibold text-[var(--vf-text)]">{wordCount}</span>
             </div>
             <div className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Caracteres
+              {t("guionTool.charactersLabel")}
               <span className="text-[11px] font-semibold text-[var(--vf-text)]">{charCount}</span>
             </div>
             <div className="flex items-center justify-between border-b border-[rgba(var(--vf-fg-rgb),.04)] px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Tiempo estimado
+              {t("guionTool.estimatedReadTime")}
               <span className="text-[11px] font-semibold text-[var(--vf-text)]">{estimatedReadTime}</span>
             </div>
             <div className="flex items-center justify-between px-3.5 py-1.5 text-[12.5px] font-medium text-[var(--vf-m)]">
-              Complejidad
+              {t("guionTool.complexity")}
               <div className="flex flex-col items-end gap-1">
                 <span className="text-[11px] font-semibold text-[var(--vf-text)]">{complexity.label}</span>
                 <div className="h-[3px] w-[72px] overflow-hidden rounded-full bg-[rgba(var(--vf-fg-rgb),.08)]">
@@ -673,6 +688,7 @@ export default function GuionPage() {
           </div>
         </div>
       </div>
+      <ComingSoonToast visible={soonToast} onClose={() => setSoonToast(false)} />
     </div>
   );
 }

@@ -2,8 +2,10 @@ import json
 import mimetypes
 import os
 import re
+import threading
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -84,6 +86,35 @@ def qwen_headers(token: str, cookie_header: str = "", session_meta: dict | None 
     if sm.get("sentry_trace"):
         h["sentry-trace"] = str(sm["sentry_trace"])
     return h
+
+
+class QwenWafBlockedError(Exception):
+    """La request fue interceptada por el WAF de Alibaba antes de llegar a la
+    logica de negocio real. Confirmado (ver memoria de investigacion
+    2026-07-18): create_chat puede devolver HTTP 200 con un HTML de challenge
+    (meta tags aliyun_waf_aa/aliyun_waf_bb) en vez de JSON -- lo que revienta
+    como JSONDecodeError si no se detecta antes -- o un 403 directo. En ambos
+    casos no tiene sentido reintentar con la misma cookie/token."""
+
+
+def _is_waf_blocked(status_code: int, headers, body_text: str) -> bool:
+    """Distingue un bloqueo del WAF de Alibaba (inutil reintentar con la misma
+    sesion) de otros errores HTTP transitorios (401 token vencido, 429 rate
+    limit, 5xx, etc.)."""
+    body_lower = (body_text or "")[:2000].lower()
+    if "aliyun_waf" in body_lower or "waf_verify" in body_lower:
+        return True
+    if status_code == 403:
+        return True
+    try:
+        content_type = str((headers or {}).get("content-type") or "").lower()
+    except Exception:
+        content_type = ""
+    # create_chat/submit_completion siempre devuelven JSON -- un 200 con HTML
+    # es el challenge de Alibaba disfrazado de respuesta exitosa.
+    if status_code == 200 and "text/html" in content_type:
+        return True
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -169,17 +200,77 @@ def test_token(token: str, cookie_header: str = "", session_meta: dict | None = 
         return False, str(exc)
 
 
+# ─────────────────────────────────────────────────────────────────
+# Verificacion de red en background: list_account_sessions() NO debe bloquear
+# al llamador con requests HTTP en vivo (antes hacia test_token() secuencial
+# por cada cuenta, hasta N x 15s de timeout dentro del propio GET /sesiones --
+# eso es lo que producia "Network Error" en el frontend cuando la red estaba
+# lenta/inalcanzable: algo aguas abajo terminaba cortando la conexion antes de
+# que Flask lograra responder). Ahora list_account_sessions() solo lee disco
+# (igual que Grok) y devuelve el ultimo resultado de verificacion en cache si
+# existe; la verificacion real corre en un ThreadPoolExecutor en paralelo, en
+# un hilo de fondo separado, y solo se dispara una vez por ciclo (no se apila
+# un verify nuevo mientras el anterior sigue corriendo).
+_verify_cache: dict[str, tuple[bool, str]] = {}
+_verify_lock = threading.Lock()
+_verify_inflight = False
+
+
+def _verify_one(folder: Path) -> tuple[str, tuple[bool, str] | None]:
+    tk = account_token(folder)
+    if not tk:
+        return folder.name, None
+    ck = load_cookies(folder)
+    cookie_header = cookie_header_from_cookies(ck)
+    sm = load_session_meta(folder)
+    result = test_token(tk, cookie_header=cookie_header, session_meta=sm)
+    return folder.name, result
+
+
+def _verify_accounts_background(folders: list[Path]) -> None:
+    global _verify_inflight
+    try:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for name, result in ex.map(_verify_one, folders):
+                if result is None:
+                    continue
+                with _verify_lock:
+                    _verify_cache[name] = result
+    finally:
+        with _verify_lock:
+            _verify_inflight = False
+
+
 def list_account_sessions(accounts_dir: Path) -> list[dict]:
+    global _verify_inflight
+    folders = [f for f in sorted(accounts_dir.iterdir()) if f.is_dir()]
     rows = []
-    for folder in sorted(accounts_dir.iterdir()):
-        if not folder.is_dir():
-            continue
+    needs_verify = False
+    for folder in folders:
         tk = account_token(folder)
         ck = load_cookies(folder)
-        active, detail = (False, "sin sesion")
-        if tk:
-            active, detail = test_token(tk)
+        if not tk:
+            rows.append({"name": folder.name, "active": False, "user": "sin sesion", "has_cookies": bool(ck)})
+            continue
+        cached = _verify_cache.get(folder.name)
+        if cached is not None:
+            active, detail = cached
+        else:
+            # Sin verificacion todavia: hay token en disco -- lo mostramos
+            # optimistamente como activo (igual que Grok con la cookie "sso")
+            # mientras el ThreadPoolExecutor confirma en paralelo.
+            active, detail = True, "sin verificar"
+            needs_verify = True
         rows.append({"name": folder.name, "active": bool(active), "user": detail, "has_cookies": bool(ck)})
+
+    if needs_verify:
+        with _verify_lock:
+            already_running = _verify_inflight
+            if not already_running:
+                _verify_inflight = True
+        if not already_running:
+            threading.Thread(target=_verify_accounts_background, args=(folders,), daemon=True).start()
+
     return rows
 
 
@@ -253,9 +344,14 @@ def create_chat(token: str, chat_type: str = "i2v", cookie_header: str = "", ses
     resp = qwen_post(
         QWEN_CHAT_NEW_URL, headers=qwen_headers(token, cookie_header, session_meta), json=payload, timeout=30
     )
+    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+        raise QwenWafBlockedError()
     if resp.status_code != 200:
         raise RuntimeError(f"create_chat HTTP {resp.status_code}: {resp.text[:180]}")
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as exc:
+        raise QwenWafBlockedError() from exc
     chat_id = ((data.get("data") or {}).get("id") or "").strip()
     if not data.get("success") or not chat_id:
         raise RuntimeError(f"create_chat invalid response: {json.dumps(data)[:220]}")
@@ -388,11 +484,16 @@ def submit_completion(
     h = qwen_headers(token, cookie_header, session_meta)
     h["X-Request-Id"] = str(uuid.uuid4())
     resp = qwen_post(url, headers=h, json=payload, timeout=40)
+    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+        raise QwenWafBlockedError()
     if resp.status_code == 401:
         raise RuntimeError("Token invalido/expirado")
     if resp.status_code != 200:
         raise RuntimeError(f"completion HTTP {resp.status_code}: {resp.text[:200]}")
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as exc:
+        raise QwenWafBlockedError() from exc
     if not data.get("success"):
         d = data.get("data") or {}
         code = (d.get("code") or "").lower()
