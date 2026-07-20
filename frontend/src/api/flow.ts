@@ -34,6 +34,8 @@ export interface FlowImagesResult {
   images?: string[];
 }
 
+export type FlowBrowserMode = "auto" | "chrome" | "chromium";
+
 export interface FlowRunPromptsParams {
   prompts: string[];
   output_dir?: string;
@@ -43,6 +45,7 @@ export interface FlowRunPromptsParams {
   max_retries?: number;
   reference_image?: string;
   auto_open?: boolean;
+  browser_mode?: FlowBrowserMode;
 }
 
 export interface FlowRetryParams {
@@ -120,6 +123,7 @@ export function flowRunPrompts({
   max_retries = 2,
   reference_image,
   auto_open,
+  browser_mode,
 }: FlowRunPromptsParams) {
   const body: Record<string, unknown> = {
     prompts,
@@ -131,11 +135,16 @@ export function flowRunPrompts({
   };
   if (reference_image !== undefined) body.reference_image = reference_image;
   if (auto_open !== undefined) body.auto_open = auto_open;
+  if (browser_mode !== undefined) body.browser_mode = browser_mode;
   return api.post<{ ok: boolean }>("/flow/run-prompts", body).then((r) => r.data);
 }
 
 export function flowStop() {
   return api.post<{ ok: boolean }>("/flow/stop").then((r) => r.data);
+}
+
+export function flowResetLock() {
+  return api.post<{ ok: boolean; was_running?: boolean }>("/flow/reset-lock").then((r) => r.data);
 }
 
 export function flowRetry({ output_dir, index, filename, fallback_prompts }: FlowRetryParams) {

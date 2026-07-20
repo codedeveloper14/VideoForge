@@ -181,6 +181,17 @@ def _batch_worker(name: str, proj_dir: Path, prompt: str, size: str, slots: int,
                         done["n"] += 1
                     log(f"[{account_name}] [OK] {out_name} ({done['n']}/{len(imgs)})")
                     return
+                except qwen_service.QwenWafBlockedError:
+                    # Bloqueo del WAF de Alibaba -- no un error puntual de esta
+                    # imagen. Reintentar contra el mismo muro no sirve de nada
+                    # y solo satura los logs; se corta el loop de una vez.
+                    with done_lock:
+                        done["n"] += 1
+                    log(
+                        f"[{account_name}] [ERROR] La sesion de Qwen fue rechazada o bloqueada "
+                        f"por Alibaba. Revisa tu cuenta o vuelve a iniciar sesion en la app."
+                    )
+                    return
                 except Exception as exc:
                     err = str(exc)
                     if attempt < max_attempts and _is_retryable_error(err):
@@ -325,6 +336,12 @@ def start_regen(project_name: str, video_name: str, prompt: str, size: str) -> d
                 session_meta=session_meta,
             )
             _append_log(batch, f"[{account_name}] [OK] Regen completado: {img_stem}.mp4")
+        except qwen_service.QwenWafBlockedError:
+            _append_log(
+                batch,
+                f"[{account_name}] [ERROR] La sesion de Qwen fue rechazada o bloqueada "
+                f"por Alibaba. Revisa tu cuenta o vuelve a iniciar sesion en la app.",
+            )
         except Exception as exc:
             _append_log(batch, f"[{account_name}] [ERROR] Regen error: {exc}")
         batch.update(running=False, finished=True)

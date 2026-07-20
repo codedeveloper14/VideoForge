@@ -4,6 +4,31 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import ComingSoonToast from "../components/ComingSoonToast";
+import type { ApiError } from "../api/client";
+
+function WifiOffIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-shrink-0"
+    >
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+      <line x1="12" y1="20" x2="12.01" y2="20" />
+    </svg>
+  );
+}
 
 function EyeToggle({ shown, onClick }: { shown: boolean; onClick: () => void }) {
   return (
@@ -67,12 +92,14 @@ export default function LoginPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [mustChange, setMustChange] = useState(false);
   const [error, setError] = useState("");
+  const [networkError, setNetworkError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [soonToast, setSoonToast] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setNetworkError(false);
     if (!username.trim() || !password) {
       setError(t("login.fillFields"));
       return;
@@ -86,7 +113,13 @@ export default function LoginPage() {
       }
       navigate("/app/home");
     } catch (err) {
-      setError((err as Error).message);
+      const apiErr = err as ApiError;
+      if (apiErr.isNetworkError) {
+        setNetworkError(true);
+        setError(t("login.networkError"));
+      } else {
+        setError(apiErr.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -95,12 +128,19 @@ export default function LoginPage() {
   async function handleChangePassword(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setNetworkError(false);
     setSubmitting(true);
     try {
       await changePassword(username, newPassword);
       navigate("/app/home");
     } catch (err) {
-      setError((err as Error).message);
+      const apiErr = err as ApiError;
+      if (apiErr.isNetworkError) {
+        setNetworkError(true);
+        setError(t("login.networkError"));
+      } else {
+        setError(apiErr.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -229,7 +269,17 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                {error && (
+                {error && networkError && (
+                  <div
+                    className="mb-3 flex items-center gap-2 rounded-[9px] px-3 py-2.5 text-[10.5px] leading-[1.5]"
+                    style={{ fontFamily: "var(--vf-mono)", background: "rgba(251,191,36,.07)", border: "1px solid rgba(251,191,36,.16)", color: "#fbbf24" }}
+                  >
+                    <WifiOffIcon />
+                    {error}
+                  </div>
+                )}
+
+                {error && !networkError && (
                   <div
                     className="mb-3 rounded-[9px] px-3 py-2.5 text-[10.5px] leading-[1.5]"
                     style={{ fontFamily: "var(--vf-mono)", background: "rgba(255,60,80,.06)", border: "1px solid rgba(255,60,80,.15)", color: "#ff6677" }}
@@ -384,7 +434,17 @@ export default function LoginPage() {
                   {t("login.changePasswordSubtitle2")}
                 </p>
 
-                {error && (
+                {error && networkError && (
+                  <div
+                    className="mb-3 flex items-center gap-2 rounded-[9px] px-3 py-2.5 text-left text-[10.5px] leading-[1.5]"
+                    style={{ fontFamily: "var(--vf-mono)", background: "rgba(251,191,36,.07)", border: "1px solid rgba(251,191,36,.16)", color: "#fbbf24" }}
+                  >
+                    <WifiOffIcon />
+                    {error}
+                  </div>
+                )}
+
+                {error && !networkError && (
                   <div
                     className="mb-3 rounded-[9px] px-3 py-2.5 text-left text-[10.5px] leading-[1.5]"
                     style={{ fontFamily: "var(--vf-mono)", background: "rgba(255,60,80,.06)", border: "1px solid rgba(255,60,80,.15)", color: "#ff6677" }}

@@ -106,3 +106,38 @@ def find_chromium_exe() -> str | None:
             return candidate
 
     return None
+
+
+def find_real_chrome_exe() -> str | None:
+    """Busca especificamente Google Chrome instalado en el sistema (nunca Chromium
+    de Playwright ni portable) -- para el modo "Chrome real" explicito, donde el
+    usuario quiere heredar SU perfil/sesion de Chrome, no un Chromium aislado.
+    Cross-platform: Windows y macOS. Devuelve None si no hay Chrome real instalado
+    (el llamador debe hacer fallback a find_chromium_exe() en ese caso)."""
+    local_appdata = os.environ.get("LOCALAPPDATA", "") or str(Path.home() / "AppData" / "Local")
+    appdata = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
+    program_dir = os.path.join(appdata, "VideoForge")
+
+    for candidate in [
+        os.path.join(program_dir, "Google", "Chrome", "Application", "chrome.exe"),
+        os.path.join(local_appdata, "Google", "Chrome", "Application", "chrome.exe"),
+        os.path.join(os.environ.get("PROGRAMFILES", r"C:\Program Files"), "Google", "Chrome", "Application", "chrome.exe"),
+        os.path.join(
+            os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"),
+            "Google",
+            "Chrome",
+            "Application",
+            "chrome.exe",
+        ),
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+
+    for candidate in [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None

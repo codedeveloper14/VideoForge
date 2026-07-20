@@ -9,3 +9,4 @@ class GentubeRunPromptsInSchema(Schema):
     output_dir = String(load_default="")
     ratio = String(load_default="1:1")
     quality = String(load_default="standard")
+    browser_mode = String(load_default="chromium")

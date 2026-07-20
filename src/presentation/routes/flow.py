@@ -117,6 +117,7 @@ def run_prompts():
             max_retries=max(1, min(5, int(data.get("max_retries", 2)))),
             ref_image=(data.get("reference_image") or "").strip() or None,
             auto_open=bool(data.get("auto_open")),
+            browser_mode=(data.get("browser_mode") or "auto").strip().lower(),
         )
         return jsonify(result)
     except ValueError as exc:
@@ -129,6 +130,11 @@ def run_prompts():
 def stop():
     flow_animation_service.stop()
     return jsonify({"ok": True})
+
+
+@flow_bp.post("/reset-lock")
+def reset_lock():
+    return jsonify(flow_animation_service.reset_lock())
 
 
 @flow_bp.post("/retry")

@@ -11,12 +11,14 @@ import {
   flowLogin,
   flowOpenAll,
   flowResetChromium,
+  flowResetLock,
   flowRetry,
   flowRunPrompts,
   flowStatus,
   flowStop,
 } from "../../api/flow";
-import type { FlowAccount, FlowBridgeAccount } from "../../api/flow";
+import type { FlowAccount, FlowBridgeAccount, FlowBrowserMode } from "../../api/flow";
+import type { ApiError } from "../../api/client";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
@@ -46,12 +48,14 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   const [maxRetries, setMaxRetries] = useState(2);
   const [referenceImage, setReferenceImage] = useState("");
   const [referenceImageName, setReferenceImageName] = useState("");
+  const [browserMode, setBrowserMode] = useState<FlowBrowserMode>("auto");
 
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<Progress>({ done: 0, total: 0, label: t("flowPanel.readyToGenerate") });
   const [logLines, setLogLines] = useState<string[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [error, setError] = useState("");
+  const [lockConflict, setLockConflict] = useState(false);
 
   const [accounts, setAccounts] = useState<FlowAccount[]>([]);
   const [noBrowserConnected, setNoBrowserConnected] = useState(false);
@@ -184,6 +188,12 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
       loadAccounts();
     }
     pollBridge();
+    // Sync inicial de "running" contra el backend real -- sin esto, si el batch
+    // sigue corriendo (o el lock quedo colgado) de una sesion anterior, el
+    // frontend arranca creyendo running=false: el poll de progreso nunca arranca,
+    // el boton "Detener" queda deshabilitado, y el usuario se queda sin forma de
+    // ver ni liberar el estado hasta que reintenta "Generar" y ve el 409.
+    pollOnce();
     const id = setInterval(pollBridge, 2500);
     return () => {
       clearInterval(id);
@@ -212,6 +222,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
 
   async function handleStart() {
     setError("");
+    setLockConflict(false);
     const list = prompts
       .split("\n")
       .map((l) => l.trim())
@@ -236,9 +247,37 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
         max_retries: maxRetries,
         reference_image: referenceImage || undefined,
         auto_open: true,
+        browser_mode: browserMode,
       });
       setRunning(true);
       pollOnce();
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.status === 409) {
+        setError(t("flowPanel.lockConflictError"));
+        setLockConflict(true);
+        // El 409 significa que el backend YA tiene un batch activo -- puede ser de
+        // esta misma sesion o de otra que quedo colgada; en ambos casos hay que
+        // reflejarlo en el estado local para que el boton "Detener" deje de estar
+        // deshabilitado (sin esto el usuario no tiene forma de intervenir).
+        setRunning(true);
+        pollOnce();
+      } else {
+        setError(apiErr.message);
+      }
+    }
+  }
+
+  async function handleForceResetLock() {
+    try {
+      await flowResetLock();
+      setLockConflict(false);
+      setError("");
+      setRunning(false);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     } catch (err) {
       setError((err as Error).message);
     }
@@ -248,6 +287,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
     try {
       await flowStop();
       setRunning(false);
+      setLockConflict(false);
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -546,6 +586,20 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
                   <SelectOption value={3}>{t("flowPanel.retriesMaxTolerance")}</SelectOption>
                 </Select>
               </div>
+              <div className="flex flex-col gap-2">
+                <label className="font-mono text-[10px] tracking-wide text-[var(--vf-m)]">
+                  {t("flowPanel.browserMode")}
+                </label>
+                <Select
+                  value={browserMode}
+                  onChange={(value) => setBrowserMode(value as FlowBrowserMode)}
+                  className="flow-select"
+                >
+                  <SelectOption value="auto">{t("flowPanel.browserModeAuto")}</SelectOption>
+                  <SelectOption value="chrome">{t("flowPanel.browserModeChrome")}</SelectOption>
+                  <SelectOption value="chromium">{t("flowPanel.browserModeChromium")}</SelectOption>
+                </Select>
+              </div>
             </div>
           </section>
 
@@ -628,6 +682,15 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
               </button>
             </div>
             <ErrorText message={error} />
+            {lockConflict && (
+              <button
+                type="button"
+                onClick={handleForceResetLock}
+                className="mt-1.5 font-mono text-[10.5px] text-[var(--vf-c2)] underline"
+              >
+                {t("flowPanel.forceResetLock")}
+              </button>
+            )}
             {running && noBrowserConnected && (
               <div
                 className="mt-2.5 rounded-[10px] border px-3 py-2 font-mono text-[10.5px]"

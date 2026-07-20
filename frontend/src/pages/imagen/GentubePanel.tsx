@@ -12,7 +12,7 @@ import {
   gentubeStatus,
   gentubeStop,
 } from "../../api/gentube";
-import type { GentubeProfile, GentubeStatus } from "../../api/gentube";
+import type { GentubeBrowserMode, GentubeProfile, GentubeStatus } from "../../api/gentube";
 import {
   ErrorText,
   GhostButton,
@@ -44,6 +44,7 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
   const [slots, setSlots] = useState(1);
   const [ratio, setRatio] = useState("1:1");
   const [quality, setQuality] = useState("standard");
+  const [browserMode, setBrowserMode] = useState<GentubeBrowserMode>("chromium");
 
   const [running, setRunning] = useState(false);
   const [statusData, setStatusData] = useState<GentubeStatus | null>(null);
@@ -136,6 +137,7 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
         output_dir: outputDir,
         ratio,
         quality,
+        browser_mode: browserMode,
       });
       setRunning(true);
       pollStatus();
@@ -342,6 +344,19 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
                 >
                   <SelectOption value="standard">{t("gentubePanel.qualityStandard")}</SelectOption>
                   <SelectOption value="high">{t("gentubePanel.qualityHigh")}</SelectOption>
+                </Select>
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-[var(--vf-muted)]">
+                  {t("gentubePanel.browserMode")}
+                </label>
+                <Select
+                  value={browserMode}
+                  onChange={(v) => setBrowserMode(v as GentubeBrowserMode)}
+                  className="w-full rounded-md border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),0.04)] px-2 py-1.5 font-mono text-xs text-[var(--vf-text)] outline-none"
+                >
+                  <SelectOption value="chromium">{t("gentubePanel.browserModeChromium")}</SelectOption>
+                  <SelectOption value="chrome">{t("gentubePanel.browserModeChrome")}</SelectOption>
                 </Select>
               </div>
             </div>

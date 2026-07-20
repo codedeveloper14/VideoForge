@@ -48,6 +48,14 @@ def _worker(client, queue, total, success_count, lock, output_dir, pending_file)
                         success_count[0] += 1
             else:
                 logger.warning("[%s] [%03d] Sin URL de video", client.label, idx)
+        except grok_service.GrokPremiumRequiredError:
+            # Bloqueo de cuenta/plan, no un error puntual de esta imagen -- el
+            # mensaje amigable ya se logueo dentro de grok_service.animate().
+            # No tiene sentido seguir intentando mas imagenes con esta misma
+            # cuenta (van a fallar igual); dejamos que otros slots/cuentas
+            # (si los hay) sigan procesando el resto de la cola.
+            logger.error("[%s] Deteniendo esta cuenta (sin Premium activo).", client.label)
+            break
         except Exception as exc:
             logger.error("[%s] [%03d]: %s", client.label, idx, exc)
         finally:

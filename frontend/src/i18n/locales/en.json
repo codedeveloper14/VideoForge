@@ -36,7 +36,8 @@
     "newPassword": "New password",
     "saving": "Saving…",
     "savePassword": "Save password →",
-    "sessionExpiredNotice": "Your session expired due to inactivity. Please sign in again."
+    "sessionExpiredNotice": "Your session expired due to inactivity. Please sign in again.",
+    "networkError": "You don't have an internet connection. Please check your network and try again."
   },
   "sessionWarning": {
     "title": "Your session is about to expire",
@@ -181,7 +182,7 @@
     "comingSoon": "Coming soon."
   },
   "providerPanel": {
-    "chromeOpenedFor": "Chrome opened for {{account}} — sign in and close the window.",
+    "chromeOpenedFor": "Chrome opened for {{account}} — sign in and wait for the window to close on its own.",
     "confirmDeleteSession": "Delete session for {{account}}?",
     "confirmDeleteSessionTitle": "Delete session",
     "deleteSessionButton": "Delete",
@@ -310,6 +311,12 @@
     "retries": "Retries",
     "retriesBalanced": "2 · balanced",
     "retriesMaxTolerance": "3 · max tolerance",
+    "browserMode": "Browser",
+    "browserModeAuto": "Automatic",
+    "browserModeChrome": "Real Chrome (1 account)",
+    "browserModeChromium": "Chromium (multi-account)",
+    "lockConflictError": "A generation is already in progress. If you think it got stuck from a previous session, you can force a reset.",
+    "forceResetLock": "Force reset",
     "startGeneration": "⚡ Start generation",
     "stop": "⏹ Stop",
     "bridgeStatusTitle": "Google Flow Status",
@@ -610,6 +617,9 @@
     "quality": "Quality",
     "qualityStandard": "Standard",
     "qualityHigh": "High",
+    "browserMode": "Browser",
+    "browserModeChrome": "Real Chrome (1 account)",
+    "browserModeChromium": "Chromium (multi-account)",
     "promptsTitleShort": "// Prompts",
     "promptsCount": "{{count}} prompts",
     "promptPlaceholderShort": "One prompt per line.",

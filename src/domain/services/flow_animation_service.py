@@ -31,6 +31,7 @@ state = {
     "last_error": None,
     "output_dir": None,
     "started_at": 0.0,
+    "last_activity": 0.0,
     "accounts": [
         {"index": i, "ok": False, "email": None, "jobs": 0} for i in range(flow_service.NUM_ACCOUNTS)
     ],
@@ -39,25 +40,55 @@ lock = threading.Lock()
 
 # Salvavidas: si un batch se cuelga (red caida, browser sin responder, etc.) sin
 # levantar excepcion, "running" quedaria en True para siempre y el usuario nunca
-# podria reintentar. Se libera solo tras este tope, sin necesidad de "Detener".
-MAX_RUN_SECONDS = 1800
+# podria reintentar. Dos condiciones lo liberan, la que ocurra primero:
+# 1. INACTIVITY_TIMEOUT_SECONDS sin ninguna linea de log nueva (heartbeat real de
+#    que el batch sigue trabajando) -- detecta un cuelgue rapido sin penalizar
+#    tandas largas de cientos de prompts que siguen progresando.
+# 2. MAX_RUN_SECONDS como techo absoluto de seguridad, por si algun camino del
+#    batch deja de loguear sin quedar realmente colgado.
+INACTIVITY_TIMEOUT_SECONDS = 180
+MAX_RUN_SECONDS = 21600  # 6h -- backstop puro, la inactividad ya cubre el caso "colgado"
 
 
 def _release_if_stale() -> None:
     went_stale = False
+    reason = ""
     with lock:
         started = state.get("started_at") or 0.0
-        if state["running"] and started and (time.time() - started) > MAX_RUN_SECONDS:
-            state.update(running=False, step="idle", last_error="Tiempo de espera agotado")
+        last_activity = state.get("last_activity") or started
+        now = time.time()
+        if state["running"] and started:
+            if last_activity and (now - last_activity) > INACTIVITY_TIMEOUT_SECONDS:
+                reason = "Generacion sin actividad - liberada automaticamente"
+            elif (now - started) > MAX_RUN_SECONDS:
+                reason = "Tiempo de espera agotado"
+        if reason:
+            state.update(running=False, step="idle", last_error=reason)
             _stop_event.set()
             went_stale = True
     if went_stale:
-        log("[Flow] Lock de generacion liberado automaticamente por timeout")
+        log(f"[Flow] Lock de generacion liberado automaticamente ({reason})")
+
+
+def reset_lock() -> dict:
+    """Libera manualmente el flag "running" sin esperar el auto-release por
+    inactividad -- para cuando el usuario ve el 409 "Ya hay una generacion en
+    curso" (por ejemplo tras recargar la app mientras un batch quedo colgado en
+    otra sesion) y quiere forzar el reinicio del estado desde la UI."""
+    was_running = False
+    with lock:
+        was_running = state["running"]
+        state.update(running=False, step="idle")
+    _stop_event.set()
+    if was_running:
+        log("[Flow] Lock de generacion liberado manualmente por el usuario")
+    return {"ok": True, "was_running": was_running}
 
 
 def log(msg: str) -> None:
     with lock:
         state["log"].append(msg)
+        state["last_activity"] = time.time()
         if len(state["log"]) > 600:
             state["log"] = state["log"][-600:]
     logger.info("[flow] %s", msg)
@@ -435,12 +466,17 @@ def record_rl_hit(account_hash: str, acc_idx: int) -> bool:
     return False
 
 
-def auto_open_browsers() -> None:
+def auto_open_browsers(force: bool = False) -> None:
     """Abre Chromium (Playwright) para todos los slots activos que tengan cookie.
     Playwright es la via primaria: se abre siempre, cuenta por cuenta, salvo que
     esa cuenta puntual ya tenga una sesion viva conectada al bridge (Chrome real
     u otro Playwright detectado via el sidecar de _on_bridge_session) -- eso evita
-    abrir dos navegadores logueados en el mismo Google account a la vez."""
+    abrir dos navegadores logueados en el mismo Google account a la vez.
+
+    force=True (modo "chromium" explicito del usuario): abre Chromium para todos
+    los slots activos igual, aunque ya haya una sesion de Chrome real conectada --
+    para cuando el usuario quiere multi-cuenta en paralelo via Chromium en vez de
+    dejar que el Chrome real ya conectado absorba ese slot."""
     connected_all = set(flow_bridge.get_connected_accounts())
 
     with _rotation_lock:
@@ -449,9 +485,10 @@ def auto_open_browsers() -> None:
     for idx in active:
         if not flow_service.load_cookie(idx):
             continue
-        bridge_sess = _load_bridge_session(idx)
-        if bridge_sess and bridge_sess.get("account_hash") in connected_all:
-            continue
+        if not force:
+            bridge_sess = _load_bridge_session(idx)
+            if bridge_sess and bridge_sess.get("account_hash") in connected_all:
+                continue
         with _chromium_lock:
             existing = _chromium_procs.get(idx)
             if existing is not None and isinstance(existing, threading.Thread) and existing.is_alive():
@@ -825,6 +862,7 @@ def start_run(
     max_retries: int,
     ref_image: str | None = None,
     auto_open: bool = False,
+    browser_mode: str = "auto",
 ) -> dict:
     global _batch_id
     if isinstance(prompts, str):
@@ -835,11 +873,35 @@ def start_run(
     out_dir = (out_dir or "").strip()
     if not out_dir:
         raise ValueError("output_dir requerido")
+    if browser_mode not in ("auto", "chrome", "chromium"):
+        browser_mode = "auto"
 
     _release_if_stale()
+    # Check-y-set del lock en UNA sola seccion critica: si el "if running: raise" y
+    # el "running = True" viven en dos with-lock separados, dos threads pueden pasar
+    # el check antes de que cualquiera marque running=True (TOCTOU) -- exactamente
+    # el escenario de dos /run-prompts simultaneas (doble click, dos pestañas)
+    # arrancando dos batches en paralelo en vez de que el segundo reciba el 409.
     with lock:
         if state["running"]:
             raise RuntimeError("Ya hay una generacion en curso")
+        _batch_id += 1
+        my_batch_id = _batch_id
+        state.update(
+            {
+                "running": True,
+                "step": "running",
+                "progress": 0,
+                "total": len(prompts),
+                "images_saved": 0,
+                "last_error": None,
+                "output_dir": out_dir,
+                "log": [],
+                "batch_id": my_batch_id,
+                "started_at": time.time(),
+                "last_activity": time.time(),
+            }
+        )
 
     # Cada click en "Generar" es una tanda NUEVA, no una reanudacion de la anterior.
     # _enqueue_missing() se salta indices cuyo flow_{i+1:04d}.png ya existe en disco
@@ -858,25 +920,14 @@ def start_run(
             pass
 
     if auto_open:
-        auto_open_browsers()
-
-    with lock:
-        _batch_id += 1
-        my_batch_id = _batch_id
-        state.update(
-            {
-                "running": True,
-                "step": "running",
-                "progress": 0,
-                "total": len(prompts),
-                "images_saved": 0,
-                "last_error": None,
-                "output_dir": out_dir,
-                "log": [],
-                "batch_id": my_batch_id,
-                "started_at": time.time(),
-            }
-        )
+        if browser_mode == "chrome":
+            log(
+                "[Flow] Modo 'Chrome real' seleccionado - no se abren perfiles "
+                "Chromium, esperando que el usuario conecte su Chrome con la "
+                "extension instalada"
+            )
+        else:
+            auto_open_browsers(force=(browser_mode == "chromium"))
 
     _last_batch.clear()
     _last_batch.update(
@@ -887,13 +938,14 @@ def start_run(
             "model": model,
             "retries": max_retries,
             "ref_image": ref_image,
+            "browser_mode": browser_mode,
         }
     )
 
     threading.Thread(
         target=_run_batch,
         args=(prompts, out_dir, slots, aspect, model, max_retries, ref_image),
-        kwargs={"auto_open": auto_open},
+        kwargs={"auto_open": auto_open, "browser_mode": browser_mode},
         daemon=True,
     ).start()
     return {"ok": True, "total": len(prompts)}
@@ -979,6 +1031,7 @@ def _run_batch(
     ref_image: str | None = None,
     start_index: int = 0,
     auto_open: bool = False,
+    browser_mode: str = "auto",
 ) -> None:
     """Bridge-mode: el bearer viene de la extension via el cache del bridge (no de
     cookies en disco); semaforo por cuenta (1 request activa a la vez, evita 401/403
@@ -986,7 +1039,16 @@ def _run_batch(
     rondas hasta completar el 100%; 400 UNSAFE marca el prompt como no reintentable."""
     try:
         _run_batch_inner(
-            prompts, out_dir, slots, aspect, model, max_retries, ref_image, start_index, auto_open=auto_open
+            prompts,
+            out_dir,
+            slots,
+            aspect,
+            model,
+            max_retries,
+            ref_image,
+            start_index,
+            auto_open=auto_open,
+            browser_mode=browser_mode,
         )
     except Exception as exc:
         with lock:
@@ -1007,6 +1069,7 @@ def _run_batch_inner(
     ref_image: str | None = None,
     start_index: int = 0,
     auto_open: bool = False,
+    browser_mode: str = "auto",
 ) -> None:
     log(f"[Flow] ===== BATCH INNER START: {len(prompts)} prompts, out={out_dir[:60]} =====")
     _stop_event.clear()
@@ -1106,11 +1169,12 @@ def _run_batch_inner(
 
     flow_bridge.start_bridge(log)
 
-    if auto_open:
+    if auto_open and browser_mode != "chrome":
         # Playwright es la via primaria: se abre de inmediato, sin esperar a que el
         # usuario conecte su Chrome real (auto_open_browsers ya evita duplicar
-        # sesion por cuenta via el sidecar de _on_bridge_session).
-        auto_open_browsers()
+        # sesion por cuenta via el sidecar de _on_bridge_session, salvo modo
+        # "chromium" explicito que fuerza la apertura igual).
+        auto_open_browsers(force=(browser_mode == "chromium"))
 
     # ── Esperar conexion de la extension al bridge (via WS o HTTP polling) ──
     # background.js hace GET /flow-generate-poll cada 1s; el WS se registra cuando
@@ -1471,16 +1535,37 @@ def _run_batch_inner(
         return cached or acc.get("bearer", "")
 
     def _refresh_bearer(acc: dict, bad_bearer: str = "") -> bool:
-        """Intenta obtener bearer FRESCO, ignorando el que acaba de fallar."""
+        """Intenta obtener bearer FRESCO, ignorando el que acaba de fallar.
+
+        Las cuentas "Chrome real"/bridge (accounts_ok con cookie="") dependen
+        100% de que la extension reenvie un bearer nuevo via flow-register-bearer
+        -- flow_service.get_session() con cookie vacia siempre le va a devolver
+        401 a Google, asi que ese fallback es un callejon sin salida para ellas
+        y ni vale la pena golpear la red. Si esto se ve seguido en el log, la
+        extension dejo de refrescar el bearer de esa cuenta (sesion realmente
+        expirada en esa pestaña de Chrome, o la pestaña se cerro/quedo inactiva)."""
         cached = flow_bridge.get_cached_bearer(acc["account_hash"])
         if cached and cached != bad_bearer:
             acc["bearer"] = cached
             return True
+        if not acc.get("cookie"):
+            logger.warning(
+                "[Flow] 401 y sin bearer fresco en cache del bridge para %s (cuenta 'Chrome real' sin "
+                "cookie en disco) -- la extension no esta reenviando un bearer nuevo para esta cuenta, "
+                "revisar que la pestaña de labs.google/fx/tools/flow siga abierta y logueada",
+                acc["account_hash"][:16],
+            )
+            return False
         with acc["bearer_lock"]:
             new_b = flow_service.get_session(acc["cookie"]).get("bearer", "")
             if new_b and new_b != bad_bearer:
                 acc["bearer"] = new_b
                 return True
+            logger.warning(
+                "[Flow] 401 y flow_service.get_session() con cookie de disco tampoco devolvio bearer "
+                "para %s -- la cookie guardada probablemente expiro, hay que re-loguear esa cuenta",
+                acc["account_hash"][:16],
+            )
         return False
 
     # Timestamp del ultimo request por cuenta -- para espaciar requests minimo 1.5s
@@ -1721,6 +1806,13 @@ def _run_batch_inner(
 
                 elif status == 401:
                     bad_bearer = bearer
+                    still_connected = acc["account_hash"] in flow_bridge.get_connected_accounts()
+                    logger.warning(
+                        "[Flow] 401 de Google generando para %s (bridge_conectado=%s, tenia_cookie_disco=%s)",
+                        acc["account_hash"][:16],
+                        still_connected,
+                        bool(acc.get("cookie")),
+                    )
                     got_new = _refresh_bearer(acc, bad_bearer=bad_bearer)
                     if got_new:
                         log(f"{label} 401 bearer renovado - reintentando en 3s")

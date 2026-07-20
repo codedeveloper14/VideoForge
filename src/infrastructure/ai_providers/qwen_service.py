@@ -88,6 +88,35 @@ def qwen_headers(token: str, cookie_header: str = "", session_meta: dict | None 
     return h
 
 
+class QwenWafBlockedError(Exception):
+    """La request fue interceptada por el WAF de Alibaba antes de llegar a la
+    logica de negocio real. Confirmado (ver memoria de investigacion
+    2026-07-18): create_chat puede devolver HTTP 200 con un HTML de challenge
+    (meta tags aliyun_waf_aa/aliyun_waf_bb) en vez de JSON -- lo que revienta
+    como JSONDecodeError si no se detecta antes -- o un 403 directo. En ambos
+    casos no tiene sentido reintentar con la misma cookie/token."""
+
+
+def _is_waf_blocked(status_code: int, headers, body_text: str) -> bool:
+    """Distingue un bloqueo del WAF de Alibaba (inutil reintentar con la misma
+    sesion) de otros errores HTTP transitorios (401 token vencido, 429 rate
+    limit, 5xx, etc.)."""
+    body_lower = (body_text or "")[:2000].lower()
+    if "aliyun_waf" in body_lower or "waf_verify" in body_lower:
+        return True
+    if status_code == 403:
+        return True
+    try:
+        content_type = str((headers or {}).get("content-type") or "").lower()
+    except Exception:
+        content_type = ""
+    # create_chat/submit_completion siempre devuelven JSON -- un 200 con HTML
+    # es el challenge de Alibaba disfrazado de respuesta exitosa.
+    if status_code == 200 and "text/html" in content_type:
+        return True
+    return False
+
+
 # ─────────────────────────────────────────────────────────────────
 # Cuentas / sesiones
 # ─────────────────────────────────────────────────────────────────
@@ -315,9 +344,14 @@ def create_chat(token: str, chat_type: str = "i2v", cookie_header: str = "", ses
     resp = qwen_post(
         QWEN_CHAT_NEW_URL, headers=qwen_headers(token, cookie_header, session_meta), json=payload, timeout=30
     )
+    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+        raise QwenWafBlockedError()
     if resp.status_code != 200:
         raise RuntimeError(f"create_chat HTTP {resp.status_code}: {resp.text[:180]}")
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as exc:
+        raise QwenWafBlockedError() from exc
     chat_id = ((data.get("data") or {}).get("id") or "").strip()
     if not data.get("success") or not chat_id:
         raise RuntimeError(f"create_chat invalid response: {json.dumps(data)[:220]}")
@@ -450,11 +484,16 @@ def submit_completion(
     h = qwen_headers(token, cookie_header, session_meta)
     h["X-Request-Id"] = str(uuid.uuid4())
     resp = qwen_post(url, headers=h, json=payload, timeout=40)
+    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+        raise QwenWafBlockedError()
     if resp.status_code == 401:
         raise RuntimeError("Token invalido/expirado")
     if resp.status_code != 200:
         raise RuntimeError(f"completion HTTP {resp.status_code}: {resp.text[:200]}")
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception as exc:
+        raise QwenWafBlockedError() from exc
     if not data.get("success"):
         d = data.get("data") or {}
         code = (d.get("code") or "").lower()

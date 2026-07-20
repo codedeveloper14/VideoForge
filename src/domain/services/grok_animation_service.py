@@ -80,7 +80,7 @@ def start_account_login(account_name: str) -> None:
     grok_service.ensure_accounts_setup(accounts_dir)
     folder = grok_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    logger.info("Abriendo Chrome — inicia sesion en grok.com y cierra la ventana.")
+    logger.info("Abriendo Chrome — inicia sesion en grok.com y espera a que la ventana se cierre sola.")
 
     def _run():
         ok, message = grok_service.login_account_managed(folder, folder.name)

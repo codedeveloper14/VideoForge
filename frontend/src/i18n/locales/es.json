@@ -36,7 +36,8 @@
     "newPassword": "Nueva contraseña",
     "saving": "Guardando…",
     "savePassword": "Guardar contraseña →",
-    "sessionExpiredNotice": "Tu sesión expiró por inactividad. Inicia sesión de nuevo."
+    "sessionExpiredNotice": "Tu sesión expiró por inactividad. Inicia sesión de nuevo.",
+    "networkError": "No tienes conexión a internet. Por favor, verifica tu red e inténtalo nuevamente."
   },
   "sessionWarning": {
     "title": "Tu sesión está por expirar",
@@ -285,7 +286,7 @@
     "complexityHigh": "Alta"
   },
   "providerPanel": {
-    "chromeOpenedFor": "Chrome abierto para {{account}} — inicia sesión y cierra la ventana.",
+    "chromeOpenedFor": "Chrome abierto para {{account}} — inicia sesión y espera a que la ventana se cierre sola.",
     "confirmDeleteSession": "¿Borrar sesión de {{account}}?",
     "confirmDeleteSessionTitle": "Borrar sesión",
     "deleteSessionButton": "Borrar",
@@ -414,6 +415,12 @@
     "retries": "Reintentos",
     "retriesBalanced": "2 · equilibrado",
     "retriesMaxTolerance": "3 · máx. tolerancia",
+    "browserMode": "Navegador",
+    "browserModeAuto": "Automático",
+    "browserModeChrome": "Chrome real (1 cuenta)",
+    "browserModeChromium": "Chromium (multi-cuenta)",
+    "lockConflictError": "Ya hay una generación en curso. Si crees que quedó colgada de una sesión anterior, podés forzar el reinicio.",
+    "forceResetLock": "Forzar reinicio",
     "startGeneration": "⚡ Iniciar generación",
     "stop": "⏹ Detener",
     "bridgeStatusTitle": "Estado de Google Flow",
@@ -714,6 +721,9 @@
     "quality": "Calidad",
     "qualityStandard": "Estándar",
     "qualityHigh": "Alta",
+    "browserMode": "Navegador",
+    "browserModeChrome": "Chrome real (1 cuenta)",
+    "browserModeChromium": "Chromium (multi-cuenta)",
     "promptsTitleShort": "// Prompts",
     "promptsCount": "{{count}} prompts",
     "promptPlaceholderShort": "Un prompt por línea.",

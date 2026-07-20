@@ -22,6 +22,8 @@ export interface GentubeImagesResult {
   images?: string[];
 }
 
+export type GentubeBrowserMode = "chrome" | "chromium";
+
 export interface GentubeRunPromptsParams {
   prompts: string[];
   slots?: number;
@@ -29,6 +31,7 @@ export interface GentubeRunPromptsParams {
   output_dir?: string;
   ratio?: string;
   quality?: string;
+  browser_mode?: GentubeBrowserMode;
 }
 
 export function gentubeStatus() {
@@ -54,6 +57,7 @@ export function gentubeRunPrompts({
   output_dir = "",
   ratio = "1:1",
   quality = "standard",
+  browser_mode = "chromium",
 }: GentubeRunPromptsParams) {
   return api
     .post<{ ok: boolean }>("/gentube/run-prompts", {
@@ -63,6 +67,7 @@ export function gentubeRunPrompts({
       output_dir,
       ratio,
       quality,
+      browser_mode,
     })
     .then((r) => r.data);
 }
