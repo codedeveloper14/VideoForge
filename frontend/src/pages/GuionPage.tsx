@@ -5,6 +5,7 @@ import { analyzeImage, loadScript, n8nProxy, saveScript } from "../api/script";
 import type { N8nProxyResult } from "../api/script";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { GuionHeaderArt } from "../components/GuionHeaderArt";
+import { useGenerationStatus } from "../context/GenerationStatusContext";
 
 type ActivePanel = "prompts" | "guion";
 type PromptMode = "general" | "stick" | "ultrarealismo";
@@ -38,6 +39,7 @@ export default function GuionPage() {
   const [refAnalyzing, setRefAnalyzing] = useState(false);
   const refInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const genStatus = useGenerationStatus();
 
   useEffect(() => {
     if (project) {
@@ -118,6 +120,7 @@ export default function GuionPage() {
     setLoading(true);
     setError("");
     setResult(null);
+    genStatus.start("guion:" + (project || "sin-proyecto"), "Guión", "Generando escenas y prompts...");
     try {
       const data = await n8nProxy({
         guion,
@@ -128,8 +131,10 @@ export default function GuionPage() {
       });
       setResult(data);
       setActivePanel("prompts");
+      genStatus.finish("guion:" + (project || "sin-proyecto"), true, "Guión procesado.");
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish("guion:" + (project || "sin-proyecto"), false, (err as Error).message);
     } finally {
       setLoading(false);
     }

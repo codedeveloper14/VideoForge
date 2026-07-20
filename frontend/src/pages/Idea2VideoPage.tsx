@@ -10,6 +10,7 @@ import {
 import type { AutopilotStatus } from "../api/idea2video";
 import { listVoices } from "../api/voice";
 import type { Voice } from "../api/voice";
+import { useGenerationStatus } from "../context/GenerationStatusContext";
 
 const VOICE_ID_KEY = "vf_i2v_voice_id";
 
@@ -354,6 +355,8 @@ export default function Idea2VideoPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<AutopilotStatus | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const genStatus = useGenerationStatus();
+  const AUTOPILOT_GEN_ID = "idea2video:autopilot";
 
   useEffect(() => {
     setVoicesLoading(true);
@@ -388,8 +391,14 @@ export default function Idea2VideoPage() {
         const data = await getAutopilotStatus(jobId as string);
         if (cancelled) return;
         setStatus(data);
+        const done = PHASE_ORDER.filter((p) => data.phases?.[p] === "done" || data.phases?.[p] === "skip").length;
+        genStatus.update(AUTOPILOT_GEN_ID, {
+          pct: Math.round((done / PHASE_ORDER.length) * 100),
+          message: data.phase || (data.status === "done" ? "Completado." : "Procesando..."),
+        });
         if (data.status === "done" || data.status === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
+          genStatus.finish(AUTOPILOT_GEN_ID, data.status === "done", data.error || "Video listo.");
         }
       } catch (err) {
         if (!cancelled) setError((err as Error).message);
@@ -402,6 +411,7 @@ export default function Idea2VideoPage() {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, jobId]);
 
   function fileToBase64(file: File): Promise<string> {
@@ -441,20 +451,24 @@ export default function Idea2VideoPage() {
     setError("");
     setGeneratingScript(true);
     setStep(2);
+    genStatus.start("idea2video:guion", "Idea → Guión", "Generando guión...");
     try {
       const data = await generateScript({ idea, dur, style, tone, audience });
       if (!data.ok) {
         setError(data.error || "No se pudo generar el guión.");
         setStep(1);
+        genStatus.finish("idea2video:guion", false, data.error || "No se pudo generar el guión.");
         return;
       }
       setScript(data.script || "");
       setTitle(data.title || idea.slice(0, 60));
       setScenesInfo({ scenes: data.scenes, words: data.words, dur: data.dur });
       setStep(3);
+      genStatus.finish("idea2video:guion", true, "Guión listo.");
     } catch (err) {
       setError((err as Error).message);
       setStep(1);
+      genStatus.finish("idea2video:guion", false, (err as Error).message);
     } finally {
       setGeneratingScript(false);
     }
@@ -471,6 +485,7 @@ export default function Idea2VideoPage() {
     }
     setError("");
     setStarting(true);
+    genStatus.start(AUTOPILOT_GEN_ID, "Idea → Video · Autopilot", "Iniciando...");
     try {
       const data = await startAutopilot({
         script,
@@ -481,6 +496,7 @@ export default function Idea2VideoPage() {
       });
       if (data.error) {
         setError(data.error);
+        genStatus.finish(AUTOPILOT_GEN_ID, false, data.error);
         return;
       }
       setJobId(data.job_id);
@@ -488,6 +504,7 @@ export default function Idea2VideoPage() {
       setStep(4);
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish(AUTOPILOT_GEN_ID, false, (err as Error).message);
     } finally {
       setStarting(false);
     }

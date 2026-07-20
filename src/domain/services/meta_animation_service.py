@@ -517,7 +517,8 @@ def _batch_worker_vibes(proj_dir: Path, prompt: str, slots: int, timeout_sec: in
             _state.update(finished=True, running=False)
             return
 
-    account_hash = connected[0]
+    if len(connected) > 1:
+        _log(f"[OK] {len(connected)} cuentas de vibes.ai conectadas: reparto round-robin entre ellas.")
     session = requests.Session()
     session.headers.update({"User-Agent": _META_UA, "Referer": "https://vibes.ai/"})
     downloaded_total = 0
@@ -539,6 +540,7 @@ def _batch_worker_vibes(proj_dir: Path, prompt: str, slots: int, timeout_sec: in
             _log(f"[ERROR] [{i + 1}/{total}] No se pudo leer {img_meta.get('name')}: {exc}")
             return
         mime = mimetypes.guess_type(img_path.name)[0] or "image/jpeg"
+        account_hash = connected[i % len(connected)]
 
         rid = str(uuid_lib.uuid4())
         ev = vibes_bridge.register_result_waiter(rid)
@@ -594,8 +596,12 @@ def _batch_worker_vibes(proj_dir: Path, prompt: str, slots: int, timeout_sec: in
             except Exception as exc:
                 _log(f"[ERROR] [{i + 1}/{total}] Descarga fallo para video {j + 1}: {exc}")
 
-    concurrency = min(3, total) or 1
-    _log(f"Enviando hasta {concurrency} generacion(es) en paralelo (como meta.ai)...")
+    # Sin tope artificial: el "envio" real ya lo serializa vibes_bridge.js con su
+    # propia sendQueue (un solo compositor). Limitar los hilos de Python aqui solo
+    # provoca que la imagen N+1 no se encole hasta que una de las N anteriores
+    # termine su generacion COMPLETA (no solo el envio), causando pausas largas.
+    concurrency = total or 1
+    _log(f"Enviando {total} generacion(es) (envio serializado por la extension, espera en paralelo)...")
     with ThreadPoolExecutor(max_workers=concurrency) as ex:
         futures = [ex.submit(process_one, i, img_meta) for i, img_meta in enumerate(images)]
         for f in as_completed(futures):

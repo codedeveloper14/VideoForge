@@ -16,6 +16,7 @@ import Step3Render from "./render/Step3Render";
 import type { RenderJobState } from "./render/Step3Render";
 import { WizardProgress } from "./render/wizardShared";
 import { PipelineStepper } from "../components/PipelineStepper";
+import { useGenerationStatus } from "../context/GenerationStatusContext";
 
 type WizardStep = 1 | 2 | 3;
 
@@ -56,6 +57,8 @@ export default function RenderPage() {
   const [job, setJob] = useState<RenderJobState | null>(null);
   const [downloadUrl, setDownloadUrl] = useState("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const genStatus = useGenerationStatus();
+  const genIdRef = useRef("");
 
   const usesProjectFlow = renderMode !== "images";
 
@@ -87,12 +90,18 @@ export default function RenderPage() {
       try {
         const data = await getRenderStatus(jobId);
         setJob((prev) => ({ ...prev, ...data }));
+        genStatus.update(genIdRef.current, {
+          pct: typeof data.progreso === "number" ? Math.round(data.progreso) : null,
+          message: data.mensaje || "Renderizando...",
+        });
         if (data.estado === "completado" || data.estado === "error") {
           if (pollRef.current) clearInterval(pollRef.current);
+          genStatus.finish(genIdRef.current, data.estado === "completado", data.mensaje || data.error);
         }
       } catch (err) {
         setJob((prev) => (prev ? { ...prev, estado: "error", error: (err as Error).message } : prev));
         if (pollRef.current) clearInterval(pollRef.current);
+        genStatus.finish(genIdRef.current, false, (err as Error).message);
       }
     }, 2000);
   }
@@ -130,6 +139,8 @@ export default function RenderPage() {
   async function handleGenerate() {
     setSubmitting(true);
     setStep1Error("");
+    genIdRef.current = "render:" + (project || "quick");
+    genStatus.start(genIdRef.current, "Render", "Iniciando...");
     try {
       if (usesProjectFlow) {
         const data = await startRender({
@@ -173,6 +184,7 @@ export default function RenderPage() {
     } catch (err) {
       const error = err as Error & { limit_reached?: boolean };
       setStep1Error(error.message || "Ocurrió un error al iniciar el render.");
+      genStatus.finish(genIdRef.current, false, error.message || "Error al iniciar el render.");
       setStep(2);
     } finally {
       setSubmitting(false);

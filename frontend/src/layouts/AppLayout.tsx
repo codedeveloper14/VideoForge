@@ -7,6 +7,7 @@ import { WorkspaceProvider, useWorkspace, type PipelinePage } from "../context/W
 import { createProject, listProjects } from "../api/projects";
 import type { Project } from "../types";
 import ActiveJobsPopup from "../components/ActiveJobsPopup";
+import FloatingGenerationChips from "../components/FloatingGenerationChips";
 
 const NO_SIDEBAR_ROUTES = [
   "/app/idea2video",
@@ -759,6 +760,8 @@ function AppLayoutInner() {
         )}
         <Outlet />
       </main>
+
+      <FloatingGenerationChips />
     </div>
   );
 }

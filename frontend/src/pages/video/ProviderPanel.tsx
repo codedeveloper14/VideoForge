@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useGenerationStatus } from "../../context/GenerationStatusContext";
 import {
   SectionCard,
   ProgressBar,
@@ -138,6 +139,9 @@ export default function ProviderPanel({
   const galleryTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentProjectRef = useRef(project);
   const totalImagesRef = useRef(0);
+  const genStatus = useGenerationStatus();
+  const genIdRef = useRef(`video:${providerLabel}:${project}`);
+  genIdRef.current = `video:${providerLabel}:${project}`;
 
   const setOption = useCallback((key: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
@@ -224,9 +228,15 @@ export default function ProviderPanel({
       .then((d) => {
         setVideos(d.videos || []);
         const total = d.total || totalImagesRef.current;
-        setProgress({ done: d.done || 0, total });
+        const done = d.done || 0;
+        setProgress({ done, total });
+        genStatus.update(genIdRef.current, {
+          pct: total > 0 ? Math.round((done / total) * 100) : null,
+          message: total > 0 ? `${done}/${total} video(s) listos` : "Generando...",
+        });
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
 
   const pollLog = useCallback(() => {
@@ -242,9 +252,11 @@ export default function ProviderPanel({
           stopPolling();
           pollGallery();
           appendLog("Proceso completado.");
+          genStatus.finish(genIdRef.current, true, "Completado.");
         }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, pollGallery]);
 
   function startPolling() {
@@ -265,6 +277,7 @@ export default function ProviderPanel({
       }
       setRunning(false);
       stopPolling();
+      genStatus.finish(genIdRef.current, false, "Detenido por el usuario.");
       return;
     }
 
@@ -288,6 +301,8 @@ export default function ProviderPanel({
         : `Generando ${slots} video(s) desde el prompt en el proyecto: ${project}`,
     );
 
+    genStatus.start(genIdRef.current, `Video · ${providerLabel}`, "Iniciando...");
+
     try {
       const d = await api.iniciar({
         project_name: project,
@@ -299,11 +314,13 @@ export default function ProviderPanel({
       setProjectDir(d.project_dir || "");
       setRunning(true);
       appendLog(`Iniciado — proyecto: ${d.project_name || project} · pid: ${d.pid ?? "?"}`);
+      genStatus.update(genIdRef.current, { message: `0/${total} completados` });
       logOffsetRef.current = 0;
       startPolling();
     } catch (err) {
       setError((err as Error).message);
       appendLog(`Error: ${(err as Error).message}`);
+      genStatus.finish(genIdRef.current, false, (err as Error).message);
     }
   }
 

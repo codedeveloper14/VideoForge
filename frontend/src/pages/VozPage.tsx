@@ -9,6 +9,7 @@ import { Select, SelectOption } from "../components/Select";
 import type { MergeAudioResult, Voice, VoiceFragment } from "../api/voice";
 import { PipelineStepper } from "../components/PipelineStepper";
 import { HeaderArt } from "../components/HeaderArt";
+import { useGenerationStatus } from "../context/GenerationStatusContext";
 
 function WaveformPlayer({ src }: { src?: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -72,6 +73,7 @@ export default function VozPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [project, setProject] = useState(searchParams.get("project") || "");
+  const genStatus = useGenerationStatus();
 
   const [tab, setTab] = useState<Tab>("estudio");
   const [provider, setProvider] = useState<Provider>("ivr");
@@ -165,15 +167,19 @@ export default function VozPage() {
     setGenerating(true);
     setError("");
     setMaster(null);
+    genStatus.start("voz:" + (project || "sin-proyecto"), "Voz", "Generando fragmentos de audio...");
     try {
       const data = await generateVoice({ projectName: project, voiceId, data: text });
       if (data.error) {
         setError(data.error);
+        genStatus.finish("voz:" + (project || "sin-proyecto"), false, data.error);
       } else {
         setFragments(data.fragments || []);
+        genStatus.finish("voz:" + (project || "sin-proyecto"), true, "Fragmentos listos.");
       }
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish("voz:" + (project || "sin-proyecto"), false, (err as Error).message);
     } finally {
       setGenerating(false);
     }
@@ -183,11 +189,14 @@ export default function VozPage() {
     if (!fragments || fragments.length === 0) return;
     setMerging(true);
     setError("");
+    genStatus.start("voz-fusion:" + (project || "sin-proyecto"), "Voz · Fusión", "Fusionando fragmentos...");
     try {
       const data = await mergeAudio(project, { fragments });
       setMaster(data);
+      genStatus.finish("voz-fusion:" + (project || "sin-proyecto"), true, "Pista maestra lista.");
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish("voz-fusion:" + (project || "sin-proyecto"), false, (err as Error).message);
     } finally {
       setMerging(false);
     }
@@ -218,6 +227,7 @@ export default function VozPage() {
     setCloning(true);
     setCloneError("");
     setCloneMsg("");
+    genStatus.start("voz-clonar:" + cloneName, "Voz · Clonación", "Clonando voz...");
     try {
       const audio_base64 = await fileToBase64(cloneFile);
       const data = await cloneVoice({
@@ -229,11 +239,14 @@ export default function VozPage() {
       });
       if (data.error) {
         setCloneError(data.error);
+        genStatus.finish("voz-clonar:" + cloneName, false, data.error);
       } else {
         setCloneMsg("Voz clonada correctamente.");
+        genStatus.finish("voz-clonar:" + cloneName, true, "Voz clonada correctamente.");
       }
     } catch (err) {
       setCloneError((err as Error).message);
+      genStatus.finish("voz-clonar:" + cloneName, false, (err as Error).message);
     } finally {
       setCloning(false);
     }

@@ -19,6 +19,7 @@ import type { FlowAccount, FlowChromiumProfile } from "../../api/flow";
 import { ErrorText, LogConsole, countPrompts } from "./shared";
 import type { GalleryImage } from "./shared";
 import { HeaderArt } from "../../components/HeaderArt";
+import { useGenerationStatus } from "../../context/GenerationStatusContext";
 
 const POLL_MS = 2000;
 
@@ -56,6 +57,8 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dirRef = useRef(outputDir);
   const refInputRef = useRef<HTMLInputElement | null>(null);
+  const genStatus = useGenerationStatus();
+  const GEN_ID = "imagen:flow";
 
   useEffect(() => {
     dirRef.current = outputDir;
@@ -111,16 +114,21 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         if (typeof d.since === "number") sinceRef.current = d.since;
         if (Array.isArray(d.log)) setLogLines((prev) => [...prev, ...(d.log as string[])]);
         if (typeof d.done === "number" || typeof d.total === "number") {
-          setProgress({
-            done: d.done ?? 0,
-            total: d.total ?? 0,
-            label: d.label || (d.running ? "Generando…" : "Completado"),
+          const done = d.done ?? 0;
+          const total = d.total ?? 0;
+          setProgress({ done, total, label: d.label || (d.running ? "Generando…" : "Completado") });
+          genStatus.update(GEN_ID, {
+            pct: total > 0 ? Math.round((done / total) * 100) : null,
+            message: d.label || `${done}/${total} imágenes`,
           });
         }
         setRunning(!!d.running);
-        if (!d.running && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
+        if (!d.running) {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          genStatus.finish(GEN_ID, true, "Completado.");
         }
         refreshImages();
       })
@@ -168,6 +176,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
       return;
     }
+    genStatus.start(GEN_ID, "Imágenes · Flow", "Iniciando...");
     try {
       sinceRef.current = 0;
       setLogLines([]);
@@ -184,6 +193,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
       pollOnce();
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish(GEN_ID, false, (err as Error).message);
     }
   }
 
@@ -195,6 +205,7 @@ export default function FlowPanel({ outputDir, resolvingDir }: FlowPanelProps) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
+      genStatus.finish(GEN_ID, false, "Detenido por el usuario.");
     } catch (err) {
       setError((err as Error).message);
     }

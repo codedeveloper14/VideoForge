@@ -2,6 +2,7 @@ import { Navigate, Route, BrowserRouter, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { TabsProvider } from "./context/TabsContext";
+import { GenerationStatusProvider } from "./context/GenerationStatusContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
@@ -29,6 +30,7 @@ export default function App() {
       <AuthProvider>
         <ThemeProvider>
           <TabsProvider>
+            <GenerationStatusProvider>
             <Routes>
               <Route path="/" element={<Navigate to="/app/home" replace />} />
               <Route path="/login" element={<LoginPage />} />
@@ -60,6 +62,7 @@ export default function App() {
 
               <Route path="*" element={<Navigate to="/app/home" replace />} />
             </Routes>
+            </GenerationStatusProvider>
           </TabsProvider>
         </ThemeProvider>
       </AuthProvider>

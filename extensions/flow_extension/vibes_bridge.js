@@ -227,23 +227,20 @@
       if (!startEndBtn) return Promise.reject(new Error("Boton 'Start, end frame' no encontrado en el DOM"));
       console.log("[Vibes] paso: click en 'Start, end frame'...");
       realClick(startEndBtn);
-      opened = new Promise(function (resolve) {
-        setTimeout(resolve, 400);
-      }).then(function () {
-        var addStartBtn = findButtonByText("Add start frame");
-        if (!addStartBtn) throw new Error("Boton 'Add start frame' no encontrado");
+      // Sin espera fija a ciegas -- se poll directo por "Add start frame" apenas aparece
+      // (Radix suele montarlo en unas pocas decenas de ms, no hace falta esperar 400-900ms).
+      opened = waitFor(function () {
+        return findButtonByText("Add start frame");
+      }, 8000, 100).then(function (addStartBtn) {
         console.log("[Vibes] paso: click en 'Add start frame'...");
         realClick(addStartBtn);
-        return new Promise(function (resolve) {
-          setTimeout(resolve, 500);
-        });
       });
     }
     return opened
       .then(function () {
         return waitFor(function () {
           return findThumbnailByAlt(fileName);
-        }, 10000, 300);
+        }, 10000, 120);
       })
       .then(function (img) {
         console.log("[Vibes] paso: miniatura encontrada, seleccionandola...");
@@ -251,7 +248,7 @@
         realClick(clickTarget);
         return waitFor(function () {
           return findButtonByText("Add to video");
-        }, 5000, 200);
+        }, 5000, 120);
       })
       .then(function (addBtn) {
         console.log("[Vibes] paso: click en 'Add to video'");
@@ -296,11 +293,11 @@
       );
     }
     btn.click();
-    return waitFor(currentProjectId, 15000, 300);
+    return waitFor(currentProjectId, 15000, 150);
   }
 
   function typePrompt(text) {
-    return waitFor(findEditor, 15000, 300).then(function (editor) {
+    return waitFor(findEditor, 15000, 120).then(function (editor) {
       editor.focus();
       document.execCommand("selectAll", false, null);
       document.execCommand("insertText", false, text);
@@ -324,7 +321,7 @@
         );
       }
       return btn && !btn.disabled ? btn : null;
-    }, 45000, 300).then(function (btn) {
+    }, 45000, 150).then(function (btn) {
       console.log("[Vibes] paso: click en boton Generate");
       realClick(btn);
     });
@@ -341,22 +338,42 @@
     return null;
   }
 
+  // Varios jobs en paralelo comparten el MISMO projectId (un solo compositor), asi que sin
+  // deduplicar, N jobs esperando en simultaneo generan N fetches identicos por tick de poll --
+  // eso satura /batches y contribuye a los 500 que devuelve vibes.ai bajo carga. Cacheamos por
+  // un instante corto (bien por debajo del intervalo de poll de 3000ms) para que todos los
+  // waiters activos reusen la misma peticion en vuelo en vez de disparar la suya propia.
+  var BATCHES_CACHE_MS = 1200;
+  var batchesCache = {};
+
   function listBatches(projectId) {
-    return apiFetch("/api/projects/" + projectId + "/batches?limit=6&offset=0").then(function (r) {
+    var cached = batchesCache[projectId];
+    var now = Date.now();
+    if (cached && now - cached.ts < BATCHES_CACHE_MS) {
+      return cached.promise;
+    }
+    var promise = apiFetch("/api/projects/" + projectId + "/batches?limit=6&offset=0").then(function (r) {
       var batches = (r.data && (r.data.batches || r.data.items || r.data)) || [];
       return Array.isArray(batches) ? batches : [];
     });
+    batchesCache[projectId] = { ts: now, promise: promise };
+    return promise;
   }
 
   // Escribe el prompt, adjunta la imagen de referencia (si hay) y hace clic en Generate --
   // el "envio" en si. Devuelve el set de ids de batch que YA existian antes del clic, para
   // que quien llama pueda esperar el batch nuevo por su cuenta SIN bloquear el envio del
-  // siguiente job/slot (asi varias generaciones corren en paralelo, como en meta.ai: el
-  // envio -- que si tiene que ser secuencial, es el mismo compositor -- es rapido; lo lento
-  // es la generacion del video en el servidor, y eso no hace falta esperarlo en fila). El
+  // siguiente job/slot (asi varias generaciones corren en paralelo, como en meta.ai). El
   // texto se escribe DESPUES de adjuntar la imagen porque el flujo de "Start, end frame"
   // (abrir panel, elegir miniatura, Add to video) re-renderiza el compositor y borra lo que
   // ya se hubiera escrito antes.
+  //
+  // Nota: se probo identificar aqui mismo el batchId exacto (sondeando hasta 8s antes de
+  // soltar sendQueue) para evitar que dos jobs en paralelo agarren el mismo batch nuevo --
+  // pero con el backend de vibes.ai degradado esos 8s de sondeo bloqueando la cola volvian
+  // todo mucho mas lento Y menos confiable (el sondeo mismo fallaba por los 500 de vibes.ai).
+  // Se volvio a la deteccion por exclusion simple (cualquier batch nuevo no visto antes),
+  // que es la que de verdad funciona de forma confiable en este entorno.
   function sendOneMessage(projectId, prompt, imageInfo) {
     return listBatches(projectId).then(function (before) {
       var beforeIds = {};
@@ -392,6 +409,44 @@
     });
   }
 
+  // vibes.ai a veces responde 500 en su propio POST /api/generate/videos (el que dispara
+  // React al clickear Generate) -- cuando eso pasa, NUNCA se crea un batch nuevo y no hay
+  // nada que esperar ni descargar, sin importar como filtremos. Detectamos ese caso con un
+  // chequeo corto (aparece un batch nuevo en los primeros ~12s?) y, si no aparecio nada,
+  // reintentamos el envio completo (re-adjuntar imagen, re-escribir texto, re-click) unas
+  // pocas veces antes de rendirnos -- igual que haria un humano reintentando a mano.
+  function sendOneMessageWithRetry(projectId, prompt, imageInfo, retriesLeft) {
+    return sendOneMessage(projectId, prompt, imageInfo).then(function (beforeIds) {
+      return pollAsync(
+        function () {
+          return listBatches(projectId).then(function (batches) {
+            for (var i = 0; i < batches.length; i++) {
+              if (batches[i] && batches[i].id && !beforeIds[batches[i].id]) return true;
+            }
+            return null;
+          });
+        },
+        Date.now() + 12000,
+        500
+      )
+        .then(function () {
+          return beforeIds;
+        })
+        .catch(function () {
+          if (retriesLeft > 0) {
+            console.log(
+              "[Vibes] paso: vibes.ai no creo el batch (probable 500 en /generate/videos), reintentando envio (" +
+                retriesLeft +
+                " intento(s) restante(s))..."
+            );
+            return sendOneMessageWithRetry(projectId, prompt, imageInfo, retriesLeft - 1);
+          }
+          console.log("[Vibes] paso: sin batch tras reintentos, se sigue esperando por si aparece tarde...");
+          return beforeIds;
+        });
+    });
+  }
+
   // Espera a que aparezca un batch NUEVO (id que no estaba en beforeIds) y que termine
   // (isComplete). Se corre SIN bloquear la cola de envios -- por eso varias de estas pueden
   // estar activas a la vez, una por cada job/slot ya enviado.
@@ -409,7 +464,10 @@
           if (!fresh) return null;
           if (fresh.isComplete || fresh.is_complete) {
             var urls = (fresh.content || []).map(extractUrl).filter(Boolean);
-            if (urls.length > 0) return urls;
+            // vibes.ai siempre genera 4 variantes por batch aunque solo se pida un
+            // video -- nos quedamos solo con la primera para que 1 slot = 1 video
+            // descargado (igual que meta.ai), en vez de descargar la misma 4 veces.
+            if (urls.length > 0) return urls.slice(0, 1);
           }
           return null;
         });
@@ -452,7 +510,7 @@
         var slotChain = Promise.resolve();
         for (var i = 0; i < slots; i++) {
           slotChain = slotChain.then(function () {
-            return sendOneMessage(projectId, job.prompt, imageInfo).then(function (beforeIds) {
+            return sendOneMessageWithRetry(projectId, job.prompt, imageInfo, 2).then(function (beforeIds) {
               waiters.push(waitForVideos(projectId, beforeIds, deadlineTs));
             });
           });
@@ -492,7 +550,7 @@
   }
 
   function poll() {
-    fetch(BRIDGE + "/api/meta/vibes-poll?account=" + encodeURIComponent(accountHash) + "&max=1")
+    fetch(BRIDGE + "/api/meta/vibes-poll?account=" + encodeURIComponent(accountHash) + "&max=10")
       .then(function (r) {
         return r.json();
       })

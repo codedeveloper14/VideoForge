@@ -25,6 +25,7 @@ import {
   countPrompts,
 } from "./shared";
 import type { GalleryImage } from "./shared";
+import { useGenerationStatus } from "../../context/GenerationStatusContext";
 
 const POLL_MS = 2000;
 
@@ -51,6 +52,8 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
   const [loggingIn, setLoggingIn] = useState<number | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const genStatus = useGenerationStatus();
+  const GEN_ID = "imagen:gentube";
 
   function refreshImages() {
     gentubeImages()
@@ -69,9 +72,20 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
         setStatusData(data);
         setRunning(!!data.running);
         if (Array.isArray(data.log)) setLogLines(data.log);
-        if (!data.running && pollRef.current) {
-          clearInterval(pollRef.current);
-          pollRef.current = null;
+        const total = data.total ?? 0;
+        const processed = data.processed ?? 0;
+        if (data.running) {
+          genStatus.update(GEN_ID, {
+            pct: total > 0 ? Math.round((processed / total) * 100) : null,
+            message: `${processed}/${total} procesados`,
+          });
+        }
+        if (!data.running) {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          genStatus.finish(GEN_ID, true, "Completado.");
         }
       })
       .catch(() => {});
@@ -123,6 +137,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
       setError("Selecciona un proyecto activo. Las imágenes se guardan en la carpeta de imágenes del proyecto.");
       return;
     }
+    genStatus.start(GEN_ID, "Imágenes · GenTube", "Iniciando...");
     try {
       await gentubeRunPrompts({
         prompts: list,
@@ -137,6 +152,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
       refreshImages();
     } catch (err) {
       setError((err as Error).message);
+      genStatus.finish(GEN_ID, false, (err as Error).message);
     }
   }
 
@@ -148,7 +164,7 @@ export default function GentubePanel({ outputDir, resolvingDir }: GentubePanelPr
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
-      pollStatus();
+      genStatus.finish(GEN_ID, false, "Detenido por el usuario.");
     } catch (err) {
       setError((err as Error).message);
     }
