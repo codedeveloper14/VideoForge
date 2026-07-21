@@ -1,4 +1,4 @@
-// vibes_bridge.js v5 — hibrido: el prompt se escribe en el editor Lexical real y "Generate"
+// vibes_bridge.js v6 — hibrido: el prompt se escribe en el editor Lexical real y "Generate"
 // se clickea de verdad (DOM), pero la imagen de referencia se sube via las 2 llamadas HTTP
 // reales que usa vibes.ai (capturadas de una subida manual), igual que meta_gql_client.py
 // hace con rupload.meta.ai para meta.ai -- sin tocar el menu "Ingredients" en absoluto.
@@ -12,36 +12,32 @@
 // tick de poll abria/cerraba el menu en bucle antes de que el input llegara a montarse. v5
 // se salta el DOM para la imagen: sube los bytes directo a POST /api/upload-media
 // (multipart/form-data) y registra el resultado con POST /api/projects/{id}/upload (JSON).
+//
+// v6: el polling al bridge Python (http://127.0.0.1:8080) se movio a vibes_relay.js
+// (content script ISOLATED, ver manifest.json) -- este archivo corre en "world":"MAIN"
+// (necesario para que execCommand dispare los listeners de React del editor Lexical, ver
+// nota v3 arriba), pero MAIN world es indistinguible del script de la propia pagina: sin
+// chrome.* y sin el bypass de CORS que da host_permissions, asi que sus fetch() a un
+// origen distinto (el bridge) quedaban sujetos a las mismas restricciones de red que
+// cualquier pagina -- por eso la extension nunca llegaba a registrarse como "conectada"
+// (confirmado: connected_accounts() en el backend nunca se poblaba). vibes_relay.js SI
+// tiene ese privilegio (mismo patron que flow_content.js/qwen_bridge.js/grok_bridge.js
+// para sus proveedores) y hace el poll/post real; los jobs/resultados van y vuelven de
+// este archivo via window.postMessage.
 (function () {
-  var BRIDGE = "http://127.0.0.1:8080";
-  var POLL_FAST_MS = 1000;
-  var POLL_IDLE_MS = 2500;
-
   var SEL_EDITOR = 'div[data-lexical-editor="true"][aria-label="Describe a video..."]';
   var SEL_EDITOR_FALLBACK = 'div[data-lexical-editor="true"][role="textbox"]';
   var SEL_GENERATE_BTN = 'button[data-analytics-id="send_message"]';
   var SEL_CREATE_NEW_BTN = 'button[data-analytics-id="create_new_button_click"]';
 
-  var accountHash = "default";
-  var pollTimer = null;
-
-  function djb2Hash(str) {
-    var h = 5381;
-    for (var i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
-    var hex = (h >>> 0).toString(16);
-    while (hex.length < 8) hex = "0" + hex;
-    return hex;
-  }
-
-  function detectAccountHash() {
-    var m = document.cookie.match(/(?:^|;\s*)meta_session=([^;]+)/);
-    if (m) accountHash = djb2Hash(decodeURIComponent(m[1]));
-  }
-
   function apiFetch(path, opts) {
     opts = opts || {};
     var headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
-    return fetch("https://vibes.ai" + path, {
+    // location.origin, no "https://vibes.ai" fijo -- la cookie de sesion de vibes.ai
+    // esta verificada como correcta solo en el dominio donde se hizo login (ver
+    // vibes_client.py BASE_URL/comentario); fijar un origin distinto al de esta
+    // pestaña mandaria el fetch cross-origin, sin esa cookie.
+    return fetch(location.origin + path, {
       method: opts.method || "GET",
       credentials: "include",
       headers: headers,
@@ -108,6 +104,16 @@
     });
   }
 
+  // Log UNA sola vez por nombre (no en cada tick de waitFor, que llama al finder
+  // cada 100-150ms y saturaria la consola) -- asi la prueba en vivo deja evidencia
+  // clara de si el selector primario matcheo o si tuvo que caer al fallback.
+  var _loggedFallbacks = {};
+  function _logFallbackOnce(name) {
+    if (_loggedFallbacks[name]) return;
+    _loggedFallbacks[name] = true;
+    console.log("[Vibes] FALLBACK usado para '" + name + "' -- el selector primario no matcheo.");
+  }
+
   function base64ToBlob(b64, mime) {
     var byteChars = atob(b64);
     var byteNumbers = new Array(byteChars.length);
@@ -122,17 +128,41 @@
   //      {mediaEntId, cdnUrl, dimensions, aspectRatio, uploadToken}.
   //   2) POST /api/projects/{id}/upload (JSON) con {files:[{...eso mismo, filename}]} --
   //      registra la imagen subida como ingredient del proyecto.
-  function uploadMedia(blob, fileName) {
+  // vibes.ai tambien da 500 esporadicos en este paso bajo su propia carga (misma
+  // causa que el 500 que ya se reintenta un paso mas adelante en
+  // registerMediaWithProject) -- sin este reintento, el paso 1 quedaba como el
+  // unico eslabon de la subida sin cubrir, pese a ser tan propenso a fallar como
+  // el paso 2. blob es un Blob inmutable: reusarlo en un FormData nuevo por cada
+  // intento es seguro, no se "consume" al adjuntarlo.
+  function uploadMedia(blob, fileName, attempt) {
+    attempt = attempt || 1;
     var fd = new FormData();
     fd.append("file", blob, fileName);
     fd.append("filename", fileName);
-    return fetch("https://vibes.ai/api/upload-media", {
+    // location.origin, no "https://vibes.ai" fijo -- mismo bug que ya se corrigio en
+    // apiFetch() (ver su comentario): la pestaña real corre en www.vibes.ai, y un
+    // fetch a un subdominio distinto es cross-origin de verdad -- vibes.ai no manda
+    // Access-Control-Allow-Origin para eso (no espera que se lo llame cross-origin),
+    // asi que el browser lo bloquea antes de que salga. Confirmado en vivo
+    // (2026-07-20): "blocked by CORS policy: No 'Access-Control-Allow-Origin' header
+    // is present" + net::ERR_FAILED en POST /api/upload-media.
+    return fetch(location.origin + "/api/upload-media", {
       method: "POST",
       credentials: "include",
       body: fd,
     }).then(function (resp) {
       return resp.text().then(function (text) {
-        if (!resp.ok) throw new Error("upload-media fallo (" + resp.status + "): " + text.slice(0, 200));
+        if (!resp.ok) {
+          if (attempt < 3) {
+            console.log("[Vibes] paso: upload-media fallo (" + resp.status + "), reintentando en 1.5s...");
+            return new Promise(function (resolve) {
+              setTimeout(resolve, 1500);
+            }).then(function () {
+              return uploadMedia(blob, fileName, attempt + 1);
+            });
+          }
+          throw new Error("upload-media fallo (" + resp.status + "): " + text.slice(0, 200));
+        }
         return JSON.parse(text);
       });
     });
@@ -170,12 +200,54 @@
     });
   }
 
+  // Texto EXACTO -- usar solo para textos que se confirmaron estables (ej. "Start, end
+  // frame"/"Add start frame", que quedaron en ingles incluso con la cuenta en español,
+  // ver findAddToVideoButton mas abajo para el caso contrario).
   function findButtonByText(text) {
     var btns = document.querySelectorAll("button");
     for (var i = 0; i < btns.length; i++) {
       if (btns[i].textContent.trim() === text) return btns[i];
     }
     return null;
+  }
+
+  // Texto por REGEX -- Vibes traduce la UI de forma inconsistente segun idioma de cuenta/
+  // sesion (confirmado en vivo, 2026-07-21: la misma pantalla mostro "Add to video" en una
+  // sesion y "Añadir al vídeo" en otra) -- un match exacto en ingles se rompe silenciosamente
+  // para cualquier cuenta en español. Se busca por regex (ambos idiomas) dentro de `scope`
+  // (el dialog de "Select start frame" si se tiene, para no matchear otro boton de la pagina).
+  function findButtonByPattern(re, scope) {
+    var btns = (scope || document).querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) {
+      if (re.test(btns[i].textContent.trim())) return btns[i];
+    }
+    return null;
+  }
+
+  // El boton "Add to video"/"Añadir al vídeo" es el CTA relleno de azul (bg_var(--fill-blue))
+  // del dialog "Select start frame" -- selector primario independiente del idioma; el regex es
+  // solo fallback por si Vibes cambia esa clase.
+  function findAddToVideoButton(scope) {
+    var root = scope || document;
+    return (
+      root.querySelector('button[class*="bg_var(--fill-blue)"]') ||
+      findButtonByPattern(/add to video|a[ñn]adir al v[ií]deo/i, root)
+    );
+  }
+
+  // "Add start frame" -- a diferencia de "Add to video" (arriba), NO tenemos una
+  // traduccion al español confirmada en vivo para este boton especifico (el
+  // comentario historico en selectStartFrame asumia que quedaba fijo en ingles,
+  // pero esa hipotesis nunca se puso a prueba con una cuenta que lo mostrara
+  // traducido). El regex de abajo es un fallback de MEJOR ESFUERZO, no un hecho
+  // verificado como el de findAddToVideoButton -- si en algun momento se confirma
+  // el texto real en español, reemplazar el patron por el string exacto.
+  function findAddStartFrameButton(scope) {
+    var primary = findButtonByText("Add start frame");
+    if (primary) return primary;
+    var fallback = findButtonByPattern(/add start frame|a[ñn]adir fotograma de inicio|agregar fotograma de inicio/i, scope);
+    if (fallback) _logFallbackOnce("Add start frame");
+    return fallback;
   }
 
   // element.click() solo dispara el evento "click" -- los triggers de menu de Radix UI (como
@@ -210,13 +282,33 @@
   // el video IGNORANDO la imagen (solo usa el texto). El video s+i respeta la imagen cuando
   // se adjunta via "Start, end frame -> Add start frame" (usandola solo como start frame,
   // sin end frame), asi que ese es el flujo real.
-  function findThumbnailByAlt(altText) {
-    var imgs = document.querySelectorAll('img[alt="' + CSS.escape(altText) + '"]');
+  //
+  // El alt de la miniatura en ESTE dialog ("Select start frame", el que abre "Add start
+  // frame") SI es el filename subido -- confirmado en vivo con prueba end-to-end real
+  // (2026-07-21). Ojo: en el panel de galeria del costado (creation_gallery, otro
+  // componente) el alt es el NOMBRE DEL PROYECTO, no el filename -- por eso una inspeccion
+  // anterior contra el panel equivocado concluyo lo opuesto. Cada dialog de Vibes tiene su
+  // propia convencion, no asumir que es la misma en toda la app.
+  function findOpenDialog() {
+    return document.querySelector('[role="dialog"]') || document.querySelector('[role="alertdialog"]');
+  }
+
+  // `scope` opcional -- SIN el, esto busca en toda la pagina, lo que es un riesgo real: si
+  // el mismo filename quedo visible en cualquier otro lugar (panel de galeria, un dialog de
+  // una imagen distinta, estado de React viejo de un intento anterior sin recargar la
+  // pestaña), el atajo "existingThumb" de selectStartFrame lo toma como ya seleccionado y
+  // SALTA por completo abrir "Start, end frame" -- sin el dialog abierto, "Add to video"
+  // nunca aparece y el timeout es indistinguible del bug original. Por eso ahora todo el
+  // matching de miniatura en selectStartFrame se limita al dialog "Select start frame" que
+  // esta REALMENTE abierto en ese momento.
+  function findThumbnailByAlt(altText, scope) {
+    var imgs = (scope || document).querySelectorAll('img[alt="' + CSS.escape(altText) + '"]');
     return imgs.length ? imgs[imgs.length - 1] : null;
   }
 
   function selectStartFrame(fileName) {
-    var existingThumb = findThumbnailByAlt(fileName);
+    var openDialog = findOpenDialog();
+    var existingThumb = openDialog ? findThumbnailByAlt(fileName, openDialog) : null;
     var opened;
     if (existingThumb) {
       opened = Promise.resolve();
@@ -229,8 +321,11 @@
       realClick(startEndBtn);
       // Sin espera fija a ciegas -- se poll directo por "Add start frame" apenas aparece
       // (Radix suele montarlo en unas pocas decenas de ms, no hace falta esperar 400-900ms).
+      // findAddStartFrameButton() intenta el texto exacto en ingles primero y cae a un
+      // regex bilingue si no matchea (ver su comentario -- el español no esta confirmado
+      // en vivo para este boton, es defensivo).
       opened = waitFor(function () {
-        return findButtonByText("Add start frame");
+        return findAddStartFrameButton();
       }, 8000, 100).then(function (addStartBtn) {
         console.log("[Vibes] paso: click en 'Add start frame'...");
         realClick(addStartBtn);
@@ -239,15 +334,24 @@
     return opened
       .then(function () {
         return waitFor(function () {
-          return findThumbnailByAlt(fileName);
+          var dlg = findOpenDialog();
+          return dlg ? findThumbnailByAlt(fileName, dlg) : null;
         }, 10000, 120);
       })
       .then(function (img) {
         console.log("[Vibes] paso: miniatura encontrada, seleccionandola...");
+        // Sin wrapper button/[role=button] en este dialog (confirmado en vivo) -- el click
+        // real tiene que caer sobre el <img> mismo, closest() siempre da null aca y con el
+        // fallback "|| img" alcanza.
         var clickTarget = img.closest("button") || img.closest('[role="button"]') || img;
         realClick(clickTarget);
+        // Escopado al dialog de este img (Radix Dialog.Content) -- evita matchear por
+        // error algun otro boton azul de la pagina si el dialog no se detecta, cae a
+        // document entero (findAddToVideoButton ya maneja el fallback).
+        var dialogScope = img.closest('[role="dialog"]') || img.closest('[role="alertdialog"]');
         return waitFor(function () {
-          return findButtonByText("Add to video");
+          var btn = findAddToVideoButton(dialogScope);
+          return btn && !btn.disabled ? btn : null;
         }, 5000, 120);
       })
       .then(function (addBtn) {
@@ -283,10 +387,22 @@
     return document.querySelector(SEL_EDITOR) || document.querySelector(SEL_EDITOR_FALLBACK);
   }
 
+  // SEL_CREATE_NEW_BTN depende de un solo data-analytics-id (telemetria interna de
+  // Vibes, no un contrato estable) -- sin fallback, un cambio de ese atributo tira
+  // un error inmediato sin reintento (ensureProjectViaDom corre antes de cualquier
+  // cola). El regex es de MEJOR ESFUERZO, no confirmado en vivo como findAddToVideoButton.
+  function findCreateNewButton() {
+    var primary = document.querySelector(SEL_CREATE_NEW_BTN);
+    if (primary) return primary;
+    var fallback = findButtonByPattern(/create new|new project|\+\s*new|nuevo proyecto|crear nuevo/i);
+    if (fallback) _logFallbackOnce("Create new");
+    return fallback;
+  }
+
   function ensureProjectViaDom() {
     var existing = currentProjectId();
     if (existing) return Promise.resolve(existing);
-    var btn = document.querySelector(SEL_CREATE_NEW_BTN);
+    var btn = findCreateNewButton();
     if (!btn) {
       return Promise.reject(
         new Error("No se encontro el boton 'Create new' -- deja esta pestana en https://vibes.ai/projects")
@@ -305,10 +421,26 @@
     });
   }
 
+  // Mismo riesgo que findCreateNewButton, agravado porque clickGenerate espera hasta
+  // 45s (el timeout mas largo del archivo) antes de rendirse si el selector deja de
+  // matchear. El boton real es un icono sin texto visible -- findButtonByText/Pattern
+  // no sirven aca, el fallback es por aria-label. MEJOR ESFUERZO, no confirmado en vivo.
+  function findGenerateButton() {
+    var primary = document.querySelector(SEL_GENERATE_BTN);
+    if (primary) return primary;
+    var fallback =
+      document.querySelector('button[aria-label="Send message" i]') ||
+      document.querySelector(
+        'button[aria-label*="generat" i], button[aria-label*="enviar" i], button[aria-label*="generar" i]'
+      );
+    if (fallback) _logFallbackOnce("Generate");
+    return fallback;
+  }
+
   function clickGenerate() {
     var logged = false;
     return waitFor(function () {
-      var btn = document.querySelector(SEL_GENERATE_BTN);
+      var btn = findGenerateButton();
       if (!logged) {
         logged = true;
         console.log(
@@ -461,11 +593,24 @@
           }
           if (!fresh) return null;
           if (fresh.isComplete || fresh.is_complete) {
-            var urls = (fresh.content || []).map(extractUrl).filter(Boolean);
+            // GET /api/generation-batches/{id}/stream (SSE) confirmado en vivo que trae
+            // los videos en "items", NO en "content" (ver _handle_complete_event en
+            // vibes_client.py) -- este es el REST /batches, un endpoint distinto, pero
+            // un timeout real observado en vivo (2026-07-20: isComplete nunca detectado
+            // pese a que la imagen y el batch se crearon bien) apunta a la misma mezcla
+            // de nombres aca. Se prueban los dos, "items" primero.
+            var items = fresh.items;
+            if (!Array.isArray(items)) items = fresh.content;
+            if (!Array.isArray(items)) items = [];
+            var urls = items.map(extractUrl).filter(Boolean);
             // vibes.ai siempre genera 4 variantes por batch aunque solo se pida un
             // video -- nos quedamos solo con la primera para que 1 slot = 1 video
             // descargado (igual que meta.ai), en vez de descargar la misma 4 veces.
             if (urls.length > 0) return urls.slice(0, 1);
+            console.log(
+              "[Vibes] paso: batch " + batchId + " isComplete pero sin URLs extraibles -- fresh=" +
+                JSON.stringify(fresh).slice(0, 500)
+            );
           }
           return null;
         });
@@ -480,10 +625,21 @@
   // vibes.ai nunca crea el batch (probable 500 en su propio POST /api/generate/videos -- pasa
   // seguido con su backend degradado), reintenta el envio completo desde cero encolandolo de
   // nuevo en sendQueue (el reintento si vuelve a tocar el DOM, asi que debe respetar el orden).
-  function trackAndWait(projectId, prompt, imageInfo, beforeIds, deadlineTs, retriesLeft) {
+  function trackAndWait(projectId, prompt, imageInfo, beforeIds, deadlineTs, retriesLeft, startTs) {
+    startTs = startTs || Date.now();
     return identifyBatch(projectId, beforeIds, 10000).then(
       function (batchId) {
-        return waitForVideos(projectId, batchId, deadlineTs);
+        console.log(
+          "[Vibes] tiempo: batch identificado (" + batchId + ") a los " +
+            ((Date.now() - startTs) / 1000).toFixed(1) + "s de enviado"
+        );
+        return waitForVideos(projectId, batchId, deadlineTs).then(function (urls) {
+          console.log(
+            "[Vibes] tiempo: video listo (batch " + batchId + ") a los " +
+              ((Date.now() - startTs) / 1000).toFixed(1) + "s de enviado"
+          );
+          return urls;
+        });
       },
       function () {
         if (retriesLeft > 0) {
@@ -500,7 +656,7 @@
             function () {},
           );
           return retry.then(function (newBeforeIds) {
-            return trackAndWait(projectId, prompt, imageInfo, newBeforeIds, deadlineTs, retriesLeft - 1);
+            return trackAndWait(projectId, prompt, imageInfo, newBeforeIds, deadlineTs, retriesLeft - 1, startTs);
           });
         }
         throw new Error("vibes.ai nunca creo el batch tras reintentos (500 en /generate/videos)");
@@ -519,6 +675,7 @@
     var slots = job.slots || 1;
     var timeoutMs = (job.timeoutSec || 900) * 1000;
     var deadlineTs = Date.now() + timeoutMs;
+    var t0 = Date.now();
 
     var imageInfo = job.imageBase64 ? { base64: job.imageBase64, mime: job.imageMime, name: job.imageName } : null;
 
@@ -555,6 +712,9 @@
 
     sent
       .then(function () {
+        console.log(
+          "[Vibes] tiempo: envio (DOM) completo a los " + ((Date.now() - t0) / 1000).toFixed(1) + "s -- esperando video(s)..."
+        );
         return Promise.all(waiters);
       })
       .then(function (results) {
@@ -562,50 +722,37 @@
         results.forEach(function (urls) {
           allUrls = allUrls.concat(urls);
         });
-        console.log("[Vibes] Listo req=" + requestId.slice(0, 8) + " " + allUrls.length + " video(s)");
+        console.log(
+          "[Vibes] Listo req=" + requestId.slice(0, 8) + " " + allUrls.length + " video(s) en " +
+            ((Date.now() - t0) / 1000).toFixed(1) + "s totales"
+        );
         sendResult({ requestId: requestId, status: 200, videos: allUrls });
       })
       .catch(function (err) {
-        console.log("[Vibes] Error generando req=" + requestId.slice(0, 8) + ": " + err.message);
+        console.log(
+          "[Vibes] Error generando req=" + requestId.slice(0, 8) + ": " + err.message + " (a los " +
+            ((Date.now() - t0) / 1000).toFixed(1) + "s)"
+        );
         sendResult({ requestId: requestId, status: 0, error: err.message });
       });
   }
 
+  // El fetch real al bridge Python vive en vibes_relay.js (ISOLATED world, con
+  // privilegios de extension) -- este postMessage es lo unico que cruza de vuelta
+  // hacia alla. Namespaceado con __vibesRelay para no chocar con otros postMessage
+  // de la pagina real de vibes.ai.
   function sendResult(payload) {
-    fetch(BRIDGE + "/api/meta/vibes-result", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      keepalive: true,
-    }).catch(function () {});
+    window.postMessage({ __vibesRelay: true, type: "VIBES_RESULT", payload: payload }, "*");
   }
 
-  function poll() {
-    fetch(BRIDGE + "/api/meta/vibes-poll?account=" + encodeURIComponent(accountHash) + "&max=10")
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        var reqs = data.requests || [];
-        reqs.forEach(runGenerate);
-        schedulePoll(reqs.length > 0 ? POLL_FAST_MS : POLL_IDLE_MS);
-      })
-      .catch(function () {
-        schedulePoll(POLL_IDLE_MS);
-      });
-  }
+  // Jobs entrantes: vibes_relay.js los recibe de /api/vibes/poll y los reenvia aca
+  // porque solo este script (MAIN world) tiene acceso al DOM real del compositor.
+  window.addEventListener("message", function (event) {
+    if (event.source !== window) return;
+    var data = event.data;
+    if (!data || data.__vibesRelay !== true || data.type !== "VIBES_JOB") return;
+    runGenerate(data.job);
+  });
 
-  function schedulePoll(ms) {
-    if (pollTimer) clearTimeout(pollTimer);
-    pollTimer = setTimeout(poll, ms);
-  }
-
-  detectAccountHash();
-  setTimeout(function () {
-    detectAccountHash();
-    poll();
-  }, 500);
-  setInterval(detectAccountHash, 45000);
-
-  console.log("[Vibes] content script v5 activo (DOM texto/generate + upload-media HTTP) — cuenta " + accountHash);
+  console.log("[Vibes] bridge v6 activo (DOM texto/generate + upload-media HTTP)");
 })();

@@ -10,25 +10,15 @@ stop() paraba lo que fuera que estuviera corriendo sin importar el proyecto.
 Ahora el estado esta indexado por proyecto (_batches), igual que ya se hizo en
 Qwen/Grok.
 
-Todo se simula con dobles de prueba (vibes_client mockeado) para no depender de
-sesion real ni del bridge de la extension de Chrome."""
+Todo se simula con dobles de prueba (vibes_bridge mockeado, la cola en memoria que
+consulta vibes_bridge.js) para no depender de sesion real ni de una pestaña de
+Chrome de verdad."""
 
 import threading
 import time
 from pathlib import Path
 
 import pytest
-
-
-def _video_params(batch_variation: bool = False) -> dict:
-    return {
-        "aspect_ratio": "9:16",
-        "resolution": "480p",
-        "prompt_model": "gemini-2.5-flash",
-        "image_model": "midjen-base",
-        "video_model": "midjen-short",
-        "batch_variation": batch_variation,
-    }
 
 
 @pytest.fixture(autouse=True)
@@ -45,11 +35,27 @@ def _clean_vibes_batches(tmp_path, monkeypatch):
 
 
 def _mock_session(monkeypatch):
-    from src.infrastructure.ai_providers import vibes_client
+    from src.infrastructure.ai_providers import vibes_bridge, vibes_client
 
     monkeypatch.setattr(vibes_client, "load_cookies", lambda idx: [{"name": "meta_session", "value": "fake"}])
     monkeypatch.setattr(vibes_client, "check_session", lambda cookies: True)
-    monkeypatch.setattr(vibes_client, "ensure_project", lambda cookies, idx, log=None: "vibes-proj-fake")
+    monkeypatch.setattr(vibes_bridge, "connected_accounts", lambda: ["vibes:default"])
+
+
+def _autoresolve_bridge_jobs(monkeypatch, make_result):
+    """Simula vibes_bridge.js: cada enqueue_request() dispara make_result(job) y
+    lo entrega via post_result() casi al instante, en un hilo aparte (como haria
+    la extension real respondiendo al poll)."""
+    from src.infrastructure.ai_providers import vibes_bridge
+
+    def _fake_enqueue(job):
+        def _resolve():
+            time.sleep(0.05)
+            vibes_bridge.post_result(job["requestId"], make_result(job))
+
+        threading.Thread(target=_resolve, daemon=True).start()
+
+    monkeypatch.setattr(vibes_bridge, "enqueue_request", _fake_enqueue)
 
 
 def test_dos_proyectos_vibes_simultaneos_no_mezclan_logs_ni_progreso(monkeypatch):
@@ -57,27 +63,27 @@ def test_dos_proyectos_vibes_simultaneos_no_mezclan_logs_ni_progreso(monkeypatch
     paralelo (hilos reales) -- ninguno debe ver logs, out_dir ni contador
     'done' del otro."""
     from src.domain.services import vibes_animation_service as vas
-    from src.infrastructure.ai_providers import vibes_client
 
     _mock_session(monkeypatch)
 
-    calls: list[tuple[str, str]] = []
+    calls: list[str] = []
     calls_lock = threading.Lock()
 
-    def _fake_generate(prompt, project_id, out_dir, cookie_list, timeout_sec, slot_id, ref_image, log, **kw):
+    def _make_result(job):
         with calls_lock:
-            calls.append((prompt, out_dir))
-        log(f"generando slot {slot_id}")
-        # Superposicion real entre los dos batches en paralelo.
-        time.sleep(0.3)
-        fname = f"vibes_{slot_id}.mp4"
-        Path(out_dir, fname).write_bytes(b"fake-video-bytes")
-        return {"videos": [fname], "error": None}
+            calls.append(job["prompt"])
+        return {"status": 200, "videos": [f"http://fake/{job['requestId']}_0.mp4"] * job["slots"]}
 
-    monkeypatch.setattr(vibes_client, "generate_video_via_bridge", _fake_generate)
+    _autoresolve_bridge_jobs(monkeypatch, _make_result)
+    monkeypatch.setattr(
+        "src.domain.services.vibes_animation_service.requests.Session.get",
+        lambda self, url, timeout=120: type(
+            "R", (), {"content": b"fake-video-bytes", "raise_for_status": lambda self: None}
+        )(),
+    )
 
-    result_a = vas.start_batch("proyecto_a", "prompt de A", 2, _video_params(), 60)
-    result_b = vas.start_batch("proyecto_b", "prompt de B", 2, _video_params(), 60)
+    result_a = vas.start_batch("proyecto_a", "prompt de A", 2, 60)
+    result_b = vas.start_batch("proyecto_b", "prompt de B", 2, 60)
 
     deadline = time.time() + 10
     finished_a = finished_b = False
@@ -101,16 +107,7 @@ def test_dos_proyectos_vibes_simultaneos_no_mezclan_logs_ni_progreso(monkeypatch
         f"CRUCE DETECTADO: el log de proyecto_b menciona la carpeta de proyecto_a: {log_b}"
     )
 
-    # Cada generate_video_via_bridge debio escribir SOLO en el out_dir de su
-    # propio proyecto -- nunca cruzado.
-    assert len(calls) == 4, f"se esperaban 4 llamadas (2 slots x 2 proyectos): {calls}"
-    for prompt, out_dir in calls:
-        if prompt == "prompt de A":
-            assert dir_a in out_dir and dir_b not in out_dir
-        elif prompt == "prompt de B":
-            assert dir_b in out_dir and dir_a not in out_dir
-        else:
-            pytest.fail(f"prompt inesperado: {prompt}")
+    assert sorted(calls) == ["prompt de A", "prompt de B"]
 
     # Progreso (done/total) via list_videos() -- cada proyecto cuenta SOLO sus
     # propios videos, nunca los del otro.
@@ -124,23 +121,18 @@ def test_vibes_stop_de_un_proyecto_no_detiene_al_otro(monkeypatch):
     """stop(project_name) debe apagar solo el cancel_event de ESE proyecto --
     nunca el de otro batch corriendo en paralelo."""
     from src.domain.services import vibes_animation_service as vas
-    from src.infrastructure.ai_providers import vibes_client
+    from src.infrastructure.ai_providers import vibes_bridge
 
     _mock_session(monkeypatch)
 
     release = threading.Event()
+    monkeypatch.setattr(vibes_bridge, "enqueue_request", lambda job: release.wait(timeout=5))
 
-    def _fake_generate(prompt, project_id, out_dir, cookie_list, timeout_sec, slot_id, ref_image, log, **kw):
-        release.wait(timeout=5)
-        return {"videos": [], "error": None}
-
-    monkeypatch.setattr(vibes_client, "generate_video_via_bridge", _fake_generate)
-
-    vas.start_batch("proyecto_x", "prompt x", 1, _video_params(), 60)
-    vas.start_batch("proyecto_y", "prompt y", 1, _video_params(), 60)
+    vas.start_batch("proyecto_x", "prompt x", 1, 60)
+    vas.start_batch("proyecto_y", "prompt y", 1, 60)
 
     # Esperar a que ambos hilos hayan registrado su batch (arrancan casi
-    # instantaneo, antes de bloquearse en _fake_generate).
+    # instantaneo, antes de bloquearse en enqueue_request).
     deadline = time.time() + 5
     while time.time() < deadline and ("proyecto_x" not in vas._batches or "proyecto_y" not in vas._batches):
         time.sleep(0.02)
@@ -160,19 +152,14 @@ def test_vibes_segundo_batch_mismo_proyecto_no_afecta_a_otro_proyecto(monkeypatc
     anterior (reinicio legitimo), pero jamas el de un proyecto distinto que
     siga corriendo en paralelo."""
     from src.domain.services import vibes_animation_service as vas
-    from src.infrastructure.ai_providers import vibes_client
+    from src.infrastructure.ai_providers import vibes_bridge
 
     _mock_session(monkeypatch)
 
     release = threading.Event()
+    monkeypatch.setattr(vibes_bridge, "enqueue_request", lambda job: release.wait(timeout=5))
 
-    def _fake_generate(prompt, project_id, out_dir, cookie_list, timeout_sec, slot_id, ref_image, log, **kw):
-        release.wait(timeout=5)
-        return {"videos": [], "error": None}
-
-    monkeypatch.setattr(vibes_client, "generate_video_via_bridge", _fake_generate)
-
-    vas.start_batch("proyecto_ajeno", "prompt ajeno", 1, _video_params(), 60)
+    vas.start_batch("proyecto_ajeno", "prompt ajeno", 1, 60)
     deadline = time.time() + 5
     while time.time() < deadline and "proyecto_ajeno" not in vas._batches:
         time.sleep(0.02)
@@ -180,9 +167,9 @@ def test_vibes_segundo_batch_mismo_proyecto_no_afecta_a_otro_proyecto(monkeypatc
 
     # Dos arranques seguidos del MISMO proyecto ("mio") -- el segundo cancela
     # el cancel_event del primer intento de "mio", pero no debe tocar "ajeno".
-    vas.start_batch("mio", "prompt 1", 1, _video_params(), 60)
+    vas.start_batch("mio", "prompt 1", 1, 60)
     first_cancel = vas._batches["mio"]["cancel_event"]
-    vas.start_batch("mio", "prompt 2", 1, _video_params(), 60)
+    vas.start_batch("mio", "prompt 2", 1, 60)
 
     assert first_cancel.is_set(), "reiniciar el propio proyecto debe cancelar su batch anterior"
     assert not ajeno_cancel.is_set(), "reiniciar 'mio' NUNCA debe cancelar 'proyecto_ajeno'"

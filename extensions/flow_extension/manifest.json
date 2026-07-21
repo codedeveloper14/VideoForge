@@ -22,7 +22,6 @@
     "https://www.dubvoice.ai/*",
     "https://*.dubvoice.ai/*",
     "https://*.supabase.co/*",
-    "https://www.meta.ai/*",
     "https://vibes.ai/*",
     "https://www.vibes.ai/*",
     "http://localhost/*",
@@ -124,25 +123,14 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.meta.ai/*"],
-      "js": ["meta_token_gen.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": ["https://www.meta.ai/*"],
-      "js": ["meta_bridge.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://vibes.ai/*"],
+      "matches": ["https://vibes.ai/*", "https://www.vibes.ai/*"],
       "js": ["vibes_bridge.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     },
     {
-      "matches": ["https://www.vibes.ai/*"],
-      "js": ["vibes_content.js"],
+      "matches": ["https://vibes.ai/*", "https://www.vibes.ai/*"],
+      "js": ["vibes_relay.js"],
       "run_at": "document_idle"
     }
   ],

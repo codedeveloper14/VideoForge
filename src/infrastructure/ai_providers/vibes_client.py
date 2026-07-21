@@ -211,6 +211,27 @@ def check_session(cookie_list: list[dict]) -> bool:
         return False
 
 
+def get_account_username(cookie_list: list[dict]) -> str | None:
+    """Username real de la cuenta logueada, para mostrar 'nombre (username)' en la UI
+    en vez del string fijo "vibes.ai" -- confirmado en vivo (2026-07-20, cookie real)
+    que GET /api/auth/me devuelve {"user":{"username":..., "kadabraProfile":
+    {"kadabraProfileUsername":...}, ...}}. Vibes/Meta NO expone el email en este
+    endpoint (solo username), asi que no hay forma de mostrar el email de login."""
+    try:
+        r = _requests_session_from_cookies(cookie_list).get(ME_URL, timeout=15)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+    except Exception as exc:
+        logger.info("vibes_client.get_account_username error: %s", exc)
+        return None
+    user = data.get("user") if isinstance(data, dict) else None
+    if not isinstance(user, dict):
+        return None
+    kadabra = user.get("kadabraProfile") if isinstance(user.get("kadabraProfile"), dict) else {}
+    return user.get("username") or kadabra.get("kadabraProfileUsername")
+
+
 def _project_id_path(account_idx: int) -> Path:
     return get_vibes_cookies_dir() / f"account_{account_idx}_project.txt"
 
@@ -617,6 +638,73 @@ def _download_videos(
             log(f"[S{slot_id}] [WARNING] descarga video {i} fallo: {exc}")
 
 
+_TAB_WAIT_TIMEOUT = 25.0
+_TAB_WAIT_POLL = 1.0
+_NO_TAB_MAX_RETRIES = 3
+_NO_TAB_RETRY_DELAY = 2.5
+
+
+def _wait_for_vibes_tab(timeout_sec: float = _TAB_WAIT_TIMEOUT, log: Callable[[str], None] = _NoOpLog) -> bool:
+    """Espera a que el bridge marque VIBES_ACCOUNT_HASH como conectado (WS o HTTP)
+    antes de intentar el primer push -- evita el fallo inmediato de antes cuando el
+    Chrome de Vibes se acaba de (re)abrir y la pestaña (SPA pesada) todavia no
+    termino de cargar ni de registrarse."""
+    from src.infrastructure.ai_providers import flow_bridge
+
+    deadline = time.time() + timeout_sec
+    while True:
+        connected = set(flow_bridge.get_connected_accounts()) | set(flow_bridge.get_ws_clients().keys())
+        if VIBES_ACCOUNT_HASH in connected:
+            return True
+        if time.time() >= deadline:
+            return False
+        time.sleep(_TAB_WAIT_POLL)
+
+
+def _push_and_await_result(
+    req: dict,
+    timeout_sec: float,
+    slot_id: int,
+    log: Callable[[str], None] = _NoOpLog,
+) -> dict | None:
+    """Empuja `req` al bridge (mutando su requestId en cada intento) y espera el
+    resultado. Si background.js responde "no_tab", reintenta el push unas pocas
+    veces con una pausa corta -- el bridge del lado Python puede marcar la cuenta
+    "conectada" por un registro HTTP reciente de una pestaña que ya no existe
+    (p.ej. justo tras reabrir Chrome, la pestaña vieja se desregistra y la nueva
+    todavia no termino de registrarse en background.js), asi que _wait_for_vibes_tab
+    por si sola no alcanza -- lo que realmente resuelve la carrera es reintentar el
+    push en sí, no solo esperar antes del primero."""
+    from src.infrastructure.ai_providers import flow_bridge
+
+    for attempt in range(1, _NO_TAB_MAX_RETRIES + 2):
+        request_id = str(uuid.uuid4())
+        req["requestId"] = request_id
+        event = flow_bridge.register_result_waiter(request_id)
+        pushed = flow_bridge.ws_push(VIBES_ACCOUNT_HASH, req)
+        if not pushed:
+            flow_bridge.enqueue_request(req)
+            log(f"[S{slot_id}] sin WS -- encolado para HTTP poll")
+
+        ok = event.wait(timeout=timeout_sec)
+        msg = flow_bridge.try_pop_result(request_id)
+        flow_bridge.cleanup_waiter(request_id)
+
+        if not ok or msg is None:
+            return None
+
+        if msg.get("error") == "no_tab" and attempt <= _NO_TAB_MAX_RETRIES:
+            log(
+                f"[S{slot_id}] pestaña de vibes.ai todavia no registrada (no_tab), "
+                f"reintentando en {_NO_TAB_RETRY_DELAY}s ({attempt}/{_NO_TAB_MAX_RETRIES})..."
+            )
+            time.sleep(_NO_TAB_RETRY_DELAY)
+            continue
+
+        return msg
+    return None
+
+
 def upload_reference_image_via_bridge(
     image_bytes: bytes,
     filename: str = "reference.jpg",
@@ -631,12 +719,9 @@ def upload_reference_image_via_bridge(
     generate_video_via_bridge()."""
     from base64 import b64encode
 
-    from src.infrastructure.ai_providers import flow_bridge
-
     result: dict = {"media_ent_id": None, "cdn_url": None, "error": None}
 
-    connected = set(flow_bridge.get_connected_accounts()) | set(flow_bridge.get_ws_clients().keys())
-    if VIBES_ACCOUNT_HASH not in connected:
+    if not _wait_for_vibes_tab(log=log):
         result["error"] = (
             "No hay ninguna pestaña de vibes.ai conectada al bridge. Abri vibes.ai en "
             "Chrome con extensions/flow_extension cargada y logueado, y esperá unos "
@@ -644,10 +729,7 @@ def upload_reference_image_via_bridge(
         )
         return result
 
-    request_id = str(uuid.uuid4())
-    event = flow_bridge.register_result_waiter(request_id)
     req = {
-        "requestId": request_id,
         "url": UPLOAD_MEDIA_URL,
         "bearer": "",
         "kind": "upload_media",
@@ -656,16 +738,9 @@ def upload_reference_image_via_bridge(
     }
 
     log(f"encolando subida de imagen de referencia ({filename}, {len(image_bytes)} bytes)...")
-    pushed = flow_bridge.ws_push(VIBES_ACCOUNT_HASH, req)
-    if not pushed:
-        flow_bridge.enqueue_request(req)
-        log("sin WS -- encolado para HTTP poll")
+    msg = _push_and_await_result(req, timeout_sec, slot_id=0, log=log)
 
-    ok = event.wait(timeout=timeout_sec)
-    msg = flow_bridge.try_pop_result(request_id)
-    flow_bridge.cleanup_waiter(request_id)
-
-    if not ok or msg is None:
+    if msg is None:
         result["error"] = f"Timeout ({timeout_sec}s) esperando resultado de la subida"
         return result
     if msg.get("status") != 200 or msg.get("error"):
@@ -718,16 +793,13 @@ def generate_video_via_bridge(
     No necesita cookie_list para el fetch en si (el browser real ya tiene su propia
     sesion) -- cookie_list solo se usa, si se pasa, para descargar los mp4 al
     terminar (out_dir), reusando la cookie exportada via requests.Session."""
-    from src.infrastructure.ai_providers import flow_bridge
-
     result: dict = {"videos": [], "batch_id": None, "error": None, "final_event": None}
 
     if not project_id:
         result["error"] = "project_id requerido -- usar vibes_client.ensure_project() primero"
         return result
 
-    connected = set(flow_bridge.get_connected_accounts()) | set(flow_bridge.get_ws_clients().keys())
-    if VIBES_ACCOUNT_HASH not in connected:
+    if not _wait_for_vibes_tab(log=log):
         result["error"] = (
             "No hay ninguna pestaña de vibes.ai conectada al bridge. Abri vibes.ai en "
             "Chrome con extensions/flow_extension cargada y logueado, y esperá unos "
@@ -749,10 +821,7 @@ def generate_video_via_bridge(
     batch_id = create_body["id"]
     result["batch_id"] = batch_id
 
-    request_id = str(uuid.uuid4())
-    event = flow_bridge.register_result_waiter(request_id)
     req = {
-        "requestId": request_id,
         "url": GENERATION_BATCHES_URL,
         "bearer": "",
         "body": json.dumps(create_body),
@@ -760,18 +829,11 @@ def generate_video_via_bridge(
     }
 
     log(f"[S{slot_id}] encolando batch {batch_id} al bridge (cuenta {VIBES_ACCOUNT_HASH})...")
-    pushed = flow_bridge.ws_push(VIBES_ACCOUNT_HASH, req)
-    if not pushed:
-        flow_bridge.enqueue_request(req)
-        log(f"[S{slot_id}] sin WS -- encolado para HTTP poll")
-
     # +30s de margen sobre el timeout interno de vibes_content.js (que corta a los
     # 300s el propio SSE), para no cortar antes que el content script.
-    ok = event.wait(timeout=timeout_sec + 30)
-    msg = flow_bridge.try_pop_result(request_id)
-    flow_bridge.cleanup_waiter(request_id)
+    msg = _push_and_await_result(req, timeout_sec + 30, slot_id=slot_id, log=log)
 
-    if not ok or msg is None:
+    if msg is None:
         result["error"] = (
             f"Timeout ({timeout_sec}s) esperando resultado del bridge (¿la pestaña sigue abierta?)"
         )

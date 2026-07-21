@@ -220,6 +220,53 @@ function registerBearer(hash, bearer, email) {
   }).catch(function(){});
 }
 
+// ── Vibes: bridge propio en el puerto 8080 (mismo Flask que sirve el resto de la
+// app, ver src/infrastructure/ai_providers/vibes_bridge.py), separado del bridge
+// compartido de Flow (5556/5557). El poll/post real tiene que salir DESDE ESTE
+// service worker, no desde un content script (ni MAIN ni ISOLATED) -- confirmado
+// en vivo (2026-07-20): Chrome bloquea con "Permission was denied for this
+// request to access the `loopback` address space" (Local Network Access) un
+// fetch() a 127.0.0.1 hecho por CUALQUIER content script de una pestaña publica,
+// sin importar el "world" ni los host_permissions declarados. Solo el contexto
+// propio de la extension (este background) queda exento -- por eso Flow, que
+// siempre pollea desde aca (pollBridge() arriba), nunca tuvo este problema.
+var VIBES_BRIDGE_BASE = "http://127.0.0.1:8080/api/vibes";
+var _vibesTabId = null;
+var _vibesPollTimer = null;
+
+function vibesPoll() {
+  if (!_vibesTabId) return;
+  fetch(VIBES_BRIDGE_BASE + "/poll?account=default&max=10")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var reqs = (data && data.requests) || [];
+      if (!reqs.length || !_vibesTabId) return;
+      reqs.forEach(function (job) {
+        chrome.tabs.sendMessage(_vibesTabId, { type: "VIBES_JOB", job: job }, function () {
+          void chrome.runtime.lastError; // pestaña cerrada entre el poll y el dispatch -- se ignora
+        });
+      });
+    })
+    .catch(function () {});
+}
+
+function vibesSendResult(payload) {
+  fetch(VIBES_BRIDGE_BASE + "/result", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload), keepalive: true
+  }).catch(function(){});
+}
+
+function _ensureVibesPollTimer() {
+  if (_vibesPollTimer) return;
+  _vibesPollTimer = setInterval(vibesPoll, 1200);
+}
+function _stopVibesPollTimer() {
+  if (!_vibesPollTimer) return;
+  clearInterval(_vibesPollTimer);
+  _vibesPollTimer = null;
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (!msg || !msg.type) return;
 
@@ -300,6 +347,25 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
       .catch(function() { sendResponse({ ok: false }); });
     return true;
   }
+
+  if (msg.type === "VIBES_REGISTER_TAB") {
+    var vTabId = sender.tab && sender.tab.id;
+    var vTabUrl = sender.tab && sender.tab.url;
+    if (vTabId && VIBES_TAB_RE.test(vTabUrl || "")) {
+      _vibesTabId = vTabId;
+      _ensureVibesPollTimer();
+      sendResponse({ ok: true });
+    } else {
+      sendResponse({ ok: false, error: "origin_mismatch" });
+    }
+    return true;
+  }
+
+  if (msg.type === "VIBES_RESULT") {
+    vibesSendResult(msg.payload);
+    sendResponse({ ok: true });
+    return true;
+  }
 });
 
 chrome.runtime.onConnect.addListener(function(port) {
@@ -312,6 +378,7 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
   if (hash) { delete _accountToTab[hash]; delete _activeRequests[hash]; }
   delete _tabToAccount[tabId];
   delete _recentlyCreatedTabs[tabId];
+  if (_vibesTabId === tabId) { _vibesTabId = null; _stopVibesPollTimer(); }
 });
 
 // ── Anti-throttling: Chrome congela los timers (setTimeout/setInterval) de
