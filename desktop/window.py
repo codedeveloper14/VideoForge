@@ -109,6 +109,79 @@ def _write_loading_page(html: str) -> Path:
     return Path(path)
 
 
+def _force_downloads_to_system_folder() -> None:
+    """Todo boton "Descargar" de la app depende de que el click en <a download> se
+    convierta en un archivo real -- pywebview CANCELA toda descarga por default
+    (settings['ALLOW_DOWNLOADS'] = False de fabrica), asi que sin esto ningun boton
+    de descarga hacia nada visible en la ventana nativa (funcionaba solo en modo
+    --browser/VF_NO_WEBVIEW, un navegador de verdad). Con ALLOW_DOWNLOADS=True,
+    pywebview en si muestra un dialogo nativo "Guardar como" que arranca en
+    Descargas pero deja al usuario elegir otra carpeta -- no cumple "sin
+    excepciones", asi que se reemplaza tambien el manejador de descarga interno de
+    pywebview (Windows: EdgeChrome.on_download_starting; mac: DownloadDelegate) por
+    uno que fija el destino directo en la carpeta Descargas real del SO, sin mostrar
+    ningun dialogo. Con colision de nombre, agrega " (1)", " (2)", etc. -- nunca
+    sobreescribe un archivo ya descargado."""
+    import webview
+
+    webview.settings["ALLOW_DOWNLOADS"] = True
+
+    def _unique_dest(downloads_dir: str, suggested_name: str) -> Path:
+        dest = Path(downloads_dir) / suggested_name
+        stem, suffix = dest.stem, dest.suffix
+        i = 1
+        while dest.exists():
+            dest = Path(downloads_dir) / f"{stem} ({i}){suffix}"
+            i += 1
+        return dest
+
+    if sys.platform == "win32":
+        try:
+            from webview.platforms import edgechromium
+        except Exception:
+            logger.warning("No se pudo parchear el manejador de descargas de pywebview (edgechromium).")
+            return
+
+        def _on_download_starting(self, sender, args):  # noqa: ANN001
+            import winreg
+
+            downloads_dir = str(Path.home() / "Downloads")
+            try:
+                with winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders",
+                ) as key:
+                    downloads_dir = winreg.QueryValueEx(key, "{374DE290-123F-4565-9164-39C4925E467B}")[0]
+            except Exception:
+                logger.exception("No se pudo resolver la carpeta de Descargas via registro, uso ~/Downloads.")
+
+            suggested = os.path.basename(args.ResultFilePath)
+            args.ResultFilePath = str(_unique_dest(downloads_dir, suggested))
+
+        edgechromium.EdgeChrome.on_download_starting = _on_download_starting
+
+    elif sys.platform == "darwin":
+        # No probado en vivo en macOS (sin maquina para confirmar) -- misma logica
+        # que el parche de Windows, reemplazando el delegate de descarga de cocoa.py.
+        try:
+            from webview.platforms import cocoa
+            import Foundation
+        except Exception:
+            logger.warning("No se pudo parchear el manejador de descargas de pywebview (cocoa).")
+            return
+
+        def _decide_destination(self, download, decide, suggested_filename, completion_handler):  # noqa: ANN001
+            downloads_dir = Foundation.NSSearchPathForDirectoriesInDomains(
+                Foundation.NSDownloadsDirectory, Foundation.NSUserDomainMask, True
+            )[0]
+            dest = _unique_dest(downloads_dir, str(suggested_filename))
+            completion_handler(Foundation.NSURL.fileURLWithPath_(str(dest)))
+
+        cocoa.BrowserView.DownloadDelegate.download_decideDestinationUsingResponse_suggestedFilename_completionHandler_ = (
+            _decide_destination
+        )
+
+
 def _screen_size() -> tuple[int, int]:
     try:
         import tkinter as tk
@@ -158,6 +231,11 @@ def run(start_backend: Callable[[], None], url: str | None = None, title: str | 
             logger.warning(
                 "pywebview no instalado -- abre en el navegador. Ventana nativa: pip install pywebview"
             )
+        else:
+            try:
+                _force_downloads_to_system_folder()
+            except Exception:
+                logger.exception("No se pudo forzar las descargas a la carpeta Descargas -- sigue sin el parche.")
 
     if not use_native:
         webbrowser.open(_write_loading_page(loading_html).as_uri())

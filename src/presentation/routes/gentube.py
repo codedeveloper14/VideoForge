@@ -64,12 +64,12 @@ def reset():
 
 @gentube_bp.get("/images")
 def images():
-    return jsonify(gentube_animation_service.list_images())
+    return jsonify(gentube_animation_service.list_images(request.args.get("dir")))
 
 
 @gentube_bp.get("/image/<path:name>")
 def image(name):
-    path = gentube_animation_service.get_image_path(name)
+    path = gentube_animation_service.get_image_path(name, request.args.get("dir"))
     if not path:
         return jsonify({"error": "not found"}), 404
     return send_file(path)
@@ -77,5 +77,6 @@ def image(name):
 
 @gentube_bp.post("/clear-images")
 def clear_images():
-    gentube_animation_service.clear_images()
+    data = request.get_json(silent=True) or {}
+    gentube_animation_service.clear_images(data.get("output_dir"))
     return jsonify({"ok": True})

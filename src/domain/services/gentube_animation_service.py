@@ -187,8 +187,20 @@ def reset() -> None:
         _state.update(running=False, step="idle", progress=0, total=0, images_saved=0, log=[])
 
 
-def list_images() -> dict:
-    d = (_state.get("output_dir") or "").strip()
+# out_dir explicito (siempre preferido) -- _state["output_dir"] solo se actualiza
+# cuando efectivamente CORRE un lote de generacion, asi que sin esto, cambiar de
+# proyecto activo sin haber generado todavia en el nuevo mostraba la galeria/
+# carpeta/imagen del ULTIMO proyecto donde se genero, no la del proyecto que se
+# esta viendo en pantalla ahora mismo.
+def _resolve_dir(out_dir: str | None) -> str:
+    d = (out_dir or "").strip()
+    if d:
+        return d
+    return (_state.get("output_dir") or "").strip()
+
+
+def list_images(out_dir: str | None = None) -> dict:
+    d = _resolve_dir(out_dir)
     if not d or not os.path.isdir(d):
         return {"images": [], "count": 0}
     exts = {".png", ".jpg", ".jpeg", ".webp"}
@@ -200,16 +212,16 @@ def list_images() -> dict:
     return {"images": imgs, "count": len(imgs)}
 
 
-def get_image_path(name: str) -> str | None:
-    d = (_state.get("output_dir") or "").strip()
+def get_image_path(name: str, out_dir: str | None = None) -> str | None:
+    d = _resolve_dir(out_dir)
     if not d:
         return None
     path = os.path.join(d, os.path.basename(name))
     return path if os.path.isfile(path) else None
 
 
-def clear_images() -> None:
-    d = (_state.get("output_dir") or "").strip()
+def clear_images(out_dir: str | None = None) -> None:
+    d = _resolve_dir(out_dir)
     if not d or not os.path.isdir(d):
         return
     exts = {".png", ".jpg", ".jpeg", ".webp"}

@@ -165,8 +165,9 @@ def full_log():
 
 @flow_bp.post("/abrir_carpeta")
 def abrir_carpeta():
+    data = request.get_json(silent=True) or {}
     try:
-        return jsonify(flow_animation_service.abrir_carpeta())
+        return jsonify(flow_animation_service.abrir_carpeta(data.get("output_dir")))
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
 

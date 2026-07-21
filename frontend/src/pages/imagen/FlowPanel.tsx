@@ -793,7 +793,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
             </button>
             <button
               type="button"
-              onClick={() => flowAbrirCarpeta().catch(() => {})}
+              onClick={() => flowAbrirCarpeta(outputDir).catch(() => {})}
               className="flow-btn flow-btn--ghost flow-btn--xs"
             >
               📁

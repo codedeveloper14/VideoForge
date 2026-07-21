@@ -80,14 +80,21 @@ export function gentubeReset() {
   return api.post<{ ok: boolean }>("/gentube/reset").then((r) => r.data);
 }
 
-export function gentubeImages() {
-  return api.get<string[] | GentubeImagesResult>("/gentube/images").then((r) => r.data);
+export function gentubeImages(dir?: string) {
+  return api
+    .get<string[] | GentubeImagesResult>("/gentube/images", { params: dir ? { dir } : {} })
+    .then((r) => r.data);
 }
 
-export function gentubeImageUrl(name: string) {
-  return `/api/gentube/image/${encodeURIComponent(name)}`;
+export function gentubeImageUrl(name: string, dir?: string) {
+  const params = new URLSearchParams();
+  if (dir) params.set("dir", dir);
+  const qs = params.toString();
+  return `/api/gentube/image/${encodeURIComponent(name)}${qs ? `?${qs}` : ""}`;
 }
 
-export function gentubeClearImages() {
-  return api.post<{ ok: boolean }>("/gentube/clear-images").then((r) => r.data);
+export function gentubeClearImages(output_dir?: string) {
+  return api
+    .post<{ ok: boolean }>("/gentube/clear-images", output_dir ? { output_dir } : {})
+    .then((r) => r.data);
 }

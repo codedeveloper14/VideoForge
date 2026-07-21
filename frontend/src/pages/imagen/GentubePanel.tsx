@@ -62,11 +62,16 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
   const GEN_ID = "imagen:gentube";
 
   function refreshImages() {
-    gentubeImages()
+    if (!outputDir) return;
+    gentubeImages(outputDir)
       .then((data) => {
         const names = Array.isArray(data) ? data : data.images || [];
         setImages(
-          names.map((n) => ({ key: n, name: n, src: gentubeImageUrl(n) + `?t=${Date.now()}` })),
+          names.map((n) => ({
+            key: n,
+            name: n,
+            src: gentubeImageUrl(n, outputDir) + `&t=${Date.now()}`,
+          })),
         );
       })
       .catch(() => {});
@@ -105,13 +110,21 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
 
   useEffect(() => {
     pollStatus();
-    refreshImages();
     loadAccounts();
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // refreshImages depende de outputDir (la carpeta imagen/ del proyecto activo) --
+  // antes se pedia UNA sola vez al montar el panel, asi que cambiar de proyecto sin
+  // haber generado todavia en el nuevo seguia mostrando la galeria del PRIMER
+  // proyecto abierto en la sesion, nunca la del que esta seleccionado ahora.
+  useEffect(() => {
+    refreshImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outputDir]);
 
   useEffect(() => {
     if (running && !pollRef.current) {
@@ -202,7 +215,7 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
 
   async function handleClearImages() {
     try {
-      await gentubeClearImages();
+      await gentubeClearImages(outputDir);
       setImages([]);
     } catch (err) {
       setError((err as Error).message);
