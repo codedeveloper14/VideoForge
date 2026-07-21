@@ -346,13 +346,32 @@
   var BATCHES_CACHE_MS = 1200;
   var batchesCache = {};
 
+  // vibes.ai devuelve 500 en /batches con mucha frecuencia bajo su propia carga (no es
+  // culpa nuestra, confirmado revisando la consola manualmente) -- sin reintento, un solo
+  // 500 tira la respuesta de ese ciclo entero y hay que esperar 3s (el intervalo de poll)
+  // para el siguiente intento. Reintentar aca mismo, en el momento, aprovecha mejor las
+  // ventanas cortas en las que el backend SI responde bien.
+  function fetchBatchesWithRetry(projectId, attempt) {
+    attempt = attempt || 0;
+    return apiFetch("/api/projects/" + projectId + "/batches?limit=6&offset=0").then(function (r) {
+      if (!r.ok && attempt < 3) {
+        return new Promise(function (resolve) {
+          setTimeout(resolve, 350);
+        }).then(function () {
+          return fetchBatchesWithRetry(projectId, attempt + 1);
+        });
+      }
+      return r;
+    });
+  }
+
   function listBatches(projectId) {
     var cached = batchesCache[projectId];
     var now = Date.now();
     if (cached && now - cached.ts < BATCHES_CACHE_MS) {
       return cached.promise;
     }
-    var promise = apiFetch("/api/projects/" + projectId + "/batches?limit=6&offset=0").then(function (r) {
+    var promise = fetchBatchesWithRetry(projectId).then(function (r) {
       var batches = (r.data && (r.data.batches || r.data.items || r.data)) || [];
       return Array.isArray(batches) ? batches : [];
     });
@@ -362,18 +381,11 @@
 
   // Escribe el prompt, adjunta la imagen de referencia (si hay) y hace clic en Generate --
   // el "envio" en si. Devuelve el set de ids de batch que YA existian antes del clic, para
-  // que quien llama pueda esperar el batch nuevo por su cuenta SIN bloquear el envio del
-  // siguiente job/slot (asi varias generaciones corren en paralelo, como en meta.ai). El
-  // texto se escribe DESPUES de adjuntar la imagen porque el flujo de "Start, end frame"
-  // (abrir panel, elegir miniatura, Add to video) re-renderiza el compositor y borra lo que
-  // ya se hubiera escrito antes.
-  //
-  // Nota: se probo identificar aqui mismo el batchId exacto (sondeando hasta 8s antes de
-  // soltar sendQueue) para evitar que dos jobs en paralelo agarren el mismo batch nuevo --
-  // pero con el backend de vibes.ai degradado esos 8s de sondeo bloqueando la cola volvian
-  // todo mucho mas lento Y menos confiable (el sondeo mismo fallaba por los 500 de vibes.ai).
-  // Se volvio a la deteccion por exclusion simple (cualquier batch nuevo no visto antes),
-  // que es la que de verdad funciona de forma confiable en este entorno.
+  // que quien llama identifique el batch propio DESPUES, sin bloquear esta cola. Rapido a
+  // proposito: nada de sondeos largos aca adentro (ver identifyBatch/trackAndWait mas abajo
+  // para el porque). El texto se escribe DESPUES de adjuntar la imagen porque el flujo de
+  // "Start, end frame" (abrir panel, elegir miniatura, Add to video) re-renderiza el
+  // compositor y borra lo que ya se hubiera escrito antes.
   function sendOneMessage(projectId, prompt, imageInfo) {
     return listBatches(projectId).then(function (before) {
       var beforeIds = {};
@@ -409,54 +421,40 @@
     });
   }
 
-  // vibes.ai a veces responde 500 en su propio POST /api/generate/videos (el que dispara
-  // React al clickear Generate) -- cuando eso pasa, NUNCA se crea un batch nuevo y no hay
-  // nada que esperar ni descargar, sin importar como filtremos. Detectamos ese caso con un
-  // chequeo corto (aparece un batch nuevo en los primeros ~12s?) y, si no aparecio nada,
-  // reintentamos el envio completo (re-adjuntar imagen, re-escribir texto, re-click) unas
-  // pocas veces antes de rendirnos -- igual que haria un humano reintentando a mano.
-  function sendOneMessageWithRetry(projectId, prompt, imageInfo, retriesLeft) {
-    return sendOneMessage(projectId, prompt, imageInfo).then(function (beforeIds) {
-      return pollAsync(
-        function () {
-          return listBatches(projectId).then(function (batches) {
-            for (var i = 0; i < batches.length; i++) {
-              if (batches[i] && batches[i].id && !beforeIds[batches[i].id]) return true;
+  // Identifica el batch EXACTO recien creado por este job (id que no estaba en beforeIds).
+  // Se llama justo despues de que sendOneMessage libera sendQueue -- arranca a sondear en el
+  // mismo instante en que el siguiente job recien empieza el suyo, y como JS es de un solo
+  // hilo, ese primer sondeo corre antes de que el siguiente job tenga tiempo real de red/DOM
+  // para crear su propio batch. Por eso el primer batch nuevo que aparece aca es, en la
+  // practica, inequivocamente el nuestro -- sin esto, dos jobs en paralelo sobre el mismo
+  // proyecto pueden ver el MISMO batch nuevo y descargar el mismo video repetido cada uno.
+  function identifyBatch(projectId, beforeIds, timeoutMs) {
+    return pollAsync(
+      function () {
+        return listBatches(projectId).then(function (batches) {
+          for (var i = 0; i < batches.length; i++) {
+            if (batches[i] && batches[i].id && !beforeIds[batches[i].id]) {
+              return batches[i].id;
             }
-            return null;
-          });
-        },
-        Date.now() + 12000,
-        500
-      )
-        .then(function () {
-          return beforeIds;
-        })
-        .catch(function () {
-          if (retriesLeft > 0) {
-            console.log(
-              "[Vibes] paso: vibes.ai no creo el batch (probable 500 en /generate/videos), reintentando envio (" +
-                retriesLeft +
-                " intento(s) restante(s))..."
-            );
-            return sendOneMessageWithRetry(projectId, prompt, imageInfo, retriesLeft - 1);
           }
-          console.log("[Vibes] paso: sin batch tras reintentos, se sigue esperando por si aparece tarde...");
-          return beforeIds;
+          return null;
         });
-    });
+      },
+      Date.now() + timeoutMs,
+      400
+    );
   }
 
-  // Espera a que aparezca un batch NUEVO (id que no estaba en beforeIds) y que termine
-  // (isComplete). Se corre SIN bloquear la cola de envios -- por eso varias de estas pueden
-  // estar activas a la vez, una por cada job/slot ya enviado.
-  function waitForVideos(projectId, beforeIds, deadlineTs) {
+  // Espera a que el batch identificado por batchId (id exacto, no ambiguo) termine
+  // (isComplete) y devuelve su video. Se corre SIN bloquear sendQueue -- por eso varias de
+  // estas pueden estar activas a la vez, una por cada job/slot ya enviado.
+  function waitForVideos(projectId, batchId, deadlineTs) {
     return pollAsync(
       function () {
         return listBatches(projectId).then(function (batches) {
           var fresh = null;
           for (var i = 0; i < batches.length; i++) {
-            if (batches[i] && batches[i].id && !beforeIds[batches[i].id]) {
+            if (batches[i] && batches[i].id === batchId) {
               fresh = batches[i];
               break;
             }
@@ -474,6 +472,39 @@
       },
       deadlineTs,
       3000
+    );
+  }
+
+  // Identifica el batch EXACTO de este envio (por id, no por exclusion) y espera su video --
+  // todo esto corre por fuera de sendQueue, asi que no atrasa el envio del siguiente job. Si
+  // vibes.ai nunca crea el batch (probable 500 en su propio POST /api/generate/videos -- pasa
+  // seguido con su backend degradado), reintenta el envio completo desde cero encolandolo de
+  // nuevo en sendQueue (el reintento si vuelve a tocar el DOM, asi que debe respetar el orden).
+  function trackAndWait(projectId, prompt, imageInfo, beforeIds, deadlineTs, retriesLeft) {
+    return identifyBatch(projectId, beforeIds, 10000).then(
+      function (batchId) {
+        return waitForVideos(projectId, batchId, deadlineTs);
+      },
+      function () {
+        if (retriesLeft > 0) {
+          console.log(
+            "[Vibes] paso: vibes.ai no creo el batch (probable 500 en /generate/videos), reintentando envio (" +
+              retriesLeft +
+              " intento(s) restante(s))..."
+          );
+          var retry = sendQueue.then(function () {
+            return sendOneMessage(projectId, prompt, imageInfo);
+          });
+          sendQueue = retry.then(
+            function () {},
+            function () {},
+          );
+          return retry.then(function (newBeforeIds) {
+            return trackAndWait(projectId, prompt, imageInfo, newBeforeIds, deadlineTs, retriesLeft - 1);
+          });
+        }
+        throw new Error("vibes.ai nunca creo el batch tras reintentos (500 en /generate/videos)");
+      }
     );
   }
 
@@ -510,8 +541,8 @@
         var slotChain = Promise.resolve();
         for (var i = 0; i < slots; i++) {
           slotChain = slotChain.then(function () {
-            return sendOneMessageWithRetry(projectId, job.prompt, imageInfo, 2).then(function (beforeIds) {
-              waiters.push(waitForVideos(projectId, beforeIds, deadlineTs));
+            return sendOneMessage(projectId, job.prompt, imageInfo).then(function (beforeIds) {
+              waiters.push(trackAndWait(projectId, job.prompt, imageInfo, beforeIds, deadlineTs, 2));
             });
           });
         }
