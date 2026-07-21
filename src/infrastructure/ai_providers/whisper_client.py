@@ -153,8 +153,9 @@ def transcribe_whisperx_replicate(
 
     os.environ["REPLICATE_API_TOKEN"] = config.replicate_api_key
 
+    audio_file = open(audio_path, "rb")
     input_payload = {
-        "audio_file": open(audio_path, "rb"),
+        "audio_file": audio_file,
         "align_output": True,
         "only_text": False,
         "batch_size": 4,
@@ -167,10 +168,20 @@ def transcribe_whisperx_replicate(
     timeout_secs = 120
 
     def _run():
+        # El hilo puede seguir vivo mas alla de t.join(timeout) de mas abajo (la
+        # llamada real a Replicate no es cancelable) -- cerrar el file handle aca,
+        # cuando la llamada de verdad termine (exito o error), en vez de nunca
+        # cerrarlo, evita que se acumulen handles abiertos en corridas repetidas
+        # que dan timeout.
         try:
             result_box[0] = replicate_client.run(_WHISPERX_REPLICATE_MODEL, input=input_payload)
         except Exception as exc:
             error_box[0] = exc
+        finally:
+            try:
+                audio_file.close()
+            except Exception:
+                pass
 
     t = threading.Thread(target=_run, daemon=True)
     t.start()
@@ -232,14 +243,14 @@ def transcribe_with_fallback(audio_path: str) -> tuple[list[dict], list[dict], s
         segmentos = transcribe_faster(audio_path, "medium")
         all_words = [w for s in segmentos for w in s.get("words", [])]
         return segmentos, all_words, "faster_whisper"
-    except ImportError:
-        pass
+    except Exception as exc:
+        logger.info("transcribe_with_fallback: faster-whisper fallo (%s), probando whisper local...", exc)
 
     try:
         segmentos = transcribe_local(audio_path, "medium")
         all_words = [w for s in segmentos for w in s.get("words", [])]
         return segmentos, all_words, "openai_whisper"
-    except ImportError:
-        pass
+    except Exception as exc:
+        logger.info("transcribe_with_fallback: whisper local fallo (%s), sin transcripcion.", exc)
 
     return [], [], "guion_estimate"

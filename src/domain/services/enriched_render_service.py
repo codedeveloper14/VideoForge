@@ -488,6 +488,28 @@ def _procesar_render_enriquecido(
                 f"setsar=1,fps=24,setpts=PTS-STARTPTS"
             )
 
+        def _fallback_caption_vf(base_vf, wr, hr, otxt, fontfile):
+            """Reaplica el texto de la escena sobre el filtro de respaldo (fondo solido)
+            cuando el render "completo" de la escena (Ken Burns + overlays especificos
+            del tipo) fallo -- sin esto, el fallback quedaba SIN caption: el video seguia
+            armandose bien, pero esa escena aparecia muda de texto, con solo una linea
+            de log para explicarlo (facil de pasar por alto entre cientos de lineas)."""
+            fp = (fontfile or "").replace("\\", "/")
+            if not otxt or not fp:
+                return base_vf
+            fs = int(wr / 22)
+            text = _sf(_wr(otxt, 28))
+            y = f"h-text_h-{int(hr * 0.08)}"
+            return (
+                base_vf + ","
+                f"drawtext=fontfile='{fp}':text='{text}':"
+                f"fontcolor=black@0.6:fontsize={fs}:line_spacing={int(fs * 0.2)}:"
+                f"x=(w-text_w)/2+3:y={y}+3,"
+                f"drawtext=fontfile='{fp}':text='{text}':"
+                f"fontcolor=white@1.0:fontsize={fs}:line_spacing={int(fs * 0.2)}:"
+                f"x=(w-text_w)/2:y={y}"
+            )
+
         def _enc(so, vf, dur, src, preset="ultrafast", crf=23, fc=None, mv="[v]", tout=120):
             cmd = ["ffmpeg", "-y"]
             if isinstance(src, str):
@@ -1532,7 +1554,10 @@ def _procesar_render_enriquecido(
             except Exception as seg_e:
                 log(f"  [ERROR] Error escena {i + 1}: {seg_e}")
                 try:
-                    _enc(seg_out, _bsb(w_res, h_res), dur_clip, img_path, preset="ultrafast", crf=28, tout=60)
+                    fb_vf = _fallback_caption_vf(
+                        _bsb(w_res, h_res), w_res, h_res, otxt, font_bold or font_reg
+                    )
+                    _enc(seg_out, fb_vf, dur_clip, img_path, preset="ultrafast", crf=28, tout=60)
                     seg_paths.append(seg_out)
                 except Exception:
                     pass

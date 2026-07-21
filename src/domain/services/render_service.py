@@ -349,13 +349,20 @@ def _procesar_render_inteligente(
                 except Exception as exc:
                     raise RuntimeError(f"WhisperX local error: {exc}") from exc
             elif whisper_backend == "whisperx":
+                # A diferencia de las otras ramas (intento unico), esta usa la cascada
+                # de whisper_client -- es el backend default de la ruta HTTP (render.py)
+                # y el mas propenso a fallar por depender de red/Replicate, asi que un
+                # solo 500/timeout no debe tumbar el render entero si faster-whisper o
+                # whisper local pueden hacer el trabajo en su lugar.
                 log("Transcribiendo con WhisperX Replicate (alineacion forzada)...", 10)
-                try:
-                    segmentos, all_words = whisper_client.transcribe_whisperx_replicate(
-                        audio_path, language=None
+                segmentos, all_words, backend_usado = whisper_client.transcribe_with_fallback(audio_path)
+                if backend_usado != "whisperx_replicate":
+                    log(f"  [WARNING] WhisperX Replicate no disponible, uso fallback: {backend_usado}")
+                if not segmentos:
+                    raise RuntimeError(
+                        "No se pudo transcribir el audio (WhisperX Replicate, faster-whisper y "
+                        "whisper local fallaron todos)"
                     )
-                except Exception as exc:
-                    raise RuntimeError(f"WhisperX Replicate error: {exc}") from exc
             else:
                 log(f"Transcribiendo con Whisper ({modelo})...", 10)
                 segmentos = whisper_client.transcribe_local(audio_path, modelo)
@@ -536,7 +543,11 @@ def _procesar_render_inteligente(
             ],
             "No se pudo crear audio silencioso",
         )
-        silent_b64 = base64.b64encode(open(silent, "rb").read() if os.path.exists(silent) else b"").decode()
+        if os.path.exists(silent):
+            with open(silent, "rb") as sf:
+                silent_b64 = base64.b64encode(sf.read()).decode()
+        else:
+            silent_b64 = base64.b64encode(b"").decode()
 
         # ── Compressed audio para mezcla final ───────────────────────────
         asm = os.path.join(tmp_dir, "audio_s.mp3")
@@ -1320,7 +1331,38 @@ def _procesar_render_inteligente(
         try:
             ffmpeg_utils.final_mux_aligned(concat_out, audio_path_mix, video_final, duracion_total, log=log)
         except Exception as mux_e:
-            raise Exception(f"No se pudo mezclar audio final: {mux_e}") from mux_e
+            # Ultimo recurso: mux simple con -shortest (recorta al stream mas corto,
+            # sin el alineado exacto de mas arriba) -- mismo patron que ya usa
+            # enriched_render_service.py. Preferible a tirar el render entero si
+            # final_mux_aligned fallo por algo puntual (encoder GPU y CPU ambos con
+            # problemas, disco lleno a mitad del re-encode, etc.).
+            log(f"  [WARNING] mux alineado fallo ({mux_e}) -- reintentando con -shortest...")
+            res_sh = _run_ffmpeg(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    concat_out,
+                    "-i",
+                    audio_path_mix,
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    "-shortest",
+                    "-movflags",
+                    "+faststart",
+                    video_final,
+                ],
+                180,
+            )
+            shortest_ok = res_sh.returncode == 0 or (
+                os.path.exists(video_final) and os.path.getsize(video_final) > 10240
+            )
+            if not shortest_ok:
+                raise Exception(f"No se pudo mezclar audio final (alineado ni -shortest): {mux_e}") from mux_e
 
         if not os.path.exists(video_final):
             raise Exception("FFmpeg no genero el video final")
