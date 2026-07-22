@@ -8,6 +8,7 @@ import threading
 from collections.abc import Callable
 
 from src.utils.logger import get_logger
+from src.utils.platform_utils import no_window_kwargs
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,7 @@ def _collect_descendant_pids(pid: int) -> set[int]:
                 capture_output=True,
                 text=True,
                 timeout=3,
+                **no_window_kwargs(),
             ).stdout
             for line in out.splitlines():
                 line = line.strip()
@@ -166,7 +168,7 @@ def wmic_lines() -> list[str]:
             capture_output=True,
             text=True,
             timeout=6,
-            creationflags=0x08000000,
+            **no_window_kwargs(),
         )
         return [line.replace("\\", "/").lower() for line in r.stdout.splitlines()]
     except Exception:
