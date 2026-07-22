@@ -518,39 +518,47 @@
   // para el porque). El texto se escribe DESPUES de adjuntar la imagen porque el flujo de
   // "Start, end frame" (abrir panel, elegir miniatura, Add to video) re-renderiza el
   // compositor y borra lo que ya se hubiera escrito antes.
+  //
+  // OJO: el snapshot de "before" se toma DESPUES de adjuntar la imagen (registerMediaWithProject
+  // en attachImage crea su PROPIO batch de projeto, type:"images", prompt:"Uploaded media") y
+  // NO al principio de la funcion -- tomarlo antes hacia que identifyBatch agarrara ese batch de
+  // subida de imagen (aparece ~1-2s despues del click, mucho antes que el batch de video real) en
+  // vez de esperar el batch de generacion real, y waitForVideos se quedaba sondeando para siempre
+  // un batch que ya estaba isComplete pero sin URLs de video (confirmado en vivo 2026-07-21).
   function sendOneMessage(projectId, prompt, imageInfo) {
-    return listBatches(projectId).then(function (before) {
-      var beforeIds = {};
-      before.forEach(function (b) {
-        if (b && b.id) beforeIds[b.id] = true;
-      });
-      var attachChain = imageInfo
-        ? attachImage(imageInfo.base64, imageInfo.mime, imageInfo.name, projectId)
-        : Promise.resolve();
-      return attachChain
-        .then(function () {
-          if (imageInfo) console.log("[Vibes] paso: imagen adjuntada");
-          return typePrompt(prompt);
-        })
-        .then(function () {
-          console.log("[Vibes] paso: texto escrito en el editor");
-          return clickGenerate();
-        })
-        .then(function () {
-          // Al enviar, el start frame queda pegado en el compositor (con boton "Remove
-          // start frame") -- si no lo sacamos, el siguiente job no encuentra "Add start
-          // frame" (ya hay uno puesto) y se traba. Lo sacamos apenas se envia el mensaje.
-          var removeBtn = document.querySelector('button[aria-label="Remove start frame"]');
-          if (removeBtn) {
-            console.log("[Vibes] paso: quitando start frame anterior...");
-            realClick(removeBtn);
-          }
-        })
-        .then(function () {
-          console.log("[Vibes] paso: mensaje enviado, sigue generando en paralelo...");
-          return beforeIds;
+    var attachChain = imageInfo
+      ? attachImage(imageInfo.base64, imageInfo.mime, imageInfo.name, projectId)
+      : Promise.resolve();
+    return attachChain
+      .then(function () {
+        if (imageInfo) console.log("[Vibes] paso: imagen adjuntada");
+        return typePrompt(prompt);
+      })
+      .then(function () {
+        console.log("[Vibes] paso: texto escrito en el editor");
+        return listBatches(projectId);
+      })
+      .then(function (before) {
+        var beforeIds = {};
+        before.forEach(function (b) {
+          if (b && b.id) beforeIds[b.id] = true;
         });
-    });
+        return clickGenerate()
+          .then(function () {
+            // Al enviar, el start frame queda pegado en el compositor (con boton "Remove
+            // start frame") -- si no lo sacamos, el siguiente job no encuentra "Add start
+            // frame" (ya hay uno puesto) y se traba. Lo sacamos apenas se envia el mensaje.
+            var removeBtn = document.querySelector('button[aria-label="Remove start frame"]');
+            if (removeBtn) {
+              console.log("[Vibes] paso: quitando start frame anterior...");
+              realClick(removeBtn);
+            }
+          })
+          .then(function () {
+            console.log("[Vibes] paso: mensaje enviado, sigue generando en paralelo...");
+            return beforeIds;
+          });
+      });
   }
 
   // Identifica el batch EXACTO recien creado por este job (id que no estaba en beforeIds).
