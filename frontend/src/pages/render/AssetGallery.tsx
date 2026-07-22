@@ -2,7 +2,7 @@
 // -- lee jobs/<project>/imagen y jobs/<project>/video de forma dinamica via
 // getProjectContent(), igual que ya hacen las galerias de Paso 2/4 (solo lectura,
 // no altera que archivos usa el render en si -- eso lo decide render_service.py).
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getProjectContent, imagenFileUrl, videoFileUrl } from "../../api/projects";
 import type { ProjectScene } from "../../api/projects";
@@ -25,23 +25,41 @@ function AssetCard({
   project: string;
   kind: "image" | "video";
 }) {
+  const filename = (kind === "video" ? scene.video : scene.image) as string;
+  const url = kind === "video" ? videoFileUrl(project, filename) : imagenFileUrl(project, filename);
+
+  // Un <img> es arrastrable por defecto en el navegador; un <video> NO lo es --
+  // por eso ambos declaran draggable + onDragStart explicitamente aca, con el
+  // mismo mecanismo (text/uri-list + nombre de archivo), para que arrastrar una
+  // tarjeta de video hacia la zona de subida funcione igual que con imagenes.
+  function handleDragStart(e: DragEvent<HTMLElement>) {
+    e.dataTransfer.setData("text/uri-list", url);
+    e.dataTransfer.setData("text/plain", url);
+    e.dataTransfer.setData("application/x-vf-filename", filename);
+    e.dataTransfer.effectAllowed = "copy";
+  }
+
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--vf-border)] bg-[var(--vf-surface)]">
       <div className="relative aspect-video bg-black/20">
         {kind === "video" ? (
           <video
-            src={videoFileUrl(project, scene.video as string)}
-            className="h-full w-full object-cover"
+            src={url}
+            className="h-full w-full cursor-grab object-cover active:cursor-grabbing"
             muted
             loop
             playsInline
             preload="metadata"
+            draggable
+            onDragStart={handleDragStart}
           />
         ) : (
           <img
-            src={imagenFileUrl(project, scene.image as string)}
+            src={url}
             alt={scene.index}
-            className="h-full w-full object-cover"
+            className="h-full w-full cursor-grab object-cover active:cursor-grabbing"
+            draggable
+            onDragStart={handleDragStart}
           />
         )}
       </div>

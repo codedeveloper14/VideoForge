@@ -538,6 +538,7 @@
     "mustBeImage": "Debe ser una imagen (jpg, png, webp, gif, bmp).",
     "mustBeVideo": "Debe ser un video (.mp4).",
     "uploadedOk": "{{count}} archivo(s) subido(s) al proyecto.",
+    "dragFetchError": "No se pudo leer el archivo arrastrado. Prueba subirlo desde el explorador.",
     "motionNoneSub": "Imagen estática",
     "motionKenBurnsSub": "Zoom + pan diagonal",
     "motionZoomInSub": "Acerca lentamente",

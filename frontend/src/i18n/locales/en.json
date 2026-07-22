@@ -434,6 +434,7 @@
     "mustBeImage": "Must be an image (jpg, png, webp, gif, bmp).",
     "mustBeVideo": "Must be a video (.mp4).",
     "uploadedOk": "{{count}} file(s) uploaded to the project.",
+    "dragFetchError": "Couldn't read the dragged file. Try uploading it from the file browser.",
     "motionNoneSub": "Static image",
     "motionKenBurnsSub": "Zoom + diagonal pan",
     "motionZoomInSub": "Zooms in slowly",

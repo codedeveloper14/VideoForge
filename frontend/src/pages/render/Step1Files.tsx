@@ -289,6 +289,7 @@ export default function Step1Files({
                   hint={t("projectRenderPanel.selectMultipleAtOnce") || ""}
                   accept={["jpg", "jpeg", "png", "webp", "gif", "bmp"]}
                   wrongTypeMessage={t("projectRenderPanel.mustBeImage")}
+                  fetchErrorMessage={t("projectRenderPanel.dragFetchError")}
                   multiple
                   uploading={uploadingImage}
                   onFiles={handleUploadProjectImages}
@@ -320,6 +321,7 @@ export default function Step1Files({
                   hint={t("projectRenderPanel.videosHint") || ""}
                   accept={["mp4"]}
                   wrongTypeMessage={t("projectRenderPanel.mustBeVideo")}
+                  fetchErrorMessage={t("projectRenderPanel.dragFetchError")}
                   multiple
                   uploading={uploadingVideo}
                   onFiles={handleUploadProjectVideos}

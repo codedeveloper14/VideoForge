@@ -2,7 +2,7 @@
 // Mirrors the pattern established in pages/imagen/shared.jsx for visual consistency.
 
 import { useEffect, useState } from "react";
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, DragEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { getProjectContent, imagenFileUrl } from "../../api/projects";
 
@@ -220,9 +220,26 @@ export interface ImageSlotsProps {
 
 export function ImageSlots({ files, onChange }: ImageSlotsProps) {
   const { t } = useTranslation();
-  function handleFiles(fileList: FileList) {
+  const [dragOver, setDragOver] = useState(false);
+
+  function handleFiles(fileList: FileList | File[]) {
     const imgs = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
     if (imgs.length) onChange([...files, ...imgs]);
+  }
+
+  // Assets dragged from a project gallery (ProjectImagePicker, AssetGallery) arrive
+  // as a URL via dataTransfer, not as a native File -- fetch() reconstructs a real
+  // File so it flows through the same handleFiles() path as a manual drop.
+  async function handleDraggedAsset(uri: string, filenameHint: string) {
+    try {
+      const resp = await fetch(uri);
+      if (!resp.ok) return;
+      const blob = await resp.blob();
+      const name = filenameHint || decodeURIComponent(uri.split("/").pop() || "imagen");
+      handleFiles([new File([blob], name, { type: blob.type || "image/png" })]);
+    } catch {
+      // dropped item wasn't a recognizable image asset -- ignore silently
+    }
   }
 
   function removeAt(idx: number) {
@@ -236,7 +253,30 @@ export function ImageSlots({ files, onChange }: ImageSlotsProps) {
   return (
     <div>
       <label
-        className="relative block cursor-pointer rounded-xl border-[1.5px] border-dashed border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.015)] p-7 text-center transition-all hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--vf-c1)_5%,transparent)]"
+        onDragOver={(e: DragEvent<HTMLLabelElement>) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e: DragEvent<HTMLLabelElement>) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (e.dataTransfer.files && e.dataTransfer.files.length) {
+            handleFiles(e.dataTransfer.files);
+            return;
+          }
+          const uri = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+          if (uri) {
+            const filenameHint = e.dataTransfer.getData("application/x-vf-filename");
+            void handleDraggedAsset(uri, filenameHint);
+          }
+        }}
+        className={
+          "relative block cursor-pointer rounded-xl border-[1.5px] border-dashed p-7 text-center transition-all " +
+          (dragOver
+            ? "border-[var(--vf-accent)] bg-[var(--vf-accent)]/[0.08]"
+            : "border-[var(--vf-b2)] bg-[rgba(var(--vf-fg-rgb),.015)] hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--vf-c1)_5%,transparent)]")
+        }
       >
         <input
           type="file"
@@ -376,13 +416,21 @@ export function ProjectImagePicker({ project, selected, onAdd }: ProjectImagePic
                 type="button"
                 disabled={isSelected || fetchingName === name}
                 onClick={() => addImage(name)}
+                draggable={!isSelected}
+                onDragStart={(e) => {
+                  const url = imagenFileUrl(project, name);
+                  e.dataTransfer.setData("text/uri-list", url);
+                  e.dataTransfer.setData("text/plain", url);
+                  e.dataTransfer.setData("application/x-vf-filename", name);
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 title={name}
                 className={
                   "group relative h-[52px] w-[52px] flex-shrink-0 overflow-hidden rounded-[7px] border transition-opacity " +
-                  (isSelected ? "border-[var(--vf-c5)] opacity-50" : "border-[var(--vf-border)] hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)]")
+                  (isSelected ? "border-[var(--vf-c5)] opacity-50" : "cursor-grab border-[var(--vf-border)] hover:border-[color-mix(in_srgb,var(--vf-c1)_50%,transparent)] active:cursor-grabbing")
                 }
               >
-                <img src={imagenFileUrl(project, name)} alt="" className="h-full w-full object-cover" />
+                <img src={imagenFileUrl(project, name)} alt="" className="h-full w-full object-cover" draggable={false} />
                 {isSelected && (
                   <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[13px] text-white">✓</span>
                 )}
