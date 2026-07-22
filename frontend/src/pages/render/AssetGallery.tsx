@@ -1,10 +1,9 @@
 // Panel de seleccion de assets del Paso 5 -- lee jobs/<project>/imagen y
 // jobs/<project>/video de forma dinamica via getProjectContent(), igual que ya
-// hacen las galerias de Paso 2/4. Por defecto arranca con TODO seleccionado
-// (mismo comportamiento que antes, cuando el backend tomaba todo sin preguntar),
-// pero cada tarjeta tiene un checkbox: lo que el usuario desmarque aca queda
-// afuera del render (ver onSelectionChange, consumido en RenderPage.tsx para
-// armar image_filenames / video_filenames del payload).
+// hacen las galerias de Paso 2/4. Arranca sin nada seleccionado: el usuario
+// debe marcar (o arrastrar) explicitamente lo que quiere incluir en el render
+// (ver onSelectionChange, consumido en RenderPage.tsx para armar
+// image_filenames / video_filenames del payload).
 import { useEffect, useState, type DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { getProjectContent, imagenFileUrl, videoFileUrl } from "../../api/projects";
@@ -187,10 +186,9 @@ export default function AssetGallery({ project, renderMode, refreshToken, onSele
         if (cancelled) return;
         const loaded = data.scenes || [];
         setScenes(loaded);
-        // Arranca con todo seleccionado (paridad con el comportamiento previo);
-        // el usuario desmarca lo que no quiere usar en el render.
-        setSelectedImages(new Set(loaded.filter((s) => !!s.image).map((s) => s.image as string)));
-        setSelectedVideos(new Set(loaded.filter((s) => !!s.video).map((s) => s.video as string)));
+        // Arranca vacio: el usuario elige explicitamente que incluir.
+        setSelectedImages(new Set());
+        setSelectedVideos(new Set());
       })
       .catch((err) => {
         if (!cancelled) setError((err as Error).message);
@@ -252,13 +250,6 @@ export default function AssetGallery({ project, renderMode, refreshToken, onSele
     });
   }
 
-  const relevantSelectedCount =
-    renderMode === "images"
-      ? selectedImages.size
-      : renderMode === "videos"
-        ? selectedVideos.size
-        : selectedImages.size + selectedVideos.size;
-
   return (
     <Card
       icon="🗂️"
@@ -275,11 +266,6 @@ export default function AssetGallery({ project, renderMode, refreshToken, onSele
       {!loading && error && <p className="py-6 text-center text-xs text-[var(--vf-danger)]">{error}</p>}
       {!loading && !error && nothingToShow && (
         <p className="py-6 text-center font-mono text-xs text-[var(--vf-m2)]">{t(emptyKey)}</p>
-      )}
-      {!loading && !error && !nothingToShow && relevantSelectedCount === 0 && (
-        <p className="mb-3 rounded-lg border border-[var(--vf-danger)]/40 bg-[var(--vf-danger)]/10 px-3 py-2 text-xs text-[var(--vf-danger)]">
-          {t("projectRenderPanel.galleryNoneSelectedWarning")}
-        </p>
       )}
       {!loading && !error && !nothingToShow && renderMode === "images" && (
         <>

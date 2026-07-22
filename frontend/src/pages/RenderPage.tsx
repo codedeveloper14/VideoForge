@@ -57,6 +57,7 @@ export default function RenderPage() {
   const [modelo, setModelo] = useState("base");
   const [whisperBackend, setWhisperBackend] = useState("whisperx");
   const [submitting, setSubmitting] = useState(false);
+  const [step2Error, setStep2Error] = useState("");
 
   // Step 3 state
   const [job, setJob] = useState<RenderJobState | null>(null);
@@ -140,11 +141,25 @@ export default function RenderPage() {
   }
 
   function goBackToStep1() {
+    setStep2Error("");
     setStep(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleGenerate() {
+    setStep2Error("");
+    if (usesProjectFlow) {
+      const hasImages = assetSelection.images.length > 0;
+      const hasVideos = assetSelection.videos.length > 0;
+      const missingSelection =
+        (renderMode === "images" && !hasImages) ||
+        (renderMode === "videos" && !hasVideos) ||
+        (renderMode === "smart" && !hasImages && !hasVideos);
+      if (missingSelection) {
+        setStep2Error(t("projectRenderPanel.galleryNoneSelectedWarning"));
+        return;
+      }
+    }
     setSubmitting(true);
     setStep1Error("");
     genIdRef.current = "render:" + (project || "quick");
@@ -194,9 +209,8 @@ export default function RenderPage() {
       }
     } catch (err) {
       const error = err as Error & { limit_reached?: boolean };
-      setStep1Error(error.message || t("renderTool.renderStartError"));
+      setStep2Error(error.message || t("renderTool.renderStartError"));
       genStatus.finish(genIdRef.current, false, error.message || t("renderTool.renderStartError"));
-      setStep(2);
     } finally {
       setSubmitting(false);
     }
@@ -210,6 +224,7 @@ export default function RenderPage() {
     setAudioFilename("");
     setImages([]);
     setAssetSelection({ images: [], videos: [] });
+    setStep2Error("");
     setGuion("");
     setUseProjectAudio(true);
     setUseProjectScript(true);
@@ -323,6 +338,7 @@ export default function RenderPage() {
               onBack={goBackToStep1}
               onSubmit={handleGenerate}
               submitting={submitting}
+              error={step2Error}
             />
           )}
 
