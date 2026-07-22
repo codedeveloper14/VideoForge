@@ -12,6 +12,12 @@ export interface StartRenderOptions {
   movimiento?: string;
   shake?: boolean;
   audioFile?: File | null;
+  /** Nombre del audio del proyecto elegido explicitamente (ignora si audioFile viene). */
+  audioFilename?: string | null;
+  /** Nombres de imagen seleccionados en el panel de assets -- si se omite, el backend usa todas. */
+  imageFilenames?: string[] | null;
+  /** Nombres de video seleccionados en el panel de assets -- si se omite, el backend usa todos. */
+  videoFilenames?: string[] | null;
 }
 
 export interface StartRenderResult {
@@ -48,6 +54,14 @@ export function startRender(opts: StartRenderOptions) {
   fd.append("shake", opts.shake ? "true" : "false");
   if (opts.audioFile) {
     fd.append("audio", opts.audioFile);
+  } else if (opts.audioFilename) {
+    fd.append("audio_filename", opts.audioFilename);
+  }
+  if (opts.imageFilenames) {
+    fd.append("image_filenames", JSON.stringify(opts.imageFilenames));
+  }
+  if (opts.videoFilenames) {
+    fd.append("video_filenames", JSON.stringify(opts.videoFilenames));
   }
   return api.post<StartRenderResult>("/render_inteligente", fd).then((r) => r.data);
 }

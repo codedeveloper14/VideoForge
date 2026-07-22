@@ -12,6 +12,7 @@ import { getQuickRenderDownloadUrl, startQuickRender } from "../api/quickRender"
 import JobsPanel from "./render/JobsPanel";
 import Step1Files from "./render/Step1Files";
 import type { ImageEntry, RenderModeValue } from "./render/Step1Files";
+import type { AssetSelection } from "./render/AssetGallery";
 import Step2Effects from "./render/Step2Effects";
 import Step3Render from "./render/Step3Render";
 import type { RenderJobState } from "./render/Step3Render";
@@ -40,7 +41,9 @@ export default function RenderPage() {
   const [renderMode, setRenderMode] = useState<RenderModeValue>("smart");
   const [useProjectAudio, setUseProjectAudio] = useState(true);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioFilename, setAudioFilename] = useState("");
   const [images, setImages] = useState<ImageEntry[]>([]);
+  const [assetSelection, setAssetSelection] = useState<AssetSelection>({ images: [], videos: [] });
   const [useProjectScript, setUseProjectScript] = useState(true);
   const [guion, setGuion] = useState("");
   const [step1Error, setStep1Error] = useState("");
@@ -160,6 +163,9 @@ export default function RenderPage() {
           movimiento,
           shake,
           audioFile: useProjectAudio ? null : audioFile,
+          audioFilename: useProjectAudio ? audioFilename : null,
+          imageFilenames: assetSelection.images,
+          videoFilenames: assetSelection.videos,
         });
         setDownloadUrl(getRenderDownloadUrl(data.job_id));
         setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: t("renderTool.startingJob") });
@@ -201,7 +207,9 @@ export default function RenderPage() {
     setJob(null);
     setDownloadUrl("");
     setAudioFile(null);
+    setAudioFilename("");
     setImages([]);
+    setAssetSelection({ images: [], videos: [] });
     setGuion("");
     setUseProjectAudio(true);
     setUseProjectScript(true);
@@ -238,9 +246,11 @@ export default function RenderPage() {
     {
       label: audioFile
         ? `🎵 ${audioFile.name.split(".").pop()?.toUpperCase()}`
-        : useProjectAudio
-          ? t("renderTool.pillAudioProject")
-          : t("renderTool.pillAudioUnknown"),
+        : useProjectAudio && audioFilename
+          ? `🎵 ${audioFilename}`
+          : useProjectAudio
+            ? t("renderTool.pillAudioProject")
+            : t("renderTool.pillAudioUnknown"),
     },
     { label: t("renderTool.pillScenes", { count: sceneCount }) },
     { label: t("renderTool.pillResolution", { res: resolucion.replace("x", "×") }) },
@@ -280,8 +290,11 @@ export default function RenderPage() {
               onUseProjectAudioChange={setUseProjectAudio}
               audioFile={audioFile}
               onAudioFileChange={setAudioFile}
+              audioFilename={audioFilename}
+              onAudioFilenameChange={setAudioFilename}
               images={images}
               onImagesChange={setImages}
+              onAssetSelectionChange={setAssetSelection}
               useProjectScript={useProjectScript}
               onUseProjectScriptChange={setUseProjectScript}
               guion={guion}

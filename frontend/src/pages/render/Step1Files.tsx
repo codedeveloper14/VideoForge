@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Project } from "../../types";
-import { loadScript } from "../../api/script";
+import { loadScript, loadAudio, audioFileUrl } from "../../api/script";
 import { uploadProjectImage, uploadProjectVideo } from "../../api/projects";
 import { Select, SelectOption } from "../../components/Select";
 import AssetGallery from "./AssetGallery";
+import type { AssetSelection } from "./AssetGallery";
 import { AssetUploadZone } from "./AssetUploadZone";
 import { Card, DropZone, RENDER_MODES, WizardPageHeader, formatSize } from "./wizardShared";
 
@@ -29,9 +30,15 @@ interface Step1FilesProps {
   onUseProjectAudioChange: (v: boolean) => void;
   audioFile: File | null;
   onAudioFileChange: (f: File | null) => void;
+  /** Nombre del audio del proyecto elegido explicitamente (entre varios generados en Paso 3). */
+  audioFilename: string;
+  onAudioFilenameChange: (name: string) => void;
 
   images: ImageEntry[];
   onImagesChange: (images: ImageEntry[]) => void;
+
+  /** Seleccion activa de imagenes/videos del proyecto para el render (panel de assets). */
+  onAssetSelectionChange: (selection: AssetSelection) => void;
 
   useProjectScript: boolean;
   onUseProjectScriptChange: (v: boolean) => void;
@@ -53,8 +60,11 @@ export default function Step1Files({
   onUseProjectAudioChange,
   audioFile,
   onAudioFileChange,
+  audioFilename,
+  onAudioFilenameChange,
   images,
   onImagesChange,
+  onAssetSelectionChange,
   useProjectScript,
   onUseProjectScriptChange,
   guion,
@@ -74,6 +84,8 @@ export default function Step1Files({
   const [imageUploadMsg, setImageUploadMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [videoUploadMsg, setVideoUploadMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [galleryRefresh, setGalleryRefresh] = useState(0);
+  const [projectAudioFiles, setProjectAudioFiles] = useState<string[]>([]);
+  const [loadingAudio, setLoadingAudio] = useState(false);
 
   useEffect(() => {
     if (!project) return;
@@ -89,6 +101,38 @@ export default function Step1Files({
       .catch(() => setScriptLoaded(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
+
+  // Lista TODOS los audios generados en el proyecto (Paso 3 de voz, o subidos a
+  // mano a jobs/<project>/audio) -- antes el render solo veia "el" audio del
+  // proyecto (el backend elegia uno por su cuenta). "principal" es el mas
+  // reciente por mtime; se preselecciona pero el usuario puede cambiarlo.
+  useEffect(() => {
+    if (!project) {
+      setProjectAudioFiles([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAudio(true);
+    loadAudio(project)
+      .then((data) => {
+        if (cancelled) return;
+        const archivos = data.archivos || [];
+        setProjectAudioFiles(archivos);
+        if (archivos.length && (!audioFilename || !archivos.includes(audioFilename))) {
+          onAudioFilenameChange(data.principal || archivos[0]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setProjectAudioFiles([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAudio(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, galleryRefresh]);
 
   function addImages(files: File[]) {
     onImagesChange([...images, ...files.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
@@ -213,7 +257,12 @@ export default function Step1Files({
 
       {usesProject && project && (
         <div className="mt-4">
-          <AssetGallery project={project} renderMode={renderMode} refreshToken={galleryRefresh} />
+          <AssetGallery
+            project={project}
+            renderMode={renderMode}
+            refreshToken={galleryRefresh}
+            onSelectionChange={onAssetSelectionChange}
+          />
         </div>
       )}
 
@@ -230,6 +279,46 @@ export default function Step1Files({
               />
               {t("projectRenderPanel.useProjectAudio")}
             </label>
+          )}
+          {usesProject && useProjectAudio && (
+            <>
+              {loadingAudio && (
+                <p className="font-mono text-xs text-[var(--vf-muted)]">{t("projectRenderPanel.galleryLoading")}</p>
+              )}
+              {!loadingAudio && projectAudioFiles.length === 0 && (
+                <p className="rounded-lg border border-[var(--vf-border)] bg-[rgba(var(--vf-fg-rgb),.05)] p-3 text-xs text-[var(--vf-muted)]">
+                  {t("projectRenderPanel.audioNoneInProject")}
+                </p>
+              )}
+              {!loadingAudio && projectAudioFiles.length > 0 && (
+                <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
+                  {projectAudioFiles.map((name) => (
+                    <li
+                      key={name}
+                      className={`flex items-center gap-2 rounded-lg border p-1.5 transition-colors ${
+                        audioFilename === name
+                          ? "border-[var(--vf-accent)] bg-[var(--vf-accent)]/10"
+                          : "border-[var(--vf-border)] bg-black/20"
+                      }`}
+                    >
+                      <label className="flex flex-1 cursor-pointer items-center gap-2 overflow-hidden">
+                        <input
+                          type="radio"
+                          name="projectAudioFile"
+                          checked={audioFilename === name}
+                          onChange={() => onAudioFilenameChange(name)}
+                          className="accent-[var(--vf-accent)]"
+                        />
+                        <span className="truncate text-[11px] text-[var(--vf-text)]" title={name}>
+                          {name}
+                        </span>
+                      </label>
+                      <audio src={audioFileUrl(project, name)} controls preload="none" className="h-6 w-28" />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
           {!(usesProject && useProjectAudio) && (
             <>

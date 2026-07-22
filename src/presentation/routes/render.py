@@ -1,3 +1,5 @@
+import json
+
 from apiflask import APIBlueprint
 from flask import jsonify, request, send_file
 
@@ -10,11 +12,28 @@ logger = get_logger(__name__)
 render_bp = APIBlueprint("render", __name__, url_prefix="/api")
 
 
+def _parse_filenames(raw: str | None) -> list[str] | None:
+    """Decodifica la lista JSON de nombres de archivo que manda el panel de assets
+    del Paso 5 (["img_00001.png", ...]). None si el campo no vino -- distinto de
+    [] (usuario deselecciono todo a proposito) -- para que start_render sepa si
+    debe filtrar o usar todo el proyecto como antes."""
+    if not raw:
+        return None
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(parsed, list):
+        return None
+    return [str(x) for x in parsed if isinstance(x, str)]
+
+
 @render_bp.post("/render_inteligente")
 def render_inteligente():
     """Render local hibrido (Modal GPU para imagenes + FFmpeg local para videos).
     Multipart form: project_name, render_mode, guion, resolucion, modelo, whisper_backend,
-    transicion, trans_dur, movimiento, shake + archivo audio (opcional, si no se reusa el del proyecto)."""
+    transicion, trans_dur, movimiento, shake, audio_filename, image_filenames (JSON),
+    video_filenames (JSON) + archivo audio (opcional, si no se reusa el del proyecto)."""
     username = get_current_user()
     if username:
         ok, msg, extra = usage_service.check_limit(username, "video", 1)
@@ -34,6 +53,9 @@ def render_inteligente():
             movimiento=request.form.get("movimiento", "none"),
             shake=request.form.get("shake", "false") == "true",
             audio_upload=request.files.get("audio"),
+            audio_filename=request.form.get("audio_filename") or None,
+            image_filenames=_parse_filenames(request.form.get("image_filenames")),
+            video_filenames=_parse_filenames(request.form.get("video_filenames")),
             username=username,
         )
         return jsonify(result)

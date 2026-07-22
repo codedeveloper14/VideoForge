@@ -113,9 +113,18 @@ def start_render(
     shake: bool,
     audio_upload,
     username: str | None,
+    audio_filename: str | None = None,
+    image_filenames: list[str] | None = None,
+    video_filenames: list[str] | None = None,
 ) -> dict:
     """Prepara el proyecto (audio, imagenes/videos ordenados, guion) y lanza el pipeline en
-    un hilo de fondo. Lanza ValueError en validaciones (--> 400 en la ruta)."""
+    un hilo de fondo. Lanza ValueError en validaciones (--> 400 en la ruta).
+
+    audio_filename / image_filenames / video_filenames son la seleccion explicita del
+    usuario (Paso 5 del frontend, panel de assets) -- cuando vienen, filtran lo que el
+    proyecto tiene disponible en vez de que el backend decida por su cuenta. Si vienen
+    en None (callers viejos, tests) se mantiene el comportamiento previo: todo el
+    contenido del proyecto."""
     if not project_name:
         raise ValueError("Proyecto requerido")
 
@@ -131,24 +140,45 @@ def start_render(
         audio_path = str(audio_dir / f"render_audio{aext}")
         audio_dir.mkdir(parents=True, exist_ok=True)
         audio_upload.save(audio_path)
+    elif audio_filename:
+        candidate = project_repository.resolve_safe_file(project_name, "audio", audio_filename)
+        audio_path = str(candidate) if candidate and candidate.exists() else None
     else:
-        audios = list(audio_dir.glob("*")) if audio_dir.exists() else []
+        # Antes: list(audio_dir.glob("*")) tomaba el primer audio en orden de
+        # filesystem (no deterministico). list_audio_files ya ordena por mtime
+        # descendente en todo el resto de la app (editor, script_service) --
+        # mismo criterio aca cuando el usuario no eligio uno explicitamente.
+        audios = project_repository.list_audio_files(project_name)
         audio_path = str(audios[0]) if audios else None
 
     if not audio_path or not os.path.exists(audio_path):
         raise ValueError("No se encontro audio")
 
     images = sorted(project_repository.list_images(project_name), key=scene_sort_key)
+    if image_filenames is not None:
+        wanted_img = set(image_filenames)
+        images = [img for img in images if img.name in wanted_img]
     if not images and render_mode == "images":
-        raise ValueError("No hay imagenes en el proyecto")
+        raise ValueError(
+            "No seleccionaste ninguna imagen para el render"
+            if image_filenames is not None
+            else "No hay imagenes en el proyecto"
+        )
 
     videos = sorted(vid_dir.glob("*.mp4"), key=scene_sort_key) if vid_dir.exists() else []
+    if video_filenames is not None:
+        wanted_vid = set(video_filenames)
+        videos = [v for v in videos if v.name in wanted_vid]
 
     if not videos and render_mode == "videos":
-        raise ValueError("No hay videos en el proyecto")
+        raise ValueError(
+            "No seleccionaste ningun video para el render"
+            if video_filenames is not None
+            else "No hay videos en el proyecto"
+        )
 
     if not images and not videos:
-        raise ValueError("El proyecto no tiene imagenes ni videos para renderizar")
+        raise ValueError("El proyecto no tiene imagenes ni videos seleccionados para renderizar")
 
     vid_index = {v.stem: v for v in videos}
 
