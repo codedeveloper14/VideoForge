@@ -1,5 +1,5 @@
 from apiflask import APIBlueprint
-from flask import jsonify, send_file
+from flask import jsonify, request, send_file
 
 from src.domain.services import project_service
 from src.infrastructure.storage import project_repository
@@ -12,6 +12,7 @@ from src.presentation.schemas.projects import (
     ProjectOutSchema,
     ProjectQuerySchema,
     ProjectRefInSchema,
+    VideoFileQuerySchema,
     VideoFinalQuerySchema,
     VideosFinalOutSchema,
 )
@@ -39,6 +40,51 @@ def imagen_file(query_data):
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+@projects_bp.get("/video_file")
+@projects_bp.input(VideoFileQuerySchema, location="query")
+def video_file(query_data):
+    """Sirve un clip de jobs/<project>/video/<file> -- el equivalente de imagen_file()
+    para la galeria de assets del Paso 5 (Renderizado), que necesita mostrar los
+    videos ya generados en el proyecto ademas de las imagenes."""
+    project = project_service.sanitize_name(query_data["project"])
+    path = project_repository.resolve_safe_file(project, "video", query_data["file"])
+    if not path or not path.exists():
+        return "", 404
+    resp = send_file(str(path), mimetype="video/mp4", conditional=True)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+@projects_bp.post("/subir_imagen")
+def subir_imagen():
+    """Sube manualmente una imagen a jobs/<project>/imagen -- la galeria del Paso 5
+    (Renderizado) refresca su contenido despues via /proyectos/contenido."""
+    project = request.form.get("project", "")
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"error": "Falta el archivo"}), 400
+    try:
+        safe_name = project_service.upload_project_image(project, file.filename, file.read())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "file": safe_name})
+
+
+@projects_bp.post("/subir_video")
+def subir_video():
+    """Sube manualmente un video (.mp4) a jobs/<project>/video."""
+    project = request.form.get("project", "")
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify({"error": "Falta el archivo"}), 400
+    try:
+        safe_name = project_service.upload_project_video(project, file.filename, file.read())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "file": safe_name})
 
 
 @projects_bp.post("/crear")

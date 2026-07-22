@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Project } from "../../types";
 import { loadScript } from "../../api/script";
+import { uploadProjectImage, uploadProjectVideo } from "../../api/projects";
 import { Select, SelectOption } from "../../components/Select";
+import AssetGallery from "./AssetGallery";
+import { AssetUploadZone } from "./AssetUploadZone";
 import { Card, DropZone, RENDER_MODES, WizardPageHeader, formatSize } from "./wizardShared";
 
 export interface ImageEntry {
@@ -61,7 +64,16 @@ export default function Step1Files({
 }: Step1FilesProps) {
   const { t } = useTranslation();
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const usesProject = renderMode !== "images";
+  // "images" tambien opera sobre el proyecto activo cuando hay uno seleccionado
+  // (arrastrado desde el stepper o elegido en el picker de abajo) -- solo cae al
+  // flujo de quick-render (subida manual, sin proyecto) si de verdad no hay proyecto.
+  const usesProject = renderMode !== "images" || !!project;
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [imageUploadMsg, setImageUploadMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [videoUploadMsg, setVideoUploadMsg] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [galleryRefresh, setGalleryRefresh] = useState(0);
 
   useEffect(() => {
     if (!project) return;
@@ -92,6 +104,38 @@ export default function Step1Files({
 
   function removeImage(index: number) {
     onImagesChange(images.filter((_, i) => i !== index));
+  }
+
+  async function handleUploadProjectImages(files: File[]) {
+    setUploadingImage(true);
+    setImageUploadMsg(null);
+    try {
+      for (const f of files) {
+        await uploadProjectImage(project, f);
+      }
+      setImageUploadMsg({ type: "ok", text: t("projectRenderPanel.uploadedOk", { count: files.length }) });
+      setGalleryRefresh((n) => n + 1);
+    } catch (err) {
+      setImageUploadMsg({ type: "error", text: (err as Error).message });
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function handleUploadProjectVideos(files: File[]) {
+    setUploadingVideo(true);
+    setVideoUploadMsg(null);
+    try {
+      for (const f of files) {
+        await uploadProjectVideo(project, f);
+      }
+      setVideoUploadMsg({ type: "ok", text: t("projectRenderPanel.uploadedOk", { count: files.length }) });
+      setGalleryRefresh((n) => n + 1);
+    } catch (err) {
+      setVideoUploadMsg({ type: "error", text: (err as Error).message });
+    } finally {
+      setUploadingVideo(false);
+    }
   }
 
   const lineCount = guion.split("\n").filter((l) => l.trim()).length;
@@ -167,6 +211,12 @@ export default function Step1Files({
         )}
       </Card>
 
+      {usesProject && project && (
+        <div className="mt-4">
+          <AssetGallery project={project} renderMode={renderMode} refreshToken={galleryRefresh} />
+        </div>
+      )}
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {/* Audio */}
         <Card icon="🎵" iconBg="rgba(124,106,255,.15)" title={t("projectRenderPanel.audioTitle")} sub="mp3, wav, m4a">
@@ -215,64 +265,134 @@ export default function Step1Files({
           )}
         </Card>
 
-        {/* Imagenes */}
-        <Card icon="🖼️" iconBg="rgba(251,191,36,.12)" title={t("projectRenderPanel.imagesCountTitle", { count: images.length })} sub={t("projectRenderPanel.imagesFormats") || ""}>
-          <DropZone
-            icon="📸"
-            label={
-              <>
-                <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong> {t("projectRenderPanel.theImages")}
-              </>
-            }
-            hint={t("projectRenderPanel.selectMultipleAtOnce") || ""}
-            accept=".jpg,.jpeg,.png,.webp"
-            multiple
-            onFiles={addImages}
-          />
-          {images.length > 0 && (
-            <>
-              <p className="mt-2 font-mono text-xs text-[var(--vf-success)]">
-                {t("videoShared.imageLoadedCount", { count: images.length })}
-              </p>
-              <ul className="mt-2 flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
-                {images.map((img, i) => (
-                  <li
-                    key={img.url}
-                    className="flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-black/20 p-1.5"
+        {/* Imagenes / Videos -- en flujo de proyecto la zona de subida es especifica
+            del tipo que necesita el modo activo (nunca la generica de imagenes para
+            un modo de solo-video); en quick-render (sin proyecto) se mantiene la
+            subida manual de imagenes de siempre. */}
+        {usesProject && project ? (
+          <>
+            {(renderMode === "images" || renderMode === "smart") && (
+              <Card
+                icon="🖼️"
+                iconBg="rgba(251,191,36,.12)"
+                title={t("projectRenderPanel.uploadImageTitle")}
+                sub={t("projectRenderPanel.imagesFormats") || ""}
+              >
+                <AssetUploadZone
+                  icon="📸"
+                  label={
+                    <>
+                      <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong>{" "}
+                      {t("projectRenderPanel.theImages")}
+                    </>
+                  }
+                  hint={t("projectRenderPanel.selectMultipleAtOnce") || ""}
+                  accept={["jpg", "jpeg", "png", "webp", "gif", "bmp"]}
+                  wrongTypeMessage={t("projectRenderPanel.mustBeImage")}
+                  multiple
+                  uploading={uploadingImage}
+                  onFiles={handleUploadProjectImages}
+                />
+                {imageUploadMsg && (
+                  <p
+                    className={`mt-2 text-xs ${imageUploadMsg.type === "ok" ? "text-[var(--vf-success)]" : "text-[var(--vf-danger)]"}`}
                   >
-                    <img src={img.url} alt="" className="h-9 w-9 rounded object-cover" />
-                    <span className="flex-1 truncate text-[11px] text-[var(--vf-muted)]">
-                      {i + 1}. {img.file.name}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => moveImage(i, -1)}
-                      disabled={i === 0}
-                      className="rounded border border-[var(--vf-b2)] px-1.5 py-0.5 text-[11px] text-[var(--vf-muted)] disabled:opacity-30"
+                    {imageUploadMsg.text}
+                  </p>
+                )}
+              </Card>
+            )}
+            {(renderMode === "videos" || renderMode === "smart") && (
+              <Card
+                icon="🎬"
+                iconBg="rgba(34,211,160,.12)"
+                title={t("projectRenderPanel.uploadVideoTitle")}
+                sub={t("projectRenderPanel.videosFormats") || ""}
+              >
+                <AssetUploadZone
+                  icon="🎞️"
+                  label={
+                    <>
+                      <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong>{" "}
+                      {t("projectRenderPanel.theVideos")}
+                    </>
+                  }
+                  hint={t("projectRenderPanel.videosHint") || ""}
+                  accept={["mp4"]}
+                  wrongTypeMessage={t("projectRenderPanel.mustBeVideo")}
+                  multiple
+                  uploading={uploadingVideo}
+                  onFiles={handleUploadProjectVideos}
+                />
+                {videoUploadMsg && (
+                  <p
+                    className={`mt-2 text-xs ${videoUploadMsg.type === "ok" ? "text-[var(--vf-success)]" : "text-[var(--vf-danger)]"}`}
+                  >
+                    {videoUploadMsg.text}
+                  </p>
+                )}
+              </Card>
+            )}
+          </>
+        ) : (
+          <Card icon="🖼️" iconBg="rgba(251,191,36,.12)" title={t("projectRenderPanel.imagesCountTitle", { count: images.length })} sub={t("projectRenderPanel.imagesFormats") || ""}>
+            <DropZone
+              icon="📸"
+              label={
+                <>
+                  <strong className="text-[var(--vf-c2)]">{t("projectRenderPanel.clickOrDrag")}</strong> {t("projectRenderPanel.theImages")}
+                </>
+              }
+              hint={t("projectRenderPanel.selectMultipleAtOnce") || ""}
+              accept=".jpg,.jpeg,.png,.webp"
+              multiple
+              onFiles={addImages}
+            />
+            {images.length > 0 && (
+              <>
+                <p className="mt-2 font-mono text-xs text-[var(--vf-success)]">
+                  {t("videoShared.imageLoadedCount", { count: images.length })}
+                </p>
+                <ul className="mt-2 flex max-h-56 flex-col gap-1.5 overflow-y-auto pr-1">
+                  {images.map((img, i) => (
+                    <li
+                      key={img.url}
+                      className="flex items-center gap-2 rounded-lg border border-[var(--vf-border)] bg-black/20 p-1.5"
                     >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveImage(i, 1)}
-                      disabled={i === images.length - 1}
-                      className="rounded border border-[var(--vf-b2)] px-1.5 py-0.5 text-[11px] text-[var(--vf-muted)] disabled:opacity-30"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeImage(i)}
-                      className="rounded border border-[var(--vf-danger)]/40 px-1.5 py-0.5 text-[11px] text-[var(--vf-danger)]"
-                    >
-                      ✕
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </Card>
+                      <img src={img.url} alt="" className="h-9 w-9 rounded object-cover" />
+                      <span className="flex-1 truncate text-[11px] text-[var(--vf-muted)]">
+                        {i + 1}. {img.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, -1)}
+                        disabled={i === 0}
+                        className="rounded border border-[var(--vf-b2)] px-1.5 py-0.5 text-[11px] text-[var(--vf-muted)] disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, 1)}
+                        disabled={i === images.length - 1}
+                        className="rounded border border-[var(--vf-b2)] px-1.5 py-0.5 text-[11px] text-[var(--vf-muted)] disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="rounded border border-[var(--vf-danger)]/40 px-1.5 py-0.5 text-[11px] text-[var(--vf-danger)]"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </Card>
+        )}
 
         {/* Guion */}
         <Card icon="📄" iconBg="rgba(34,211,160,.12)" title={t("projectRenderPanel.scriptTitle")} sub={t("projectRenderPanel.scriptSub")} full>

@@ -62,7 +62,10 @@ export default function RenderPage() {
   const genStatus = useGenerationStatus();
   const genIdRef = useRef("");
 
-  const usesProjectFlow = renderMode !== "images";
+  // Debe coincidir con Step1Files.tsx: "images" tambien usa el flujo de proyecto
+  // (audio/guion/imagenes del proyecto) cuando hay uno activo, y solo cae al
+  // quick-render manual si no hay proyecto seleccionado en absoluto.
+  const usesProjectFlow = renderMode !== "images" || !!project;
 
   useEffect(() => {
     listProjects()

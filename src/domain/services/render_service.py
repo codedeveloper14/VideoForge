@@ -120,7 +120,6 @@ def start_render(
         raise ValueError("Proyecto requerido")
 
     proj_dir = project_repository.project_dir(project_name)
-    img_dir = proj_dir / "imagen"
     vid_dir = proj_dir / "video"
     audio_dir = proj_dir / "audio"
     out_dir = proj_dir / "video_final"
@@ -139,16 +138,14 @@ def start_render(
     if not audio_path or not os.path.exists(audio_path):
         raise ValueError("No se encontro audio")
 
-    images = []
-    if img_dir.exists():
-        for f in img_dir.iterdir():
-            if f.is_file() and f.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS:
-                images.append(f)
-        images.sort(key=scene_sort_key)
+    images = sorted(project_repository.list_images(project_name), key=scene_sort_key)
     if not images and render_mode == "images":
         raise ValueError("No hay imagenes en el proyecto")
 
     videos = sorted(vid_dir.glob("*.mp4"), key=scene_sort_key) if vid_dir.exists() else []
+
+    if not videos and render_mode == "videos":
+        raise ValueError("No hay videos en el proyecto")
 
     if not images and not videos:
         raise ValueError("El proyecto no tiene imagenes ni videos para renderizar")
@@ -324,7 +321,10 @@ def _procesar_render_inteligente(
         elif guion:
             escenas_texto = [e.strip() for e in guion.split("\n") if e.strip()]
         else:
-            n_items = len(images) if images else len(vid_index)
+            if render_mode == "videos":
+                n_items = len(vid_index)
+            else:
+                n_items = len(images) if images else len(vid_index)
             escenas_texto = [f"Escena {i + 1}" for i in range(n_items)]
 
         if guion and guion.strip():
@@ -427,7 +427,11 @@ def _procesar_render_inteligente(
         # genero menos clips), reutilizar la ultima imagen - evita videos cortos con -shortest
         # en el mux final.
         scenes = []
-        if not images and render_mode in ("smart", "videos") and vid_index:
+        # "videos": ignora las imagenes por completo, SIEMPRE construye desde los
+        # videos (aunque existan imagenes en el proyecto). "smart" sin imagenes cae
+        # al mismo camino como fallback (ya era el comportamiento previo). "images"
+        # nunca entra aqui: siempre va por la rama de abajo con vid=None.
+        if render_mode == "videos" or (not images and render_mode == "smart" and vid_index):
             vids_sorted = sorted(vid_index.values(), key=lambda p: p.name)
             n_ts, n_vids = len(timestamps), len(vids_sorted)
             n_total = max(n_ts, n_vids)
@@ -477,7 +481,9 @@ def _procesar_render_inteligente(
                     ts = timestamps[i]
                     sidx = ts.get("scene_idx", i)
                     img = img_by_scene.get(sidx) or images[min(sidx, n_img - 1)]
-                    vid = vid_index.get(img.stem) if render_mode in ("smart", "videos") else None
+                    # "images": nunca adjunta video (fuerza type=image). "smart": empareja
+                    # por nombre de archivo. La rama "videos" nunca llega aqui (ver arriba).
+                    vid = vid_index.get(img.stem) if render_mode == "smart" else None
                     vid_path = str(vid) if vid and os.path.exists(str(vid)) else None
                     scenes.append(
                         {
@@ -496,7 +502,9 @@ def _procesar_render_inteligente(
                     mm2 = _SCENE_NUM_RE.match(img.stem)
                     sidx2 = int(mm2.group(1)) - 1 if mm2 else i
                     ts = ts_by_scene.get(sidx2, timestamps[min(i, n_ts - 1)])
-                    vid = vid_index.get(img.stem) if render_mode in ("smart", "videos") else None
+                    # "images": nunca adjunta video (fuerza type=image). "smart": empareja
+                    # por nombre de archivo. La rama "videos" nunca llega aqui (ver arriba).
+                    vid = vid_index.get(img.stem) if render_mode == "smart" else None
                     vid_path = str(vid) if vid and os.path.exists(str(vid)) else None
                     scenes.append(
                         {
