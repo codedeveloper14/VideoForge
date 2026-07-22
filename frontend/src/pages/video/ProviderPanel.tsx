@@ -22,6 +22,11 @@ import ConfirmModal from "../../components/ConfirmModal";
 
 const LOG_POLL_MS = 1200;
 const GALLERY_POLL_MS = 4000;
+const SESSION_POLL_MS = 4000;
+// El login interactivo del backend (login_account_managed) espera hasta 360s a
+// que el usuario complete el login en el Chromium abierto -- este margen cubre
+// esa ventana completa antes de dejar de sondear.
+const SESSION_POLL_TIMEOUT_MS = 370_000;
 
 export interface ProviderSesionesResult {
   accounts?: AccountSessionInfo[];
@@ -174,6 +179,13 @@ export default function ProviderPanel({
   const sesionesAttemptRef = useRef(0);
   const MAX_SESIONES_RETRIES = 5;
 
+  // Tras clickear "Iniciar sesion" el login corre en un Chromium aparte,
+  // gestionado por el backend, sin que este endpoint espere a que termine --
+  // sin este polling la lista de cuentas queda congelada en "sin sesion" hasta
+  // que el usuario aprieta "Verificar" a mano.
+  const sessionPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionPollDeadlineRef = useRef(0);
+
   const setOption = useCallback((key: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -210,12 +222,51 @@ export default function ProviderPanel({
     loadSesiones();
   }, [loadSesiones]);
 
+  const stopSessionPoll = useCallback(() => {
+    if (sessionPollTimerRef.current) {
+      clearInterval(sessionPollTimerRef.current);
+      sessionPollTimerRef.current = null;
+    }
+  }, []);
+
+  const startSessionPoll = useCallback(
+    (account: string) => {
+      stopSessionPoll();
+      sessionPollDeadlineRef.current = Date.now() + SESSION_POLL_TIMEOUT_MS;
+      sessionPollTimerRef.current = setInterval(() => {
+        if (Date.now() > sessionPollDeadlineRef.current) {
+          stopSessionPoll();
+          return;
+        }
+        api
+          .sesiones()
+          .then((d) => {
+            const list = d.accounts || [];
+            setAccounts(list);
+            const found = list.find((a) => a.name === account);
+            // El backend de Qwen marca la cuenta como activa de forma
+            // optimista con user="sin verificar" ANTES de que el hilo de
+            // verificacion en background confirme el token real -- si
+            // paramos apenas vemos active=true, la UI puede quedar pegada
+            // mostrando ese placeholder para siempre en vez del resultado
+            // real (ok / token invalido / bloqueado por WAF).
+            if (found && found.user !== "sin verificar") {
+              stopSessionPoll();
+            }
+          })
+          .catch(() => {});
+      }, SESSION_POLL_MS);
+    },
+    [api, stopSessionPoll],
+  );
+
   useEffect(() => {
     loadSesiones();
     return () => {
       if (logTimerRef.current) clearInterval(logTimerRef.current);
       if (galleryTimerRef.current) clearInterval(galleryTimerRef.current);
       if (sesionesRetryRef.current) clearTimeout(sesionesRetryRef.current);
+      stopSessionPoll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -223,7 +274,10 @@ export default function ProviderPanel({
   function handleLogin(account: string) {
     api
       .loginCuenta(account)
-      .then(() => appendLog(t("providerPanel.chromeOpenedFor", { account })))
+      .then(() => {
+        appendLog(t("providerPanel.chromeOpenedFor", { account }));
+        startSessionPoll(account);
+      })
       .catch((err) => appendLog(t("providerPanel.errorPrefix", { message: (err as Error).message })));
   }
 

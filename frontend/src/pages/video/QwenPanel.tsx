@@ -57,6 +57,10 @@ export default function QwenPanel({ project }: QwenPanelProps) {
       api={api}
       defaultSlots={2}
       supportsRegenerate
+      // Qwen exige imagen de referencia -- la interfaz oficial solo activa
+      // "Create Video" con una imagen adjunta (herramienta del boton "+"),
+      // no soporta texto-a-video puro como Vibes. requiresImages queda en
+      // su default (true).
       initialOptions={{
         size: "1280x720",
         timeout: 900,

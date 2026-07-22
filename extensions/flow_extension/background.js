@@ -267,6 +267,100 @@ function _stopVibesPollTimer() {
   _vibesPollTimer = null;
 }
 
+// ── Qwen: mismo patron que Vibes arriba (bridge propio en el puerto 8080,
+// poll/post real desde este service worker por la misma restriccion de Local
+// Network Access) pero con una diferencia clave: cada cuenta Qwen corre en su
+// PROPIO proceso de Chromium (perfil + extension propios), asi que no hace
+// falta un mapa cuenta->tab como en Flow -- este service worker en particular
+// solo va a ver UNA pestaña de chat.qwen.ai en toda su vida (la de su propio
+// perfil), y ya sabe de antemano cual cuenta es (se la paso yo mismo al
+// lanzar Chromium via ?imperio_qwen_account=<nombre>).
+var QWEN_TAB_RE = /^https:\/\/([\w-]+\.)?qwen\.ai\//;
+var QWEN_BRIDGE_BASE = "http://127.0.0.1:8080/api/qwen";
+var _qwenAccountName = null;
+var _qwenTabId = null;
+var _qwenPollTimer = null;
+
+function qwenPoll() {
+  if (!_qwenTabId || !_qwenAccountName) return;
+  fetch(QWEN_BRIDGE_BASE + "/poll?account=" + encodeURIComponent(_qwenAccountName) + "&max=10")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var reqs = (data && data.requests) || [];
+      if (!reqs.length || !_qwenTabId) return;
+      reqs.forEach(function (job) {
+        chrome.tabs.sendMessage(_qwenTabId, { type: "QWEN_JOB", job: job }, function () {
+          void chrome.runtime.lastError; // pestaña cerrada entre el poll y el dispatch -- se ignora
+        });
+      });
+    })
+    .catch(function () {});
+}
+
+function qwenSendResult(payload) {
+  fetch(QWEN_BRIDGE_BASE + "/result", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload), keepalive: true
+  }).catch(function(){});
+}
+
+function _ensureQwenPollTimer() {
+  if (_qwenPollTimer) return;
+  _qwenPollTimer = setInterval(qwenPoll, 1200);
+}
+function _stopQwenPollTimer() {
+  if (!_qwenPollTimer) return;
+  clearInterval(_qwenPollTimer);
+  _qwenPollTimer = null;
+}
+
+// ── Qwen: adjuntar imagen via CDP (chrome.debugger) -- ningun content script
+// puede asignar input.files por JS, en ningun contexto ni navegador (bloqueo
+// de seguridad del browser, no de permisos de la extension). El unico camino
+// real es que el propio protocolo de depuracion de Chrome se lo asigne, igual
+// que hacen Playwright/Puppeteer por debajo. Deja la barra amarilla de
+// "depurando este navegador" visible unos segundos mientras corre.
+function qwenAttachFile(tabId, selector, filePaths) {
+  return new Promise(function (resolve, reject) {
+    chrome.debugger.attach({ tabId: tabId }, "1.3", function () {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      function detachAndReject(err) {
+        chrome.debugger.detach({ tabId: tabId }, function () { void chrome.runtime.lastError; });
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+      chrome.debugger.sendCommand({ tabId: tabId }, "DOM.getDocument", {}, function (doc) {
+        if (chrome.runtime.lastError || !doc || !doc.root) {
+          detachAndReject(chrome.runtime.lastError || new Error("DOM.getDocument sin resultado"));
+          return;
+        }
+        chrome.debugger.sendCommand(
+          { tabId: tabId }, "DOM.querySelector",
+          { nodeId: doc.root.nodeId, selector: selector },
+          function (node) {
+            if (chrome.runtime.lastError || !node || !node.nodeId) {
+              detachAndReject(chrome.runtime.lastError || new Error("selector no encontrado: " + selector));
+              return;
+            }
+            chrome.debugger.sendCommand(
+              { tabId: tabId }, "DOM.setFileInputFiles",
+              { files: filePaths, nodeId: node.nodeId },
+              function () {
+                var err = chrome.runtime.lastError;
+                chrome.debugger.detach({ tabId: tabId }, function () { void chrome.runtime.lastError; });
+                if (err) reject(new Error(err.message));
+                else resolve(true);
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (!msg || !msg.type) return;
 
@@ -366,6 +460,38 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     sendResponse({ ok: true });
     return true;
   }
+
+  if (msg.type === "REGISTER_QWEN_ACCOUNT") {
+    var qTabId = sender.tab && sender.tab.id;
+    var qTabUrl = sender.tab && sender.tab.url;
+    if (qTabId && msg.account && QWEN_TAB_RE.test(qTabUrl || "")) {
+      _qwenAccountName = msg.account;
+      _qwenTabId = qTabId;
+      _ensureQwenPollTimer();
+      sendResponse({ ok: true });
+    } else {
+      sendResponse({ ok: false, error: "origin_mismatch" });
+    }
+    return true;
+  }
+
+  if (msg.type === "QWEN_RESULT") {
+    qwenSendResult(msg.payload);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "QWEN_ATTACH_FILE") {
+    var qaTabId = sender.tab && sender.tab.id;
+    if (!qaTabId) {
+      sendResponse({ ok: false, error: "no_tab" });
+      return true;
+    }
+    qwenAttachFile(qaTabId, msg.selector || "#filesUpload", msg.filePaths || [])
+      .then(function () { sendResponse({ ok: true }); })
+      .catch(function (err) { sendResponse({ ok: false, error: String((err && err.message) || err) }); });
+    return true; // respuesta asincrona
+  }
 });
 
 chrome.runtime.onConnect.addListener(function(port) {
@@ -379,6 +505,7 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
   delete _tabToAccount[tabId];
   delete _recentlyCreatedTabs[tabId];
   if (_vibesTabId === tabId) { _vibesTabId = null; _stopVibesPollTimer(); }
+  if (_qwenTabId === tabId) { _qwenTabId = null; _qwenAccountName = null; _stopQwenPollTimer(); }
 });
 
 // ── Anti-throttling: Chrome congela los timers (setTimeout/setInterval) de

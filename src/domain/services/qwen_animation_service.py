@@ -1,12 +1,14 @@
+import re
 import threading
 import time
+import uuid
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 from pathlib import Path
 
 from src.domain.services.project_service import sanitize_name
-from src.infrastructure.ai_providers import qwen_service
+from src.infrastructure.ai_providers import qwen_bridge, qwen_service
 from src.infrastructure.storage import project_repository
 from src.utils.logger import get_logger
 from src.utils.paths import get_qwen_accounts_dir
@@ -76,10 +78,22 @@ def start_account_login(account_name: str) -> None:
     qwen_service.ensure_accounts(accounts_dir)
     folder = qwen_service.account_dir(accounts_dir, account_name)
     folder.mkdir(parents=True, exist_ok=True)
-    logger.info("[QWEN] Abriendo Chromium - inicia sesion en chat.qwen.ai y cierra.")
+    logger.info("[QWEN] Abriendo Chromium - inicia sesion en chat.qwen.ai.")
+
+    def _log(msg: str) -> None:
+        logger.info("[QWEN] %s", msg)
 
     def _run():
-        qwen_service.login_account_managed(folder, log_callback=lambda msg: logger.info("[QWEN] %s", msg))
+        saved = qwen_service.login_account_managed(folder, log_callback=_log)
+        # Encadenado: login guardado -> reabrir el mismo perfil con la
+        # extension cargada y dejarlo corriendo (bridge para create_chat/
+        # submit_completion). Sin esto, "Login" solo dejaria el token
+        # guardado pero ningun navegador conectado para el bridge.
+        if saved:
+            try:
+                qwen_service.open_bridge_session(folder, account_name, log_callback=_log)
+            except Exception as exc:
+                _log(f"[ERROR] [{account_name}] No se pudo abrir el bridge: {exc}")
 
     threading.Thread(target=_run, daemon=True).start()
 
@@ -95,7 +109,7 @@ def delete_session(account_name: str) -> None:
 
 def _is_retryable_error(msg: str) -> bool:
     m = (msg or "").lower()
-    return any(
+    if any(
         s in m
         for s in (
             "ratelimited",
@@ -104,11 +118,168 @@ def _is_retryable_error(msg: str) -> bool:
             "task queue limit exceeded",
             "internal_error",
             "429",
+            "timed out",
+            "timeout",
+            "connection aborted",
+            "connection reset",
+            "max retries exceeded",
+            "remote end closed connection",
         )
-    )
+    ):
+        return True
+    return bool(re.search(r"\bhttp 5\d\d\b", m))
 
 
-def _batch_worker(name: str, proj_dir: Path, prompt: str, size: str, slots: int, timeout_sec: int) -> None:
+_BRIDGE_JOB_RETRY_DELAY_SEC = 15.0
+
+
+def _run_job_via_bridge(job: dict, timeout_sec: float, cancel_ev: threading.Event | None, log) -> dict | None:
+    """Genera el video entero via DOM real en el navegador conectado para esta
+    cuenta (qwen_bridge.js: click en '+', 'Crear Video', adjuntar imagen,
+    escribir prompt, click Enviar, esperar el <video> real) -- un fetch()
+    directo a create_chat/submit_completion, aunque salga de esa misma
+    pestaña autenticada, choca con el mismo challenge del WAF de Alibaba que
+    curl_cffi (confirmado en vivo: fetch() nunca ejecuta el JS del challenge).
+    Mismo patron que _run_job_via_bridge en vibes_animation_service.py: 2
+    intentos, requestId nuevo por intento, espera con Event (timeout_sec+30s
+    de margen -- acá timeout_sec es el tiempo real de generacion, no solo el
+    round-trip de crear el chat), cleanup siempre al final."""
+    result = None
+    for attempt in range(2):
+        request_id = str(uuid.uuid4())
+        job_with_id = dict(job, requestId=request_id)
+        event = qwen_bridge.register_result_waiter(request_id)
+        qwen_bridge.enqueue_request(job_with_id)
+
+        deadline = time.time() + timeout_sec + 30
+        result = None
+        while time.time() < deadline:
+            if cancel_ev and cancel_ev.is_set():
+                break
+            event.wait(timeout=2.0)
+            event.clear()
+            result = qwen_bridge.try_pop_result(request_id)
+            if result is not None:
+                break
+        qwen_bridge.remove_from_queue(request_id)
+        qwen_bridge.cleanup_waiter(request_id)
+
+        if cancel_ev and cancel_ev.is_set():
+            return None
+        if result is not None and result.get("status") == 200 and result.get("videoUrl") and not result.get("error"):
+            return result
+        if attempt == 0:
+            motivo = result.get("error") if result else "timeout"
+            log(
+                f"[bridge] la generacion en el navegador tardo mas de lo esperado ({motivo}), "
+                f"reintentando en {int(_BRIDGE_JOB_RETRY_DELAY_SEC)}s..."
+            )
+            time.sleep(_BRIDGE_JOB_RETRY_DELAY_SEC)
+    return result
+
+
+def _build_generate_call(
+    account_name: str,
+    token: str,
+    img_path: Path,
+    prompt: str,
+    size: str,
+    out_path: str,
+    timeout_sec: int,
+    cookie_header: str,
+    session_meta: dict,
+    cancel_ev: threading.Event | None,
+    log,
+):
+    """Hibrido aprobado: si esta cuenta tiene su Chromium (con la extension)
+    conectado ahora mismo, la generacion entera corre ahi via DOM real
+    (qwen_bridge.js simula el click de verdad -- confirmado en vivo que
+    esquiva el WAF de Alibaba, a diferencia de un fetch() directo a
+    create_chat/submit_completion); si no, cae al path de Python de siempre
+    (curl_cffi) -- mejor esfuerzo en vez de dejar la cuenta inutil por no
+    tener el navegador abierto. Qwen exige imagen de referencia siempre -- no
+    hay modo texto-puro (ver comentario en start_batch)."""
+
+    def call():
+        if account_name in qwen_bridge.connected_accounts():
+            aspect = qwen_service.QWEN_SIZE_MAP.get(size, "16:9")
+            job = {
+                "account": account_name,
+                "imagePath": str(img_path.resolve()),
+                "prompt": prompt,
+                "size": aspect,
+                "timeoutSec": timeout_sec,
+            }
+            bridge_result = _run_job_via_bridge(job, timeout_sec, cancel_ev, log)
+            if not bridge_result or bridge_result.get("error") or not bridge_result.get("videoUrl"):
+                raise RuntimeError(
+                    (bridge_result or {}).get("error") or "Sin respuesta del navegador conectado (timeout)"
+                )
+            qwen_service.download_video(bridge_result["videoUrl"], out_path)
+        else:
+            qwen_service.generate_one(
+                token,
+                str(img_path),
+                prompt,
+                size,
+                out_path,
+                timeout_sec=timeout_sec,
+                cookie_header=cookie_header,
+                session_meta=session_meta,
+            )
+
+    return call
+
+
+def _generate_with_retries(
+    account_name: str,
+    out_name: str,
+    total: int,
+    cancel_ev: threading.Event | None,
+    log,
+    done: dict,
+    done_lock: threading.Lock,
+    call,
+) -> None:
+    """Reintentos + manejo de WAF para el batch por imagenes (i2v) -- `call` es
+    la llamada real (bridge o qwen_service.generate_one segun corresponda)."""
+    max_attempts = 4
+    for attempt in range(1, max_attempts + 1):
+        if cancel_ev and cancel_ev.is_set():
+            return
+        try:
+            call()
+            with done_lock:
+                done["n"] += 1
+            log(f"[{account_name}] [OK] {out_name} ({done['n']}/{total})")
+            return
+        except qwen_service.QwenWafBlockedError:
+            # Bloqueo del WAF de Alibaba -- no un error puntual de esta
+            # imagen/video. Reintentar contra el mismo muro no sirve de nada
+            # y solo satura los logs; se corta el loop de una vez.
+            with done_lock:
+                done["n"] += 1
+            log(
+                f"[{account_name}] [ERROR] La sesion de Qwen fue rechazada o bloqueada "
+                f"por Alibaba. Revisa tu cuenta o vuelve a iniciar sesion en la app."
+            )
+            return
+        except Exception as exc:
+            err = str(exc)
+            if attempt < max_attempts and _is_retryable_error(err):
+                wait_s = min(90, 12 * attempt)
+                log(f"[{account_name}] {out_name} retry {attempt}/{max_attempts - 1} en {wait_s}s ({err[:90]})")
+                time.sleep(wait_s)
+                continue
+            with done_lock:
+                done["n"] += 1
+            log(f"[{account_name}] [ERROR] {out_name}: {err}")
+            return
+
+
+def _batch_worker(
+    name: str, proj_dir: Path, prompt: str, size: str, slots: int, timeout_sec: int, image_names: list[str]
+) -> None:
     batch = _get_batch(name)
 
     def log(msg: str) -> None:
@@ -118,10 +289,15 @@ def _batch_worker(name: str, proj_dir: Path, prompt: str, size: str, slots: int,
         img_dir = proj_dir / "imagen"
         vid_dir = proj_dir / "video"
         vid_dir.mkdir(parents=True, exist_ok=True)
+        # Solo las imagenes subidas/seleccionadas en ESTA corrida -- no todo lo
+        # que haya en imagen/ (puede tener sobrantes de un paso anterior del
+        # pipeline, p. ej. Flow/GenTube). Mismo criterio que el filter-file de
+        # Grok (grok_animation_service.py), adaptado a que Qwen corre in-process
+        # (ThreadPoolExecutor) en vez de un worker por subprocess.
         imgs = [
-            p
-            for p in sorted(img_dir.iterdir())
-            if p.is_file() and p.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS
+            img_dir / n
+            for n in image_names
+            if (img_dir / n).is_file() and (img_dir / n).suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS
         ]
         if not imgs:
             log("[ERROR] No hay imagenes para animar.")
@@ -162,49 +338,19 @@ def _batch_worker(name: str, proj_dir: Path, prompt: str, size: str, slots: int,
                 log(f"[{out_name}] ya existe ({done['n']}/{len(imgs)})")
                 return
             log(f"[{account_name}] Generando {out_name} ({i + 1}/{len(imgs)})")
-            max_attempts = 4
-            for attempt in range(1, max_attempts + 1):
-                if cancel_ev and cancel_ev.is_set():
-                    return
-                try:
-                    qwen_service.generate_one(
-                        token,
-                        str(img_path),
-                        prompt,
-                        size,
-                        out_path,
-                        timeout_sec=timeout_sec,
-                        cookie_header=cookie_header,
-                        session_meta=session_meta,
-                    )
-                    with done_lock:
-                        done["n"] += 1
-                    log(f"[{account_name}] [OK] {out_name} ({done['n']}/{len(imgs)})")
-                    return
-                except qwen_service.QwenWafBlockedError:
-                    # Bloqueo del WAF de Alibaba -- no un error puntual de esta
-                    # imagen. Reintentar contra el mismo muro no sirve de nada
-                    # y solo satura los logs; se corta el loop de una vez.
-                    with done_lock:
-                        done["n"] += 1
-                    log(
-                        f"[{account_name}] [ERROR] La sesion de Qwen fue rechazada o bloqueada "
-                        f"por Alibaba. Revisa tu cuenta o vuelve a iniciar sesion en la app."
-                    )
-                    return
-                except Exception as exc:
-                    err = str(exc)
-                    if attempt < max_attempts and _is_retryable_error(err):
-                        wait_s = min(90, 12 * attempt)
-                        log(
-                            f"[{account_name}] {out_name} retry {attempt}/{max_attempts - 1} en {wait_s}s ({err[:90]})"
-                        )
-                        time.sleep(wait_s)
-                        continue
-                    with done_lock:
-                        done["n"] += 1
-                    log(f"[{account_name}] [ERROR] {out_name}: {err}")
-                    return
+            _generate_with_retries(
+                account_name,
+                out_name,
+                len(imgs),
+                cancel_ev,
+                log,
+                done,
+                done_lock,
+                _build_generate_call(
+                    account_name, token, img_path, prompt, size, out_path, timeout_sec,
+                    cookie_header, session_meta, cancel_ev, log,
+                ),
+            )
 
         with ThreadPoolExecutor(max_workers=maxw) as ex:
             futures = []
@@ -239,6 +385,9 @@ def start_batch(
     name = sanitize_name(project_name)
     if not name:
         raise ValueError("Selecciona un proyecto en la barra superior antes de animar.")
+    # Qwen exige imagen de referencia -- a diferencia de Vibes, la interfaz
+    # oficial de Qwen no tiene un modo "Create Video" desde texto puro (solo
+    # anima una imagen adjunta); un intento anterior de T2V se revirtio.
     if not images:
         raise ValueError("No se recibieron imagenes")
 
@@ -250,13 +399,6 @@ def start_batch(
         old_cancel.set()
 
     proj_dir = project_repository.create_project(name)
-    img_dir = proj_dir / "imagen"
-    images_meta = []
-    for i, (filename, file_storage) in enumerate(images):
-        dest = img_dir / filename
-        if not dest.exists():
-            file_storage.save(str(dest))
-        images_meta.append({"index": i + 1, "name": filename, "path": str(dest)})
 
     if size not in qwen_service.QWEN_SIZE_MAP:
         inverse = {v: k for k, v in qwen_service.QWEN_SIZE_MAP.items()}
@@ -269,6 +411,16 @@ def start_batch(
     )
 
     cancel_ev = threading.Event()
+    _last_project = name
+
+    img_dir = proj_dir / "imagen"
+    images_meta = []
+    for i, (filename, file_storage) in enumerate(images):
+        dest = img_dir / filename
+        if not dest.exists():
+            file_storage.save(str(dest))
+        images_meta.append({"index": i + 1, "name": filename, "path": str(dest)})
+
     batch.update(
         {
             "running": True,
@@ -280,9 +432,9 @@ def start_batch(
             "cancel_event": cancel_ev,
         }
     )
-    _last_project = name
+    image_names = [m["name"] for m in images_meta]
     threading.Thread(
-        target=_batch_worker, args=(name, proj_dir, prompt, size, slots, timeout_sec), daemon=True
+        target=_batch_worker, args=(name, proj_dir, prompt, size, slots, timeout_sec, image_names), daemon=True
     ).start()
 
     return {"ok": True, "pid": f"qwen-{int(time.time())}", "project_dir": str(proj_dir), "project_name": name}

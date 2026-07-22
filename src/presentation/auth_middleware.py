@@ -19,6 +19,10 @@ PUBLIC_ROUTES = {
     # vibes.ai, sin cookie de sesion de VideoForge -- debe quedar publica.
     "/api/vibes/poll",
     "/api/vibes/result",
+    # Mismo motivo: qwen_bridge.js pollea desde chat.qwen.ai (proceso de Chromium
+    # dedicado por cuenta, sin cookie de sesion de VideoForge).
+    "/api/qwen/poll",
+    "/api/qwen/result",
     # La extension de Flow envia la cookie desde su propio popup, misma razon
     # que las rutas ext-* de Meta arriba: no hay cookie de sesion de VideoForge.
     "/api/flow/save-cookie",

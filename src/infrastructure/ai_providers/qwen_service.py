@@ -10,7 +10,8 @@ from pathlib import Path
 
 import requests
 
-from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe
+from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe, get_extension_dir
+from src.infrastructure.ai_providers.meta_chrome_process import launch_chrome_with_extension
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -117,6 +118,20 @@ def _is_waf_blocked(status_code: int, headers, body_text: str) -> bool:
     return False
 
 
+def _check_waf(context: str, resp) -> bool:
+    """_is_waf_blocked() + log de status/body cuando dispara -- sin esto,
+    create_chat/submit_completion/etc. levantaban QwenWafBlockedError sin
+    dejar rastro de la respuesta real, y un 403 por un parametro invalido
+    (p. ej. un chat_type no soportado) se veia identico en el log a un
+    bloqueo real del WAF."""
+    blocked = _is_waf_blocked(resp.status_code, resp.headers, resp.text)
+    if blocked:
+        logger.info(
+            "[QWEN][waf] %s status=%s body=%r", context, resp.status_code, (resp.text or "")[:300]
+        )
+    return blocked
+
+
 # ─────────────────────────────────────────────────────────────────
 # Cuentas / sesiones
 # ─────────────────────────────────────────────────────────────────
@@ -185,18 +200,32 @@ def delete_account_session(accounts_dir: Path, account_name: str) -> None:
 
 
 def test_token(token: str, cookie_header: str = "", session_meta: dict | None = None) -> tuple[bool, str]:
+    # Diagnostico: cada llamada (desde login_account_managed y desde
+    # _verify_one/tokens_for_run) queda registrada con status/WAF/si se
+    # mandaron cookies+session_meta -- sin loguear el valor del token/cookies.
+    # Esto es lo que permite ver, ante un login que queda en "sin verificar",
+    # si el rechazo es por el token en si o por los headers extra adjuntos.
+    ctx = f"cookies={'si' if cookie_header else 'no'} session_meta={list((session_meta or {}).keys())}"
     try:
         resp = qwen_get(
             f"{QWEN_API_BASE}/v1/tasks/status/nonexistent-test",
             headers=qwen_headers(token, cookie_header=cookie_header, session_meta=session_meta),
             timeout=15,
         )
+        waf = _is_waf_blocked(resp.status_code, resp.headers, resp.text)
+        logger.info(
+            "[QWEN][test_token] status=%s waf=%s %s body=%r",
+            resp.status_code, waf, ctx, (resp.text or "")[:200],
+        )
+        if waf:
+            return False, "Bloqueado por el WAF de Alibaba"
         if resp.status_code in (200, 404):
             return True, "ok"
         if resp.status_code == 401:
             return False, "Token invalido/expirado"
         return False, f"HTTP {resp.status_code}"
     except Exception as exc:
+        logger.info("[QWEN][test_token] excepcion %s %s", ctx, exc)
         return False, str(exc)
 
 
@@ -223,7 +252,12 @@ def _verify_one(folder: Path) -> tuple[str, tuple[bool, str] | None]:
     ck = load_cookies(folder)
     cookie_header = cookie_header_from_cookies(ck)
     sm = load_session_meta(folder)
+    logger.info(
+        "[QWEN][_verify_one] %s: token_len=%s cookies=%s session_meta=%s",
+        folder.name, len(tk), len(ck), list(sm.keys()),
+    )
     result = test_token(tk, cookie_header=cookie_header, session_meta=sm)
+    logger.info("[QWEN][_verify_one] %s -> active=%s detail=%s", folder.name, result[0], result[1])
     return folder.name, result
 
 
@@ -344,7 +378,7 @@ def create_chat(token: str, chat_type: str = "i2v", cookie_header: str = "", ses
     resp = qwen_post(
         QWEN_CHAT_NEW_URL, headers=qwen_headers(token, cookie_header, session_meta), json=payload, timeout=30
     )
-    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+    if _check_waf(f"create_chat(chat_type={chat_type})", resp):
         raise QwenWafBlockedError()
     if resp.status_code != 200:
         raise RuntimeError(f"create_chat HTTP {resp.status_code}: {resp.text[:180]}")
@@ -369,9 +403,14 @@ def upload_image_oss(token: str, image_path: str, cookie_header: str = "", sessi
         json={"filename": fname, "filesize": fsize, "filetype": "image"},
         timeout=25,
     )
+    if _check_waf("upload_image_oss(STS)", sts_resp):
+        raise QwenWafBlockedError()
     if sts_resp.status_code != 200:
         raise RuntimeError(f"STS HTTP {sts_resp.status_code}: {sts_resp.text[:180]}")
-    sts_data = sts_resp.json()
+    try:
+        sts_data = sts_resp.json()
+    except Exception as exc:
+        raise QwenWafBlockedError() from exc
     if not sts_data.get("success"):
         raise RuntimeError(f"STS failed: {json.dumps(sts_data)[:220]}")
     data = sts_data.get("data") or {}
@@ -484,7 +523,7 @@ def submit_completion(
     h = qwen_headers(token, cookie_header, session_meta)
     h["X-Request-Id"] = str(uuid.uuid4())
     resp = qwen_post(url, headers=h, json=payload, timeout=40)
-    if _is_waf_blocked(resp.status_code, resp.headers, resp.text):
+    if _check_waf(f"submit_completion(chat_type={chat_type})", resp):
         raise QwenWafBlockedError()
     if resp.status_code == 401:
         raise RuntimeError("Token invalido/expirado")
@@ -521,10 +560,15 @@ def poll_task(
         resp = qwen_get(url, headers=qwen_headers(token, cookie_header, session_meta), timeout=20)
         if resp.status_code == 401:
             return {"ok": False, "error": "Token expirado (401)"}
+        if _check_waf("poll_task", resp):
+            raise QwenWafBlockedError()
         if resp.status_code != 200:
             time.sleep(poll_interval)
             continue
-        data = resp.json()
+        try:
+            data = resp.json()
+        except Exception as exc:
+            raise QwenWafBlockedError() from exc
         st = (data.get("task_status") or "").lower()
         if st == "success":
             vu = (data.get("content") or "").strip()
@@ -589,26 +633,35 @@ def _is_token_like(raw) -> bool:
     return len(t) >= 48
 
 
-def login_account_managed(folder: Path, log_callback=None) -> None:
-    """Login interactivo con perfil temporal; captura token Bearer + cookies + session meta."""
+def browser_profile_dir(folder: Path) -> Path:
+    """Perfil de Chromium persistente para esta cuenta -- a diferencia del viejo
+    perfil temporal (que se borraba siempre al cerrar), este se reutiliza tanto
+    para el login (login_account_managed) como para dejar el navegador abierto
+    despues con la extension cargada (open_bridge_session), igual que Vibes
+    (vibes_client.profile_dir + vibes_animation_service.launch_chrome)."""
+    return folder / "browser_profile"
+
+
+def login_account_managed(folder: Path, log_callback=None) -> bool:
+    """Login interactivo con perfil persistente; captura token Bearer + cookies + session meta.
+    Devuelve True si el login se guardo con exito (para que el llamador pueda
+    encadenar open_bridge_session)."""
 
     def log(msg: str):
         if log_callback:
             log_callback(msg)
 
     import shutil
-    import tempfile
 
+    saved = False
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         log(f"[ERROR] [{folder.name}] Playwright no instalado.")
-        return
+        return False
 
-    tmp_profile = Path(tempfile.gettempdir()) / f"qwen_tmp_{folder.name}"
+    tmp_profile = browser_profile_dir(folder)
     try:
-        if tmp_profile.exists():
-            shutil.rmtree(tmp_profile)
         tmp_profile.mkdir(parents=True, exist_ok=True)
 
         with sync_playwright() as pw:
@@ -711,6 +764,21 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
                 ccount = save_cookies_snapshot()
                 if tk:
                     ok, detail = test_token(tk)
+                    # Diagnostico: la verificacion real que usa /qwen/sesiones
+                    # (_verify_one) y la generacion (tokens_for_run) llaman a
+                    # test_token con cookies+session_meta adjuntos -- acá se
+                    # repite esa misma llamada, con los datos recien
+                    # capturados, para ver en el log si el token solo pasa pero
+                    # con cookies/session_meta el WAF lo rechaza (o viceversa).
+                    try:
+                        diag_cookies = cookie_header_from_cookies(ctx.cookies("https://chat.qwen.ai"))
+                    except Exception:
+                        diag_cookies = ""
+                    ok_full, detail_full = test_token(tk, cookie_header=diag_cookies, session_meta=session_meta_capture)
+                    log(
+                        f"[{folder.name}] [DIAG] test_token bare={ok}/{detail} "
+                        f"con_cookies_y_meta={ok_full}/{detail_full}"
+                    )
                     if ok:
                         (folder / "token.txt").write_text(tk, encoding="utf-8")
                         if session_meta_capture:
@@ -753,7 +821,55 @@ def login_account_managed(folder: Path, log_callback=None) -> None:
     except Exception as exc:
         log(f"[ERROR] [{folder.name}] Error: {exc}")
     finally:
+        # A diferencia del perfil temporal de antes, uno con sesion guardada
+        # NO se borra -- open_bridge_session() lo reabre despues con la
+        # extension cargada para dejarlo corriendo durante la generacion.
+        if not saved:
+            try:
+                shutil.rmtree(tmp_profile, ignore_errors=True)
+            except Exception:
+                pass
+    return saved
+
+
+def open_bridge_session(folder: Path, account_name: str, log_callback=None) -> dict:
+    """Reabre el perfil persistente de esta cuenta (ya logueado por
+    login_account_managed) con la extension cargada y lo deja corriendo --
+    mismo patron que vibes_animation_service.launch_chrome(). El WAF de
+    Alibaba bloquea create_chat/submit_completion cuando se llaman via
+    curl_cffi desde Python; ejecutados desde este navegador real y
+    autenticado (via qwen_bridge.js) pasan las mismas cookies/TLS fingerprint
+    reales que usa el sitio, esquivando el bloqueo."""
+
+    def log(msg: str):
+        if log_callback:
+            log_callback(msg)
+
+    profile_dir = browser_profile_dir(folder)
+    if not profile_dir.is_dir():
+        raise FileNotFoundError(
+            f"[{account_name}] Sin sesion guardada -- inicia sesion primero (boton Login)."
+        )
+
+    exe = find_chromium_exe()
+    if not exe:
+        raise FileNotFoundError("Chrome/Chromium no encontrado.")
+
+    ext_dir = get_extension_dir()
+
+    def _monitor():
         try:
-            shutil.rmtree(tmp_profile, ignore_errors=True)
-        except Exception:
-            pass
+            proc = launch_chrome_with_extension(
+                exe,
+                str(profile_dir),
+                [str(ext_dir)],
+                [f"https://chat.qwen.ai/?imperio_qwen_account={account_name}"],
+            )
+            log(f"[OK] [{account_name}] Navegador abierto -- dejalo abierto mientras generas.")
+            proc.wait()
+            log(f"[{account_name}] Navegador cerrado.")
+        except Exception as exc:
+            log(f"[ERROR] [{account_name}] Abriendo navegador: {exc}")
+
+    threading.Thread(target=_monitor, daemon=True).start()
+    return {"ok": True, "message": f"Navegador abriendo para {account_name}"}
