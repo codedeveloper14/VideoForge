@@ -285,7 +285,11 @@ def _run_job_via_bridge(
             return result
         if attempt == 0:
             motivo = result.get("error") if result else "timeout"
-            log(f"vibes.ai fallo ({motivo}), reintentando job completo en {int(_JOB_RETRY_DELAY_SEC)}s...")
+            # No es un fallo definitivo -- es el reintento automatico documentado arriba
+            # (vibes.ai suele necesitar mas tiempo/otro intento bajo su propia carga), y
+            # la mayoria de las veces el segundo intento sí completa. "[INFO]" en vez de
+            # texto tipo error para que no se lea como una falla real en el log del usuario.
+            log(f"[INFO] vibes.ai tardo mas de lo esperado ({motivo}), reintentando automaticamente en {int(_JOB_RETRY_DELAY_SEC)}s...")
             time.sleep(_JOB_RETRY_DELAY_SEC)
     return result
 
