@@ -313,7 +313,7 @@ def _procesar_render_inteligente(
         # ── Audio duration ──────────────────────────────────────────────
         log("Analizando audio...", 3)
         res = ffmpeg_utils.run_cmd(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", audio_path],
+            [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", audio_path],
             "ffprobe no pudo leer audio",
         )
         try:
@@ -321,7 +321,7 @@ def _procesar_render_inteligente(
             dur = (parsed.get("format") or {}).get("duration")
             if dur is None:
                 r2 = ffmpeg_utils.run_cmd(
-                    ["ffprobe", "-v", "error", "-show_entries", "stream=duration", "-of", "json", audio_path],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "stream=duration", "-of", "json", audio_path],
                     "ffprobe fallback fallo",
                 )
                 dur = next(
@@ -567,7 +567,7 @@ def _procesar_render_inteligente(
         silent = os.path.join(tmp_dir, "silent.mp3")
         ffmpeg_utils.run_cmd(
             [
-                "ffmpeg",
+                ffmpeg_utils.ffmpeg_exe(),
                 "-y",
                 "-f",
                 "lavfi",
@@ -591,7 +591,7 @@ def _procesar_render_inteligente(
         asm = os.path.join(tmp_dir, "audio_s.mp3")
         ra = _run_ffmpeg(
             [
-                "ffmpeg",
+                ffmpeg_utils.ffmpeg_exe(),
                 "-y",
                 "-i",
                 audio_path,
@@ -648,7 +648,7 @@ def _procesar_render_inteligente(
 
             r = _run_ffmpeg(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-threads",
                     ff_threads,
@@ -679,7 +679,7 @@ def _procesar_render_inteligente(
             if os.path.exists(out_tmp) and os.path.getsize(out_tmp) > 500:
                 _run_ffmpeg(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-threads",
                         ff_threads,
@@ -721,7 +721,7 @@ def _procesar_render_inteligente(
                 vf_fb = f"{ffmpeg_utils.scale_pad_filter(w_res, h_res, FPS)},setpts=PTS-STARTPTS"
                 _run_ffmpeg(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-threads",
                         ff_threads,
@@ -819,7 +819,7 @@ def _procesar_render_inteligente(
                         if img_path and os.path.exists(img_path):
                             _run_ffmpeg(
                                 [
-                                    "ffmpeg",
+                                    ffmpeg_utils.ffmpeg_exe(),
                                     "-y",
                                     "-threads",
                                     ff_threads,
@@ -862,7 +862,7 @@ def _procesar_render_inteligente(
                         ffmpeg_utils.write_concat_list(cl, batch_clips)
                         ffmpeg_utils.run_cmd(
                             [
-                                "ffmpeg",
+                                ffmpeg_utils.ffmpeg_exe(),
                                 "-y",
                                 "-threads",
                                 ff_threads,
@@ -917,7 +917,7 @@ def _procesar_render_inteligente(
                     raise Exception(f"Modal seg {seg_idx} batch {bi}: clip vacio o invalido")
                 # Normalizar codec Modal --> libx264 ultrafast para compatibilidad con clips locales
                 bp_n = bp.replace(".mp4", "_n.mp4")
-                cmd = ["ffmpeg", "-y", "-threads", ff_threads, "-i", bp]
+                cmd = [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads, "-i", bp]
                 if expected_dur:
                     cmd += ["-t", str(max(0.1, expected_dur))]
                 cmd += [
@@ -953,7 +953,7 @@ def _procesar_render_inteligente(
                 try:
                     pr_v = subprocess.run(
                         [
-                            "ffprobe",
+                            ffmpeg_utils.ffprobe_exe(),
                             "-v",
                             "error",
                             "-select_streams",
@@ -994,7 +994,7 @@ def _procesar_render_inteligente(
             for bi, bp in enumerate(clips):
                 try:
                     pr = subprocess.run(
-                        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", bp],
+                        [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", bp],
                         capture_output=True,
                         text=True,
                         timeout=30,
@@ -1016,7 +1016,7 @@ def _procesar_render_inteligente(
             fp += "".join(f"[v{k}]" for k in range(n_c))
             fp += f"concat=n={n_c}:v=1:a=0[vout]"
             ffmpeg_utils.run_cmd(
-                ["ffmpeg", "-y", "-threads", ff_threads]
+                [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads]
                 + fc_inputs
                 + [
                     "-filter_complex",
@@ -1044,7 +1044,7 @@ def _procesar_render_inteligente(
             )
             try:
                 pr2 = subprocess.run(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -1083,7 +1083,7 @@ def _procesar_render_inteligente(
                 if img_ok:
                     _run_ffmpeg(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1115,7 +1115,7 @@ def _procesar_render_inteligente(
                 if not img_ok or not (os.path.exists(fb) and os.path.getsize(fb) > 500):
                     _run_ffmpeg(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1153,7 +1153,7 @@ def _procesar_render_inteligente(
             seg_frames_exact = int(round(seg_dur_exact * 24))
             ffmpeg_utils.run_cmd(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-threads",
                     ff_threads,
@@ -1190,7 +1190,7 @@ def _procesar_render_inteligente(
             )
             try:
                 prv = subprocess.run(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -1207,7 +1207,7 @@ def _procesar_render_inteligente(
                     co_corr = co.replace(".mp4", "_corr.mp4")
                     subprocess.run(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1286,7 +1286,7 @@ def _procesar_render_inteligente(
             try:
                 pr = subprocess.run(
                     [
-                        "ffprobe",
+                        ffmpeg_utils.ffprobe_exe(),
                         "-v",
                         "error",
                         "-show_entries",
@@ -1331,7 +1331,7 @@ def _procesar_render_inteligente(
         concat_inputs = "".join(f"[v{i}]" for i in range(n_segs))
         filter_str = f"{filter_parts}{concat_inputs}concat=n={n_segs}:v=1:a=0[vout]"
         ffmpeg_utils.run_cmd(
-            ["ffmpeg", "-y", "-threads", ff_threads]
+            [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads]
             + inputs
             + [
                 "-filter_complex",
@@ -1377,7 +1377,7 @@ def _procesar_render_inteligente(
             log(f"  [WARNING] mux alineado fallo ({mux_e}) -- reintentando con -shortest...")
             res_sh = _run_ffmpeg(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     concat_out,

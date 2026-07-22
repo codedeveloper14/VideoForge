@@ -11,10 +11,34 @@
 # un submodulo tira una excepcion al importarse (paso con 'src.domain'). Caminar el
 # arbol de archivos evita ambos problemas.
 import os
+import sys
 
 from PyInstaller.utils.hooks import collect_all
 
 OBF_DIR = "build/pyarmor_dist"
+
+# ffmpeg/chromium bundleados -- ver scripts/fetch_ffmpeg_windows.py y
+# scripts/fetch_chromium_windows.py (correr AMBOS antes de este spec). Sin esto el
+# instalador queda dependiendo del PATH del cliente final (ffmpeg) o de que tenga
+# Chrome instalado y acepte --load-extension (Qwen/Vibes/Flow/GenTube) -- ver
+# auditoria de empaquetado. Aborta el build en vez de producir un .exe silenciosamente
+# roto para cualquier usuario que instale desde cero.
+VENDOR_FFMPEG_DIR = "vendor/ffmpeg/win64"
+VENDOR_CHROMIUM_DIR = "vendor/chromium/win64"
+if not os.path.isfile(os.path.join(VENDOR_FFMPEG_DIR, "ffmpeg.exe")):
+    print(
+        f"[studioivr.spec] ERROR: falta {VENDOR_FFMPEG_DIR}/ffmpeg.exe -- "
+        "corre 'python scripts/fetch_ffmpeg_windows.py' antes de compilar.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+if not os.path.isfile(os.path.join(VENDOR_CHROMIUM_DIR, "chrome.exe")):
+    print(
+        f"[studioivr.spec] ERROR: falta {VENDOR_CHROMIUM_DIR}/chrome.exe -- "
+        "corre 'python scripts/fetch_chromium_windows.py' antes de compilar.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def own_package_modules(package_dir: str) -> list[str]:
@@ -44,6 +68,12 @@ datas = [
     # Nunca se importa -- main.py lo relanza con runpy.run_path() sobre una ruta
     # real de disco, tiene que existir suelto, no compilado dentro del PYZ.
     (f"{OBF_DIR}/scripts/grok_worker.py", "scripts"),
+    # ffmpeg.exe/ffprobe.exe reales -- ver get_bundled_ffmpeg_dir()/ffmpeg_exe() en
+    # src/utils/paths.py y src/infrastructure/media/ffmpeg_utils.py.
+    (VENDOR_FFMPEG_DIR, "ffmpeg_bin"),
+    # Chromium real (con extension-loading) -- ver get_bundled_chromium_exe() en
+    # src/utils/paths.py y chrome_launcher.find_chromium_exe().
+    (VENDOR_CHROMIUM_DIR, "chromium_bin"),
 ]
 binaries = []
 hiddenimports = [
@@ -90,6 +120,10 @@ hiddenimports = [
     "oss2",
     "psutil",
     "stripe",
+    # Import perezoso dentro de editor_scene_analysis_service.py -- invisible para
+    # el analisis estatico de PyInstaller (mas todavia con el codigo ofuscado por
+    # PyArmor, ver comentario de own_package_modules() arriba).
+    "json_repair",
 ] + own_hidden
 
 for pkg in ("webview", "flask", "apiflask", "bcrypt", "playwright", "websockets", "curl_cffi", "oss2", "stripe"):

@@ -17,6 +17,11 @@ installer_output/
 *.app
 *.dmg
 
+# Binarios vendorizados (ffmpeg/Chromium) para el instalador -- pesados,
+# regenerables via scripts/fetch_ffmpeg_windows.py / fetch_chromium_windows.py,
+# nunca subir al repo.
+vendor/
+
 # Python
 __pycache__/
 *.py[cod]

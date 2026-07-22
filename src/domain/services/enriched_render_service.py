@@ -511,7 +511,7 @@ def _procesar_render_enriquecido(
             )
 
         def _enc(so, vf, dur, src, preset="ultrafast", crf=23, fc=None, mv="[v]", tout=120):
-            cmd = ["ffmpeg", "-y"]
+            cmd = [ffmpeg_utils.ffmpeg_exe(), "-y"]
             if isinstance(src, str):
                 cmd += ["-loop", "1", "-t", str(dur), "-i", src]
             else:
@@ -539,7 +539,7 @@ def _procesar_render_enriquecido(
         def _add_txt(si, so, dt, tout=90):
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     si,
@@ -565,7 +565,7 @@ def _procesar_render_enriquecido(
         def _make_lavfi_vid(path, color, wr, hr, dur, tout=30):
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-f",
                     "lavfi",
@@ -609,7 +609,7 @@ def _procesar_render_enriquecido(
 
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     seg_out,
@@ -639,7 +639,7 @@ def _procesar_render_enriquecido(
             dur_b = max(0.1, t_end - t_start)
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     seg_out,
@@ -671,7 +671,7 @@ def _procesar_render_enriquecido(
             if dur_c > 0.15:
                 run(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-i",
                         seg_out,
@@ -704,7 +704,7 @@ def _procesar_render_enriquecido(
                         lfh.write(f"file '{p}'\n")
                 run(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-f",
                         "concat",
@@ -971,7 +971,7 @@ def _procesar_render_enriquecido(
                 try:
                     run(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-f",
                             "lavfi",
@@ -1277,7 +1277,7 @@ def _procesar_render_enriquecido(
                                 rlf.write(f"file '{ref_part}'\n")
                             run(
                                 [
-                                    "ffmpeg",
+                                    ffmpeg_utils.ffmpeg_exe(),
                                     "-y",
                                     "-f",
                                     "concat",
@@ -1579,7 +1579,7 @@ def _procesar_render_enriquecido(
             _write_clist(paths, lst)
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-f",
                     "concat",
@@ -1639,7 +1639,7 @@ def _procesar_render_enriquecido(
             log(f"  [WARNING] mux_aligned: {mux_e} - usando -shortest")
             run(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     concat_out,
