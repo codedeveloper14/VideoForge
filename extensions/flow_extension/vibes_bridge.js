@@ -170,10 +170,18 @@
     });
   }
 
-  function findButtonByText(text) {
+  // "texts" acepta un string o un array -- vibes.ai traduce algunos botones segun el idioma
+  // del navegador pero no todos (ej. "Add to video" -> "Añadir al video" en espanol, mientras
+  // que "Add start frame"/"Remove start frame" quedan igual), asi que hay que poder matchear
+  // varias variantes de idioma para el mismo boton.
+  function findButtonByText(texts) {
+    var candidates = Array.isArray(texts) ? texts : [texts];
     var btns = document.querySelectorAll("button");
     for (var i = 0; i < btns.length; i++) {
-      if (btns[i].textContent.trim() === text) return btns[i];
+      var content = btns[i].textContent.trim();
+      for (var j = 0; j < candidates.length; j++) {
+        if (content === candidates[j]) return btns[i];
+      }
     }
     return null;
   }
@@ -247,7 +255,7 @@
         var clickTarget = img.closest("button") || img.closest('[role="button"]') || img;
         realClick(clickTarget);
         return waitFor(function () {
-          return findButtonByText("Add to video");
+          return findButtonByText(["Add to video", "Añadir al video"]);
         }, 5000, 120);
       })
       .then(function (addBtn) {
