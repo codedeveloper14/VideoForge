@@ -306,7 +306,9 @@ export default function GentubePanel({ project, outputDir, resolvingDir }: Gentu
                     className="flex items-center justify-between rounded-md border border-[var(--vf-border)] bg-[var(--vf-p)] px-2 py-1"
                   >
                     <span className="font-mono text-[10px] text-[var(--vf-muted)]">
-                      {a.name || t("flowPanel.accountFallback", { n: i })}
+                      {a.user && a.user.includes("@")
+                        ? a.user
+                        : t("flowPanel.accountFallback", { n: i })}
                     </span>
                     <div className="flex items-center gap-2">
                       <span

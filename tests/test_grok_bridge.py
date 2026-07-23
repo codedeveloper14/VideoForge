@@ -3,6 +3,7 @@ grok_animation_service._on_bridge_session). Todo el estado se aisla en tmp_path 
 nunca debe tocar la carpeta real de datos del usuario (get_grok_accounts_dir())."""
 
 import json
+import threading
 
 import pytest
 
@@ -86,6 +87,66 @@ def test_cookies_sin_sso_no_registran_nada():
     accounts_dir = gas.get_grok_accounts_dir()
     grok_service.ensure_accounts_setup(accounts_dir)
     assert not (accounts_dir / "account_1" / "cookies_auto.json").exists()
+
+
+def test_cuenta_preexistente_sin_sidecar_no_se_duplica_al_detectarse_por_bridge():
+    # Simula cookies_auto.json guardado ANTES de que existiera el bridge (login
+    # manual viejo, login_account_managed), SIN sidecar hash->slot -- mismo sso
+    # que la sesion recien detectada. Es el escenario real reportado en
+    # produccion: una sola sesion de Chrome terminaba mostrando 2 cuentas.
+    accounts_dir = gas.get_grok_accounts_dir()
+    grok_service.ensure_accounts_setup(accounts_dir)
+    (accounts_dir / "account_1" / "cookies_auto.json").write_text(
+        json.dumps(_cookies("SSO_A")), encoding="utf-8"
+    )
+
+    grok_session_bridge.set_session_from_cookies(_cookies("SSO_A"))
+
+    assert not (accounts_dir / "account_2" / "cookies_auto.json").exists()
+    ck1 = json.loads((accounts_dir / "account_1" / "cookies_auto.json").read_text())
+    assert {c["value"] for c in ck1 if c["name"] == "sso"} == {"SSO_A"}
+
+
+def test_cuenta_preexistente_con_sso_distinto_si_crea_cuenta_nueva():
+    # Contraste con el test anterior: si el sso de la cookie preexistente es
+    # REALMENTE distinto (otra cuenta, o una sesion vieja/expirada), no hay que
+    # fusionarlas -- deben quedar en slots separados.
+    accounts_dir = gas.get_grok_accounts_dir()
+    grok_service.ensure_accounts_setup(accounts_dir)
+    (accounts_dir / "account_1" / "cookies_auto.json").write_text(
+        json.dumps(_cookies("SSO_VIEJA")), encoding="utf-8"
+    )
+
+    grok_session_bridge.set_session_from_cookies(_cookies("SSO_A"))
+
+    ck2 = json.loads((accounts_dir / "account_2" / "cookies_auto.json").read_text())
+    assert {c["value"] for c in ck2 if c["name"] == "sso"} == {"SSO_A"}
+
+
+def test_detecciones_concurrentes_de_la_misma_cuenta_nunca_duplican_carpeta():
+    """Reproduce el bug real de produccion (2026-07-23): una cuenta ya logueada
+    ANTES de que existiera el bridge (sin sidecar), detectada muchas veces casi
+    en simultaneo, nunca debe terminar ocupando mas de una carpeta."""
+    accounts_dir = gas.get_grok_accounts_dir()
+    grok_service.ensure_accounts_setup(accounts_dir)
+    (accounts_dir / "account_1" / "cookies_auto.json").write_text(
+        json.dumps(_cookies("SSO_A")), encoding="utf-8"
+    )
+
+    def _fire():
+        grok_session_bridge.set_session_from_cookies(_cookies("SSO_A"))
+
+    threads = [threading.Thread(target=_fire) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    active = [
+        s for s in grok_service.list_account_sessions(accounts_dir) if s["active"]
+    ]
+    assert len(active) == 1
+    assert active[0]["name"] == "account_1"
 
 
 def test_restart_del_backend_reasigna_el_mismo_slot_via_sidecar():

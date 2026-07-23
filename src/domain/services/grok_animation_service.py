@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import threading
 import zipfile
@@ -102,42 +103,96 @@ def _get_slot_assigner() -> SlotAssigner:
     return _slot_assigner
 
 
+def _sso_from_cookie_list(cookies: list) -> str:
+    for c in cookies:
+        if isinstance(c, dict) and c.get("name") == "sso":
+            return c.get("value") or ""
+    return ""
+
+
+def _find_slot_for_existing_sso(accounts_dir: Path, sso: str) -> int | None:
+    """Reconcilia con carpetas de cuenta que ya tenian cookies_auto.json ANTES de
+    que existiera este bridge (sin sidecar hash->slot, p. ej. un login manual
+    previo) -- si alguna YA tiene la MISMA cookie `sso` (misma sesion real), hay
+    que reusar ese slot en vez de crear uno nuevo. Sin este chequeo, la primera
+    vez que el bridge detecta una cuenta ya logueada antes, el slot con la cookie
+    vieja aparece "ocupado" por otra cuenta y se duplica la misma sesion en dos
+    carpetas distintas (mismo bug que se corrigio en GenTube)."""
+    if not sso:
+        return None
+    for i in range(_NUM_ACCOUNTS):
+        ck_file = accounts_dir / f"account_{i + 1}" / "cookies_auto.json"
+        if not ck_file.exists():
+            continue
+        try:
+            existing_cookies = json.loads(ck_file.read_text())
+        except Exception:
+            continue
+        if _sso_from_cookie_list(existing_cookies) == sso:
+            return i
+    return None
+
+
+# Serializa TODO el cuerpo de _on_bridge_session -- ver el comentario identico en
+# gentube_animation_service.py (bug confirmado en produccion 2026-07-23): sin este
+# lock, dos llamadas casi simultaneas pueden leer cookies_auto.json a mitad de
+# la escritura de la otra, fallar la reconciliacion por sso, y crear una carpeta
+# de cuenta duplicada para la misma sesion real.
+_bridge_session_lock = threading.Lock()
+
+
+def _write_json_atomic(path: Path, data) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def _on_bridge_session(account_hash: str, meta: dict) -> None:
     cookies = meta.get("cookies") or []
     if not cookies:
         return
-    accounts_dir = get_grok_accounts_dir()
-    grok_service.ensure_accounts_setup(accounts_dir)
+    with _bridge_session_lock:
+        accounts_dir = get_grok_accounts_dir()
+        grok_service.ensure_accounts_setup(accounts_dir)
 
-    def _slot_taken(i: int) -> bool:
-        return (accounts_dir / f"account_{i + 1}" / "cookies_auto.json").exists()
+        def _slot_taken(i: int) -> bool:
+            return (accounts_dir / f"account_{i + 1}" / "cookies_auto.json").exists()
 
-    idx = _get_slot_assigner().assign_slot(account_hash, slot_taken_on_disk=_slot_taken)
-    if idx is None:
-        logger.info("[grok] Sin slots libres (limite %d) - sesion detectada via extension descartada", _NUM_ACCOUNTS)
-        return
+        idx = _find_slot_for_existing_sso(accounts_dir, _sso_from_cookie_list(cookies))
+        if idx is not None:
+            # Reconciliado con una carpeta que ya existia en disco -- registrar el
+            # atajo en memoria para que la PROXIMA deteccion de este mismo hash no
+            # vuelva a escanear el disco entero.
+            _get_slot_assigner().bind(account_hash, idx)
+        else:
+            idx = _get_slot_assigner().assign_slot(account_hash, slot_taken_on_disk=_slot_taken)
+        if idx is None:
+            logger.info(
+                "[grok] Sin slots libres (limite %d) - sesion detectada via extension descartada", _NUM_ACCOUNTS
+            )
+            return
 
-    folder = accounts_dir / f"account_{idx + 1}"
-    folder.mkdir(parents=True, exist_ok=True)
-    cookie_list = [
-        {
-            "name": c.get("name"),
-            "value": c.get("value"),
-            "domain": ".grok.com",
-            "path": "/",
-            "httpOnly": bool(c.get("httpOnly", False)),
-            "secure": bool(c.get("secure", True)),
-        }
-        for c in cookies
-        if isinstance(c, dict) and c.get("name") and c.get("value")
-    ]
-    if not cookie_list:
-        return
-    already_active = (folder / "cookies_auto.json").exists()
-    (folder / "cookies_auto.json").write_text(json.dumps(cookie_list, indent=2), encoding="utf-8")
-    _get_slot_assigner().write_sidecar(idx, account_hash, {})
-    if not already_active:
-        logger.info("[grok] Sesion detectada automaticamente via extension -> %s", folder.name)
+        folder = accounts_dir / f"account_{idx + 1}"
+        folder.mkdir(parents=True, exist_ok=True)
+        cookie_list = [
+            {
+                "name": c.get("name"),
+                "value": c.get("value"),
+                "domain": ".grok.com",
+                "path": "/",
+                "httpOnly": bool(c.get("httpOnly", False)),
+                "secure": bool(c.get("secure", True)),
+            }
+            for c in cookies
+            if isinstance(c, dict) and c.get("name") and c.get("value")
+        ]
+        if not cookie_list:
+            return
+        already_active = (folder / "cookies_auto.json").exists()
+        _write_json_atomic(folder / "cookies_auto.json", cookie_list)
+        _get_slot_assigner().write_sidecar(idx, account_hash, {})
+        if not already_active:
+            logger.info("[grok] Sesion detectada automaticamente via extension -> %s", folder.name)
 
 
 grok_session_bridge.add_session_listener(_on_bridge_session)

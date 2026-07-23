@@ -63,6 +63,19 @@ class SlotAssigner:
         except Exception:
             pass
 
+    def bind(self, account_hash: str, idx: int) -> None:
+        """Registra directamente `account_hash -> idx` en la cache en memoria, sin
+        pasar por la busqueda de assign_slot(). Lo usa el caller cuando resolvio el
+        slot por otro medio (p. ej. reconciliando con una cuenta que ya existia en
+        disco antes de que existiera este bridge, sin sidecar) -- sin este bind(),
+        cada evento de deteccion subsiguiente para el MISMO hash tendria que volver
+        a escanear el disco entero en vez de tomar el atajo rapido de
+        assign_slot() (`if account_hash in self._hash_to_idx: return ...`), lo que
+        no solo es mas lento sino que reabre la ventana de una lectura concurrente
+        a mitad de una escritura de otro hilo."""
+        with self._lock:
+            self._hash_to_idx[account_hash] = idx
+
     def assign_slot(
         self,
         account_hash: str,

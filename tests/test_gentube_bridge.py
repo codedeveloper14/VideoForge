@@ -4,6 +4,7 @@ nunca debe tocar la carpeta real de datos del usuario (get_gentube_cookies_dir()
 
 import base64
 import json
+import threading
 
 import pytest
 
@@ -85,6 +86,44 @@ def test_cookie_invalida_no_registra_nada():
     assert gentube_bridge.connected_accounts() == []
     status = gas.get_status()
     assert all(not a["logged_in"] for a in status["accounts"])
+
+
+def test_cuenta_preexistente_sin_sidecar_no_se_duplica_al_detectarse_por_bridge():
+    # Simula una cookie guardada ANTES de que existiera el bridge (login manual
+    # viejo, playwright_login) -- mismo email, SIN sidecar hash->slot. Es
+    # exactamente el escenario real detectado en produccion: el bridge veia esta
+    # cuenta como "nueva" (el slot 0 parecia ocupado por otra persona) y la
+    # duplicaba en el slot 1.
+    gentube_service.cookie_path(0).write_text(_cookie_for("a@example.com"), encoding="utf-8")
+
+    gentube_bridge.set_session_from_cookie(_cookie_for("a@example.com"))
+
+    status = gas.get_status()
+    assert status["accounts"][0]["user"] == "a@example.com"
+    assert status["accounts"][1]["user"] == ""
+    assert gentube_service.read_cookie(1) == ""
+
+
+def test_detecciones_concurrentes_de_la_misma_cuenta_nunca_duplican_slot():
+    """Reproduce el bug real de produccion (2026-07-23): una cuenta ya logueada
+    ANTES de que existiera el bridge (sin sidecar), detectada muchas veces casi
+    en simultaneo (el alarm de la extension + una posible re-entrada), nunca
+    debe terminar ocupando mas de un slot."""
+    gentube_service.cookie_path(0).write_text(_cookie_for("a@example.com"), encoding="utf-8")
+
+    def _fire():
+        gentube_bridge.set_session_from_cookie(_cookie_for("a@example.com"))
+
+    threads = [threading.Thread(target=_fire) for _ in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    status = gas.get_status()
+    connected = [a for a in status["accounts"] if a["logged_in"]]
+    assert len(connected) == 1
+    assert connected[0]["user"] == "a@example.com"
 
 
 def test_restart_del_backend_reasigna_el_mismo_slot_via_sidecar():

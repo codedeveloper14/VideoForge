@@ -84,6 +84,14 @@ def sync_profiles_async() -> None:
 # ver el comentario de ese modulo) y avisa aca en cuanto hay una sesion valida --
 # igual que Flow, sin que el usuario tenga que pegar ninguna cookie a mano.
 _slot_assigner: SlotAssigner | None = None
+# Serializa TODO el cuerpo de _on_bridge_session -- el alarm de la extension
+# corre cada 30s, pero un service worker que se reinicia a mitad de sesion (o
+# un doble disparo) puede generar dos llamadas casi simultaneas. Sin este lock,
+# una lectura de cookie_path(idx) durante la ventana de otra escritura al MISMO
+# archivo podia devolver contenido truncado, hacer fallar la reconciliacion de
+# identidad y terminar creando un slot "fantasma" duplicado para la misma
+# cuenta real (bug confirmado en produccion 2026-07-23).
+_bridge_session_lock = threading.Lock()
 
 
 def _get_slot_assigner() -> SlotAssigner:
@@ -98,30 +106,70 @@ def _get_slot_assigner() -> SlotAssigner:
     return _slot_assigner
 
 
+def _find_slot_for_existing_identity(email: str) -> int | None:
+    """Reconcilia con cuentas guardadas en disco ANTES de que existiera este bridge
+    (sin sidecar hash->slot, p. ej. una cookie pegada a mano hace tiempo) -- si
+    alguna YA es la misma cuenta real (mismo email/sub que probe_session ya
+    decodifica), hay que reusar ESE slot en vez de crear uno nuevo. Sin este
+    chequeo, la primera vez que el bridge detecta una cuenta que el usuario ya
+    habia logueado antes, la trata como "otra cuenta" (el slot con la cookie
+    vieja aparece "ocupado" por alguien mas) y termina duplicando la MISMA sesion
+    real en dos slots distintos."""
+    if not email:
+        return None
+    for i in range(gentube_service.NUM_ACCOUNTS):
+        existing = gentube_service.read_cookie(i)
+        if not existing:
+            continue
+        existing_probe = gentube_service.probe_session(existing)
+        if existing_probe.get("ok") and existing_probe.get("user") == email:
+            return i
+    return None
+
+
+def _write_cookie_atomic(idx: int, cookie: str) -> None:
+    """Escritura atomica (temp + os.replace) -- un lector concurrente (p. ej.
+    check-login/sync_profiles corriendo en su propio hilo) nunca debe poder ver
+    el archivo a mitad de escribir."""
+    path = gentube_service.cookie_path(idx)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(cookie, encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def _on_bridge_session(account_hash: str, meta: dict) -> None:
     cookie = meta.get("cookie", "")
     email = meta.get("email", "")
     if not cookie:
         return
-    idx = _get_slot_assigner().assign_slot(
-        account_hash, slot_taken_on_disk=lambda i: bool(gentube_service.read_cookie(i))
-    )
-    if idx is None:
-        _log(
-            f"[WARNING] Sin slots libres (limite {gentube_service.NUM_ACCOUNTS}) - "
-            f"sesion de {email or 'gentube.app'} descartada"
-        )
-        return
-    try:
-        gentube_service.cookie_path(idx).write_text(cookie, encoding="utf-8")
-    except Exception:
-        return
-    _get_slot_assigner().write_sidecar(idx, account_hash, {"email": email})
-    with _lock:
-        was_logged_in = _state["accounts"][idx]["logged_in"]
-        _state["accounts"][idx].update({"logged_in": True, "user": email, "has_cookie": True})
-    if not was_logged_in:
-        _log(f"[C{idx}] Sesion detectada automaticamente via extension: {email or 'gentube.app'}")
+    with _bridge_session_lock:
+        idx = _find_slot_for_existing_identity(email)
+        if idx is not None:
+            # Reconciliado con una cuenta que ya existia en disco -- registrar el
+            # atajo en memoria para que la PROXIMA deteccion de este mismo hash no
+            # tenga que volver a escanear el disco entero (mas rapido y elimina la
+            # ventana de carrera con escrituras concurrentes).
+            _get_slot_assigner().bind(account_hash, idx)
+        else:
+            idx = _get_slot_assigner().assign_slot(
+                account_hash, slot_taken_on_disk=lambda i: bool(gentube_service.read_cookie(i))
+            )
+        if idx is None:
+            _log(
+                f"[WARNING] Sin slots libres (limite {gentube_service.NUM_ACCOUNTS}) - "
+                f"sesion de {email or 'gentube.app'} descartada"
+            )
+            return
+        try:
+            _write_cookie_atomic(idx, cookie)
+        except Exception:
+            return
+        _get_slot_assigner().write_sidecar(idx, account_hash, {"email": email})
+        with _lock:
+            was_logged_in = _state["accounts"][idx]["logged_in"]
+            _state["accounts"][idx].update({"logged_in": True, "user": email, "has_cookie": True})
+        if not was_logged_in:
+            _log(f"[C{idx}] Sesion detectada automaticamente via extension: {email or 'gentube.app'}")
 
 
 gentube_bridge.add_session_listener(_on_bridge_session)

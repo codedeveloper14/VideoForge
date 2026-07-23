@@ -1,8 +1,11 @@
 import { api } from "./client";
 
 export interface GentubeProfile {
+  id?: number;
   name?: string;
   logged_in?: boolean;
+  user?: string;
+  has_cookie?: boolean;
 }
 
 export interface GentubeCheckLoginResult {
