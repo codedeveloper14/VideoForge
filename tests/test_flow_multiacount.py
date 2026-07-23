@@ -56,11 +56,7 @@ class FakeWSClient:
             "processed_by": self.account_hash,
             "bearer_seen": req.get("bearer"),
         }
-        with flow_bridge._bridge_r_lock:
-            flow_bridge._bridge_results[req["requestId"]] = result
-            ev = flow_bridge._bridge_r_events.get(req["requestId"])
-        if ev:
-            ev.set()
+        flow_bridge._presence.post_result(req["requestId"], result)
 
 
 @pytest.fixture(autouse=True)
@@ -70,20 +66,18 @@ def _clean_bridge_state(monkeypatch):
     monkeypatch.setattr(flow_bridge, "start_bridge", lambda log: None)
     with flow_bridge._ws_clients_lock:
         flow_bridge._ws_clients.clear()
-    with flow_bridge._bridge_q_lock:
-        flow_bridge._bridge_queue.clear()
-    with flow_bridge._bridge_r_lock:
-        flow_bridge._bridge_results.clear()
-        flow_bridge._bridge_r_events.clear()
+    flow_bridge._presence.clear_queue()
+    with flow_bridge._presence._r_lock:
+        flow_bridge._presence._results.clear()
+        flow_bridge._presence._r_events.clear()
     with flow_bridge._bearer_cache_lock:
         flow_bridge._bearer_cache.clear()
-    with flow_bridge._http_seen_lock:
-        flow_bridge._http_seen.clear()
+    with flow_bridge._presence._seen_lock:
+        flow_bridge._presence._seen.clear()
     yield
     with flow_bridge._ws_clients_lock:
         flow_bridge._ws_clients.clear()
-    with flow_bridge._bridge_q_lock:
-        flow_bridge._bridge_queue.clear()
+    flow_bridge._presence.clear_queue()
 
 
 def test_generaciones_paralelas_nunca_se_cruzan_entre_cuentas():
@@ -164,8 +158,8 @@ def test_websocket_muerto_no_delega_a_otra_cuenta_conectada():
     time.sleep(1.0)
     assert ws1_alive.received == [], "CRUCE DETECTADO: la Cuenta 1 proceso una request asignada a la Cuenta 0"
 
-    with flow_bridge._bridge_q_lock:
-        queued = list(flow_bridge._bridge_queue)
+    with flow_bridge._presence._q_lock:
+        queued = list(flow_bridge._presence._queue)
     assert len(queued) == 1
     assert queued[0]["account_hash"] == ACC0
     assert queued[0]["bearer"] == "BEARER_0"

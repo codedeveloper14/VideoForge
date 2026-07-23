@@ -25,6 +25,11 @@ _MAX_LOG_LINES = 1500
 # ver su comentario) -- a diferencia de Meta/Grok/Qwen no hay rotacion de cuentas.
 _ACCOUNT_IDX = 0
 _ACCOUNT_NAME = "vibes-default"
+# Clave con la que vibes_bridge.js se registra al pollear (ver routes/vibes.py:
+# request.args.get("account", "default")) -- NO confundir con
+# vibes_client.VIBES_ACCOUNT_HASH ("vibes:default"), que es la clave de un flujo
+# distinto/legacy (vibes_client.generate_video_via_bridge, sin uso hoy).
+_BRIDGE_ACCOUNT_KEY = "default"
 
 # Estado indexado por proyecto (sanitize_name) -- antes era un unico dict de
 # modulo (_state): lanzar un lote para un proyecto B pisaba _state["project_dir"]/
@@ -75,10 +80,18 @@ def _append_log(batch: dict, msg: str) -> None:
 
 
 def list_sessions() -> list[dict]:
+    # La extension avisa presencia en vivo con solo tener la pestaña de vibes.ai
+    # abierta (heartbeat de vibes_bridge.js) -- se muestra conectado sin esperar
+    # a que check_session() (HTTP directo) confirme la cookie en disco.
+    is_live = _BRIDGE_ACCOUNT_KEY in vibes_bridge.connected_accounts()
     cookies = vibes_client.load_cookies(_ACCOUNT_IDX)
     if not cookies:
+        if is_live:
+            return [{"name": _ACCOUNT_NAME, "active": True, "user": "conectado (extension)"}]
         return [{"name": _ACCOUNT_NAME, "active": False, "user": "sin sesion"}]
     if not vibes_client.check_session(cookies):
+        if is_live:
+            return [{"name": _ACCOUNT_NAME, "active": True, "user": "conectado (extension)"}]
         return [{"name": _ACCOUNT_NAME, "active": False, "user": "sesion expirada"}]
     username = vibes_client.get_account_username(cookies)
     return [{"name": _ACCOUNT_NAME, "active": True, "user": username or "vibes.ai"}]
@@ -223,7 +236,14 @@ def _wait_for_connected_accounts(cancel_ev: threading.Event, log) -> list[str]:
     connected = vibes_bridge.connected_accounts()
     if connected:
         return connected
-    log("Esperando a que la extension se conecte (abre Chrome en vibes.ai, max 45s)...")
+    # Fallback automatico (ver unificacion de deteccion de sesion, Flow de
+    # referencia): nunca hay que pedirle al usuario que abra Chrome a mano --
+    # si no hay ninguna cuenta viva en el bridge, lo abrimos nosotros mismos.
+    log("Sin extension conectada - abriendo Chrome automaticamente en vibes.ai (max 45s)...")
+    try:
+        launch_chrome()
+    except Exception as exc:
+        log(f"[ERROR] No se pudo abrir Chrome automaticamente: {exc}. Usa el boton de abajo.")
     wait_start = time.time()
     while time.time() - wait_start < 45:
         if cancel_ev.is_set():

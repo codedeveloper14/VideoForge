@@ -10,6 +10,7 @@ from pathlib import Path
 
 import requests
 
+from src.infrastructure.ai_providers import qwen_bridge
 from src.infrastructure.ai_providers.chrome_launcher import find_chromium_exe, get_extension_dir
 from src.infrastructure.ai_providers.meta_chrome_process import launch_chrome_with_extension
 from src.utils.logger import get_logger
@@ -278,23 +279,36 @@ def _verify_accounts_background(folders: list[Path]) -> None:
 def list_account_sessions(accounts_dir: Path) -> list[dict]:
     global _verify_inflight
     folders = [f for f in sorted(accounts_dir.iterdir()) if f.is_dir()]
+    live_accounts = set(qwen_bridge.connected_accounts())
     rows = []
     needs_verify = False
     for folder in folders:
         tk = account_token(folder)
         ck = load_cookies(folder)
+        is_live = folder.name in live_accounts
         if not tk:
-            rows.append({"name": folder.name, "active": False, "user": "sin sesion", "has_cookies": bool(ck)})
+            # Sin token en disco todavia, pero la extension ya avisa presencia en
+            # vivo (Chromium de esta cuenta abierto con la sesion cargada) -- se
+            # muestra conectada sin esperar a que termine de escribirse el token.
+            if is_live:
+                rows.append(
+                    {"name": folder.name, "active": True, "user": "conectado (extension)", "has_cookies": bool(ck)}
+                )
+            else:
+                rows.append({"name": folder.name, "active": False, "user": "sin sesion", "has_cookies": bool(ck)})
             continue
-        cached = _verify_cache.get(folder.name)
-        if cached is not None:
-            active, detail = cached
+        if is_live:
+            active, detail = True, "conectado (extension)"
         else:
-            # Sin verificacion todavia: hay token en disco -- lo mostramos
-            # optimistamente como activo (igual que Grok con la cookie "sso")
-            # mientras el ThreadPoolExecutor confirma en paralelo.
-            active, detail = True, "sin verificar"
-            needs_verify = True
+            cached = _verify_cache.get(folder.name)
+            if cached is not None:
+                active, detail = cached
+            else:
+                # Sin verificacion todavia: hay token en disco -- lo mostramos
+                # optimistamente como activo (igual que Grok con la cookie "sso")
+                # mientras el ThreadPoolExecutor confirma en paralelo.
+                active, detail = True, "sin verificar"
+                needs_verify = True
         rows.append({"name": folder.name, "active": bool(active), "user": detail, "has_cookies": bool(ck)})
 
     if needs_verify:

@@ -708,6 +708,23 @@ def _slot_worker(
                 pass
 
 
+# Fallback automatico (ver unificacion de deteccion de sesion, Flow de referencia):
+# si al arrancar un lote no hay NINGUNA cuenta con cookie valida, abrimos Chrome
+# automaticamente para la primera cuenta en vez de exigir que el usuario vaya a
+# Cuentas y apriete "Login" a mano. Cooldown para no reabrir en cada intento fallido.
+_auto_login_last_attempt: dict[int, float] = {}
+_AUTO_LOGIN_COOLDOWN = 60.0
+
+
+def _trigger_auto_login_if_needed(log, target: int = 0) -> None:
+    now = time.time()
+    if now - _auto_login_last_attempt.get(target, 0) < _AUTO_LOGIN_COOLDOWN:
+        return
+    _auto_login_last_attempt[target] = now
+    log(f"  [C{target}] Sin sesion disponible - abriendo Chrome automaticamente para iniciar sesion.")
+    threading.Thread(target=playwright_login, args=(target, log), daemon=True).start()
+
+
 def run_batch(
     prompts, slots, repeat, output_dir, state, state_lock, stop_event, log, browser_mode: str = "chromium"
 ) -> None:
@@ -725,6 +742,7 @@ def run_batch(
     cookies_list = [(i, ck) for i in range(NUM_ACCOUNTS) if (ck := read_cookie(i))]
     if not cookies_list:
         log("[ERROR] No hay cuentas configuradas. Usa Login primero.")
+        _trigger_auto_login_if_needed(log)
         with state_lock:
             state.update(running=False, step="idle")
         return

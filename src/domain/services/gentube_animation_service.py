@@ -2,8 +2,10 @@ import os
 import threading
 import time
 
-from src.infrastructure.ai_providers import gentube_service
+from src.domain.services.account_slot_assigner import SlotAssigner
+from src.infrastructure.ai_providers import gentube_bridge, gentube_service
 from src.utils.logger import get_logger
+from src.utils.paths import get_gentube_cookies_dir
 
 logger = get_logger(__name__)
 
@@ -77,6 +79,54 @@ def sync_profiles_async() -> None:
     threading.Thread(target=lambda: _apply_sync_results(gentube_service.sync_profiles()), daemon=True).start()
 
 
+# ── Deteccion automatica de sesion via la extension (bridge de Chrome) ───────────
+# gentube_bridge.py detecta la cookie de Clerk via background.js (chrome.cookies,
+# ver el comentario de ese modulo) y avisa aca en cuanto hay una sesion valida --
+# igual que Flow, sin que el usuario tenga que pegar ninguna cookie a mano.
+_slot_assigner: SlotAssigner | None = None
+
+
+def _get_slot_assigner() -> SlotAssigner:
+    global _slot_assigner
+    if _slot_assigner is None:
+        _slot_assigner = SlotAssigner(
+            sidecar_dir=get_gentube_cookies_dir(),
+            prefix="gt_account",
+            num_slots=gentube_service.NUM_ACCOUNTS,
+            valid_hash_prefix="gt:",
+        )
+    return _slot_assigner
+
+
+def _on_bridge_session(account_hash: str, meta: dict) -> None:
+    cookie = meta.get("cookie", "")
+    email = meta.get("email", "")
+    if not cookie:
+        return
+    idx = _get_slot_assigner().assign_slot(
+        account_hash, slot_taken_on_disk=lambda i: bool(gentube_service.read_cookie(i))
+    )
+    if idx is None:
+        _log(
+            f"[WARNING] Sin slots libres (limite {gentube_service.NUM_ACCOUNTS}) - "
+            f"sesion de {email or 'gentube.app'} descartada"
+        )
+        return
+    try:
+        gentube_service.cookie_path(idx).write_text(cookie, encoding="utf-8")
+    except Exception:
+        return
+    _get_slot_assigner().write_sidecar(idx, account_hash, {"email": email})
+    with _lock:
+        was_logged_in = _state["accounts"][idx]["logged_in"]
+        _state["accounts"][idx].update({"logged_in": True, "user": email, "has_cookie": True})
+    if not was_logged_in:
+        _log(f"[C{idx}] Sesion detectada automaticamente via extension: {email or 'gentube.app'}")
+
+
+gentube_bridge.add_session_listener(_on_bridge_session)
+
+
 def get_status() -> dict:
     _release_if_stale()
     with _lock:
@@ -92,8 +142,9 @@ def get_status() -> dict:
             "accounts": [dict(a) for a in _state["accounts"]],
         }
     st["playwright_ok"] = gentube_service.playwright_available()
-    st["ext_connected"] = 0
-    st["ext_accounts"] = []
+    ext_accounts = gentube_bridge.connected_accounts()
+    st["ext_connected"] = len(ext_accounts)
+    st["ext_accounts"] = ext_accounts
     return st
 
 

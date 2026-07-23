@@ -6,83 +6,49 @@ A diferencia de Vibes (una sola sesion, account="default" fijo), cada cuenta Qwe
 corre en su PROPIO proceso de Chromium (perfil propio, extension propia) -- por
 eso `account` acá es siempre el nombre real de la cuenta (account_1, account_2, ...)
 en vez de un valor fijo, y varias cuentas pueden estar conectadas en simultaneo sin
-que hagan falta mapas cuenta->tab (eso ya lo resuelve tener un proceso por cuenta)."""
+que hagan falta mapas cuenta->tab (eso ya lo resuelve tener un proceso por cuenta).
 
-import threading
-import time
+Delega en AccountPresenceBridge (ver account_presence_bridge.py) -- este modulo solo
+expone wrappers con el mismo nombre/firma que antes, para no tocar ningun caller."""
 
-_queue: list[dict] = []
-_q_lock = threading.Lock()
-_results: dict[str, dict] = {}
-_r_lock = threading.Lock()
-_r_events: dict[str, threading.Event] = {}
+from src.infrastructure.ai_providers.account_presence_bridge import AccountPresenceBridge
 
-_seen: dict[str, float] = {}
-_seen_lock = threading.Lock()
 _SEEN_TTL = 30.0
+
+_presence = AccountPresenceBridge(seen_ttl=_SEEN_TTL)
 
 
 def connected_accounts() -> list[str]:
-    now = time.time()
-    with _seen_lock:
-        stale = [a for a, t in _seen.items() if now - t > _SEEN_TTL]
-        for a in stale:
-            del _seen[a]
-        return list(_seen.keys())
+    return _presence.connected_accounts()
 
 
 def register(account: str) -> None:
-    if account:
-        with _seen_lock:
-            _seen[account] = time.time()
+    _presence.register(account)
 
 
 def enqueue_request(request_data: dict) -> None:
-    with _q_lock:
-        _queue.append(request_data)
+    _presence.enqueue_request(request_data)
 
 
 def poll(account: str, max_take: int = 1) -> list[dict]:
-    register(account)
-    with _q_lock:
-        taken, remaining = [], []
-        for r in _queue:
-            if len(taken) < max_take and (not account or r.get("account", "") == account):
-                taken.append(r)
-            else:
-                remaining.append(r)
-        _queue[:] = remaining
-    return taken
+    return _presence.poll(account, max_take)
 
 
 def remove_from_queue(request_id: str) -> None:
-    with _q_lock:
-        _queue[:] = [r for r in _queue if r.get("requestId") != request_id]
+    _presence.remove_from_queue(request_id)
 
 
-def register_result_waiter(request_id: str) -> threading.Event:
-    event = threading.Event()
-    with _r_lock:
-        _r_events[request_id] = event
-    return event
+def register_result_waiter(request_id: str):
+    return _presence.register_result_waiter(request_id)
 
 
 def post_result(request_id: str, payload: dict) -> None:
-    if not request_id:
-        return
-    with _r_lock:
-        _results[request_id] = payload
-        ev = _r_events.get(request_id)
-    if ev:
-        ev.set()
+    _presence.post_result(request_id, payload)
 
 
 def try_pop_result(request_id: str) -> dict | None:
-    with _r_lock:
-        return _results.pop(request_id, None)
+    return _presence.try_pop_result(request_id)
 
 
 def cleanup_waiter(request_id: str) -> None:
-    with _r_lock:
-        _r_events.pop(request_id, None)
-        _results.pop(request_id, None)
+    _presence.cleanup_waiter(request_id)

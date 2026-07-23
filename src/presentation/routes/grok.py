@@ -2,6 +2,7 @@ from apiflask import APIBlueprint
 from flask import jsonify, request, send_file
 
 from src.domain.services import grok_animation_service
+from src.infrastructure.ai_providers import grok_session_bridge
 from src.presentation.schemas.grok import (
     GrokAbrirCarpetaInSchema,
     GrokAccountInSchema,
@@ -13,6 +14,20 @@ from src.presentation.schemas.grok import (
 )
 
 grok_bp = APIBlueprint("grok", __name__, url_prefix="/api/grok")
+
+
+# ─────────────────────────────────────────────────────────────────
+# Bridge de deteccion de sesion (background.js hace chrome.cookies.getAll en
+# grok.com y postea aca -- SOLO detecta/captura sesion, la generacion sigue
+# siendo API HTTP directa. Ver grok_session_bridge.py.)
+# ─────────────────────────────────────────────────────────────────
+
+
+@grok_bp.post("/bridge-register")
+def bridge_register():
+    data = request.get_json(silent=True) or {}
+    result = grok_session_bridge.set_session_from_cookies(data.get("cookies", []))
+    return jsonify({"ok": bool(result.get("ok"))})
 
 
 @grok_bp.get("/sesiones")

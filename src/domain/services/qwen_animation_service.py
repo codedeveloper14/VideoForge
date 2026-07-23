@@ -102,6 +102,26 @@ def delete_session(account_name: str) -> None:
     qwen_service.delete_account_session(get_qwen_accounts_dir(), account_name)
 
 
+# Fallback automatico (ver unificacion de deteccion de sesion, tomando a Flow de
+# referencia): si al arrancar un lote no hay NINGUNA cuenta con sesion utilizable,
+# abrimos Chromium aislado para la primera cuenta en vez de exigir que el usuario
+# vaya a la pestana Cuentas y apriete "Login" a mano. Cooldown por cuenta para no
+# reabrir una ventana en cada intento fallido consecutivo.
+_auto_login_last_attempt: dict[str, float] = {}
+_AUTO_LOGIN_COOLDOWN = 60.0
+
+
+def _trigger_auto_login_if_needed(accounts_dir: Path, log) -> None:
+    folders = [f for f in sorted(accounts_dir.iterdir()) if f.is_dir()] if accounts_dir.exists() else []
+    target = folders[0].name if folders else "account_1"
+    now = time.time()
+    if now - _auto_login_last_attempt.get(target, 0) < _AUTO_LOGIN_COOLDOWN:
+        return
+    _auto_login_last_attempt[target] = now
+    log(f"[{target}] Sin sesion disponible - abriendo Chromium automaticamente para iniciar sesion.")
+    start_account_login(target)
+
+
 # ─────────────────────────────────────────────────────────────────
 # Animacion por lote (in-process, ThreadPoolExecutor)
 # ─────────────────────────────────────────────────────────────────
@@ -308,6 +328,10 @@ def _batch_worker(
         tokens = qwen_service.tokens_for_run(accounts_dir)
         if not tokens:
             log("[ERROR] No hay cuentas Qwen activas. Inicia sesion primero en Cuentas.")
+            try:
+                _trigger_auto_login_if_needed(accounts_dir, log)
+            except Exception as exc:
+                log(f"[ERROR] No se pudo abrir Chromium automaticamente: {exc}")
             batch.update(finished=True, running=False)
             return
 
