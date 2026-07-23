@@ -34,10 +34,18 @@ function appendLog(log: string[], line: string | undefined): string[] {
   return next.length > MAX_LOG_LINES ? next.slice(next.length - MAX_LOG_LINES) : next;
 }
 
+interface UpdatePatch extends Partial<Pick<GenerationEntry, "message" | "pct">> {
+  // Lineas crudas del backend (ej. el tail de log que ya recibe cada panel via
+  // polling) para volcar TODAS al historial de la pastilla, no solo el resumen
+  // que va en `message` -- sin esto la terminal de la pastilla solo mostraba el
+  // "X/Y" repetido en vez del log completo que se ve en la pagina.
+  lines?: string[];
+}
+
 interface GenerationStatusValue {
   entries: GenerationEntry[];
   start: (id: string, label: string, message?: string, onStop?: () => void) => void;
-  update: (id: string, patch: Partial<Pick<GenerationEntry, "message" | "pct">>) => void;
+  update: (id: string, patch: UpdatePatch) => void;
   finish: (id: string, ok: boolean, message?: string) => void;
   dismiss: (id: string) => void;
 }
@@ -91,9 +99,23 @@ export function GenerationStatusProvider({ children }: { children: ReactNode }) 
     [clearDismissTimer],
   );
 
-  const update = useCallback((id: string, patch: Partial<Pick<GenerationEntry, "message" | "pct">>) => {
+  const update = useCallback((id: string, patch: UpdatePatch) => {
     setEntries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...patch, log: appendLog(e.log, patch.message) } : e)),
+      prev.map((e) => {
+        if (e.id !== id) return e;
+        let log = e.log;
+        if (patch.lines && patch.lines.length) {
+          for (const line of patch.lines) log = appendLog(log, line);
+        } else if (patch.message) {
+          log = appendLog(log, patch.message);
+        }
+        return {
+          ...e,
+          message: patch.message ?? e.message,
+          pct: patch.pct !== undefined ? patch.pct : e.pct,
+          log,
+        };
+      }),
     );
   }, []);
 

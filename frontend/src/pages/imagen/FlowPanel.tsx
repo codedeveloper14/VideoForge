@@ -153,6 +153,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
           genStatus.update(GEN_ID, {
             pct: total > 0 ? Math.round((done / total) * 100) : null,
             message: d.label || `${done}/${total} imágenes`,
+            lines: Array.isArray(d.log) ? (d.log as string[]) : undefined,
           });
         }
         setRunning(!!d.running);
