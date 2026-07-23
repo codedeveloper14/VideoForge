@@ -1,0 +1,464 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { listPlans } from "../api/plans";
+import { pollSession, startCheckout } from "../api/stripe";
+import { getProfile } from "../api/user";
+import type { Plan } from "../types";
+
+function IconFree() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="7.5" />
+    </svg>
+  );
+}
+function IconSprout() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20V11" />
+      <path d="M12 11c0-3.5-2.5-6-6.5-6C5.5 9 8 11.5 12 11.5" />
+      <path d="M12 11c0-3 2-5.5 5.5-5.5C17.8 9 15.5 11 12 11" />
+    </svg>
+  );
+}
+function IconGrowthBars() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="20" x2="6" y2="14" />
+      <line x1="12" y1="20" x2="12" y2="9" />
+      <line x1="18" y1="20" x2="18" y2="4" />
+    </svg>
+  );
+}
+function IconGem() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 3h12l3 5-9 13L3 8z" />
+      <path d="M3 8h18M9 3l3 5 3-5M12 8l-3 13M12 8l3 13" />
+    </svg>
+  );
+}
+function IconInfinity() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.739-8z" />
+    </svg>
+  );
+}
+
+const PLAN_ICONS = {
+  free: IconFree,
+  basico: IconSprout,
+  pro: IconGrowthBars,
+  ultra: IconGem,
+  unlimited: IconInfinity,
+} as Record<string, () => React.ReactElement>;
+
+type PlanTheme = {
+  accent: string;
+  iconBg: string;
+  iconColor: string;
+  iconBorder: string;
+  nameColor: string;
+  checkBg: string;
+  btnClass: string;
+  /** RGB triplet (no "rgb()") used to build the "Tu plan actual" badge/border in this plan's own color. */
+  rgb: string;
+  cardStyle?: React.CSSProperties;
+  ribbonKey?: string;
+};
+
+const THEMES: Record<string, PlanTheme> = {
+  free: {
+    accent: "linear-gradient(90deg,#475569,#64748b)",
+    iconBg: "rgba(100,116,139,.12)",
+    iconColor: "#94a3b8",
+    iconBorder: "1px solid rgba(100,116,139,.2)",
+    nameColor: "#94a3b8",
+    checkBg: "#64748b20",
+    btnClass: "free-btn",
+    rgb: "148,163,184",
+  },
+  basico: {
+    accent: "linear-gradient(90deg,#22d3a0,#0ea5e9)",
+    iconBg: "rgba(34,211,160,.12)",
+    iconColor: "#22d3a0",
+    iconBorder: "1px solid rgba(34,211,160,.2)",
+    nameColor: "#22d3a0",
+    checkBg: "#22d3a020",
+    btnClass: "starter-btn",
+    rgb: "34,211,160",
+  },
+  pro: {
+    accent: "linear-gradient(90deg,#6c56ff,#a855f7,#ec4899)",
+    iconBg: "rgba(124,106,255,.15)",
+    iconColor: "#a78bfa",
+    iconBorder: "1px solid rgba(167,139,250,.22)",
+    nameColor: "#a78bfa",
+    checkBg: "#7c6aff20",
+    btnClass: "pro-btn",
+    rgb: "167,139,250",
+    ribbonKey: "plans.mostPopular",
+  },
+  ultra: {
+    accent: "linear-gradient(90deg,#fbbf24,#f97316)",
+    iconBg: "rgba(251,191,36,.12)",
+    iconColor: "#fbbf24",
+    iconBorder: "1px solid rgba(251,191,36,.2)",
+    nameColor: "#fbbf24",
+    checkBg: "#fbbf2420",
+    btnClass: "ultra-btn",
+    rgb: "251,191,36",
+  },
+  unlimited: {
+    accent: "linear-gradient(90deg,#9333ea,#c084fc,#e879f9)",
+    iconBg: "rgba(192,132,252,.15)",
+    iconColor: "#c084fc",
+    iconBorder: "1px solid rgba(192,132,252,.25)",
+    nameColor: "#c084fc",
+    checkBg: "#c084fc20",
+    btnClass: "unlimited-btn",
+    rgb: "192,132,252",
+    cardStyle: {
+      background: "linear-gradient(160deg,rgba(147,51,234,.1) 0%,rgba(192,132,252,.04) 100%)",
+      borderColor: "rgba(192,132,252,.25)",
+    },
+    ribbonKey: "plans.enterprise",
+  },
+};
+
+const DEFAULT_THEME: PlanTheme = THEMES.basico;
+
+function themeFor(planId: string): PlanTheme {
+  return THEMES[planId] ?? DEFAULT_THEME;
+}
+
+function planFeatures(plan: Plan, t: (key: string, opts?: Record<string, unknown>) => string): string[] {
+  const feats: string[] = [];
+  if (plan.videos_per_month != null) feats.push(t("plans.videosPerMonth", { count: plan.videos_per_month }));
+  if (plan.videos_per_day != null) feats.push(t("plans.videosPerDay", { count: plan.videos_per_day }));
+  if (plan.shorts_per_month != null) feats.push(t("plans.shortsPerMonth", { count: plan.shorts_per_month }));
+  if (plan.audio_hours_per_month != null) feats.push(t("plans.audioHoursPerMonth", { count: plan.audio_hours_per_month }));
+  if (plan.tts_mins_per_day != null) feats.push(t("plans.ttsMinsPerDay", { count: plan.tts_mins_per_day }));
+  if (plan.max_video_minutes != null) feats.push(t("plans.maxVideoMinutes", { count: plan.max_video_minutes }));
+  return feats;
+}
+
+type ConfirmState = "idle" | "confirming" | "success" | "timeout";
+
+export default function PlansPage() {
+  const { t } = useTranslation();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [confirmState, setConfirmState] = useState<ConfirmState>("idle");
+  const [confirmedPlanName, setConfirmedPlanName] = useState("");
+
+  function loadData() {
+    return Promise.all([listPlans(), getProfile()]).then(([plansData, profile]) => {
+      setPlans(plansData);
+      setCurrentPlan(profile.plan);
+      return plansData;
+    });
+  }
+
+  useEffect(() => {
+    loadData()
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (!sessionId) return;
+    const planParam = searchParams.get("plan") || undefined;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    setConfirmState("confirming");
+
+    async function tick() {
+      if (cancelled) return;
+      attempts++;
+      try {
+        const result = await pollSession(sessionId!, planParam);
+        if (cancelled) return;
+        if (result.paid) {
+          const planKey = result.plan || planParam || "";
+          const freshPlans = await loadData();
+          const planInfo = freshPlans.find((p) => p.id === planKey);
+          setConfirmedPlanName(planInfo?.name || planKey);
+          setConfirmState("success");
+          setSearchParams({}, { replace: true });
+          return;
+        }
+      } catch {
+        // sigue reintentando hasta agotar los intentos
+      }
+      if (cancelled) return;
+      if (attempts >= maxAttempts) {
+        setConfirmState("timeout");
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      setTimeout(tick, 2000);
+    }
+
+    tick();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  async function handleSubscribe(planId: string) {
+    setCheckingOut(planId);
+    setError("");
+    try {
+      const { url } = await startCheckout(planId);
+      if (url) {
+        window.location.href = url;
+      } else {
+        setError(t("plans.checkoutStartError"));
+      }
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setCheckingOut(null);
+    }
+  }
+
+  if (loading) return <p className="text-[var(--vf-muted)]">{t("plans.loading")}</p>;
+
+  return (
+    <div>
+      {confirmState === "confirming" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(124,106,255,.3)", background: "rgba(124,106,255,.08)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="h-4 w-4 flex-shrink-0 animate-spin rounded-full border-2"
+            style={{ borderColor: "rgba(124,106,255,.35)", borderTopColor: "#7c6aff" }}
+          />
+          {t("plans.confirmingPayment")}
+        </div>
+      )}
+      {confirmState === "success" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(34,211,160,.3)", background: "rgba(34,211,160,.1)", color: "var(--vf-text)" }}
+        >
+          <span
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full"
+            style={{ background: "rgba(34,211,160,.2)", color: "#22d3a0" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </span>
+          {t("plans.planNowIs")} <strong>{confirmedPlanName}</strong>.
+        </div>
+      )}
+      {confirmState === "timeout" && (
+        <div
+          className="mb-6 flex items-center gap-3 rounded-2xl border px-5 py-4 text-sm"
+          style={{ borderColor: "rgba(251,191,36,.3)", background: "rgba(251,191,36,.08)", color: "var(--vf-text)" }}
+        >
+          {t("plans.paymentTimeout")}
+        </div>
+      )}
+      <h1
+        className="mb-2 text-[34px] font-bold"
+        style={{
+          letterSpacing: "-.4px",
+          background: "linear-gradient(90deg,var(--vf-text) 30%,var(--vf-c2))",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+        }}
+      >
+        {t("plans.title")}
+      </h1>
+      <p
+        className="mb-9 max-w-xl font-mono text-[11.5px]"
+        style={{ color: "rgba(var(--vf-fg-rgb),.32)", letterSpacing: ".01em" }}
+      >
+        {t("plans.subtitle")}
+      </p>
+
+      {error && <p className="mb-4 text-sm text-[var(--vf-danger)]">{error}</p>}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {plans.map((plan) => {
+          const isCurrent = plan.id === currentPlan;
+          const isFree = plan.id === "free";
+          const theme = themeFor(plan.id);
+          const isHighlight = plan.highlight && !isCurrent;
+          const feats = planFeatures(plan, t);
+
+          return (
+            <div
+              key={plan.id}
+              className={`relative flex flex-col overflow-hidden rounded-[22px] ${
+                isFree ? "opacity-75" : ""
+              }`}
+              style={{
+                background: "rgba(var(--vf-fg-rgb),.038)",
+                border: isCurrent
+                  ? `1px solid rgba(${theme.rgb},.42)`
+                  : "1px solid rgba(var(--vf-fg-rgb),.09)",
+                boxShadow: isCurrent
+                  ? `0 0 0 1px rgba(${theme.rgb},.14),0 8px 32px rgba(${theme.rgb},.07)`
+                  : isHighlight
+                    ? "0 0 0 1px rgba(108,86,255,.22),0 24px 70px rgba(108,86,255,.22),0 8px 24px rgba(0,0,0,.45)"
+                    : undefined,
+                transform: isHighlight ? "translateY(-10px)" : undefined,
+                ...theme.cardStyle,
+              }}
+            >
+              <div className="h-1 w-full flex-shrink-0" style={{ background: theme.accent }} />
+              <div className="flex flex-1 flex-col px-[22px] pb-[22px] pt-[26px]">
+                {isCurrent && (
+                  <div
+                    className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 font-mono text-[9px] font-bold uppercase"
+                    style={{
+                      letterSpacing: ".1em",
+                      color: theme.nameColor,
+                      background: `rgba(${theme.rgb},.14)`,
+                      border: `1px solid rgba(${theme.rgb},.35)`,
+                    }}
+                  >
+                    {t("plans.currentPlan")}
+                  </div>
+                )}
+                {!isCurrent && theme.ribbonKey && (
+                  <div
+                    className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full px-[13px] py-[5px] font-mono text-[9px] font-bold uppercase text-white"
+                    style={{
+                      letterSpacing: ".1em",
+                      background:
+                        plan.id === "unlimited"
+                          ? "linear-gradient(135deg,#9333ea,#c084fc)"
+                          : "linear-gradient(135deg,#6c56ff,#a855f7)",
+                      boxShadow: "0 3px 14px rgba(108,86,255,.45)",
+                    }}
+                  >
+                    {t(theme.ribbonKey)}
+                  </div>
+                )}
+
+                <div className="mb-1 flex items-center gap-3">
+                  <span
+                    className="flex h-[42px] w-[42px] flex-shrink-0 items-center justify-center rounded-[13px]"
+                    style={{ background: theme.iconBg, color: theme.iconColor, border: theme.iconBorder }}
+                  >
+                    {(PLAN_ICONS[plan.id] ?? IconFree)()}
+                  </span>
+                  <span className="text-[22px] font-bold" style={{ letterSpacing: "-.3px", color: theme.nameColor }}>
+                    {plan.name}
+                  </span>
+                </div>
+
+                <div className="mb-5 flex items-end gap-[5px]" style={{ lineHeight: 1 }}>
+                  <span className="text-[46px] font-bold" style={{ letterSpacing: "-1.5px", lineHeight: 0.88, color: theme.nameColor }}>
+                    ${plan.price_usd}
+                  </span>
+                  <span className="mb-[5px] text-xs" style={{ color: "rgba(var(--vf-fg-rgb),.28)" }}>
+                    {t("plans.perMonth")}
+                  </span>
+                </div>
+
+                <div className="mb-5 h-px" style={{ background: "rgba(var(--vf-fg-rgb),.07)" }} />
+
+                <ul className="mb-6 flex flex-1 flex-col gap-[11px]" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {feats.map((f, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2.5 text-[12.5px]"
+                      style={{ color: "rgba(var(--vf-fg-rgb),.68)", lineHeight: 1.4 }}
+                    >
+                      <span
+                        className="mt-[1px] flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
+                        style={{ background: theme.checkBg, color: theme.iconColor }}
+                      >
+                        ✓
+                      </span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleSubscribe(plan.id)}
+                  disabled={isCurrent || isFree || checkingOut === plan.id}
+                  className={`w-full rounded-[13px] py-3.5 font-mono text-[11px] font-bold uppercase transition-transform ${
+                    isCurrent || isFree ? "cursor-default" : "cursor-pointer hover:-translate-y-0.5"
+                  }`}
+                  style={{
+                    letterSpacing: ".06em",
+                    ...(isCurrent
+                      ? {
+                          background: "rgba(var(--vf-fg-rgb),.05)",
+                          border: "1.5px solid rgba(var(--vf-fg-rgb),.1)",
+                          color: "rgba(var(--vf-fg-rgb),.3)",
+                        }
+                      : isFree
+                        ? {
+                            background: "rgba(var(--vf-fg-rgb),.04)",
+                            border: "1px solid rgba(var(--vf-fg-rgb),.07)",
+                            color: "rgba(var(--vf-fg-rgb),.35)",
+                          }
+                        : theme.btnClass === "starter-btn"
+                          ? {
+                              color: "#052e1c",
+                              background: "linear-gradient(135deg,#22d3a0,#10b981)",
+                              boxShadow: "0 4px 18px rgba(34,211,160,.32)",
+                              border: "none",
+                            }
+                          : theme.btnClass === "pro-btn"
+                            ? {
+                                color: "#fff",
+                                background: "linear-gradient(135deg,#6c56ff,#a855f7)",
+                                boxShadow: "0 4px 22px rgba(108,86,255,.45)",
+                                border: "none",
+                              }
+                            : theme.btnClass === "ultra-btn"
+                              ? {
+                                  color: "#2d1a00",
+                                  background: "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                                  boxShadow: "0 4px 18px rgba(251,191,36,.32)",
+                                  border: "none",
+                                }
+                              : theme.btnClass === "unlimited-btn"
+                                ? {
+                                    color: "#fff",
+                                    background: "linear-gradient(135deg,#9333ea,#c084fc,#e879f9)",
+                                    boxShadow: "0 4px 22px rgba(192,132,252,.45)",
+                                    border: "none",
+                                  }
+                                : {}),
+                  }}
+                >
+                  {isCurrent
+                    ? t("plans.btnCurrentPlan")
+                    : isFree
+                      ? t("plans.btnFreePlan")
+                      : checkingOut === plan.id
+                        ? t("plans.btnRedirecting")
+                        : t("plans.btnChoose", { name: plan.name })}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

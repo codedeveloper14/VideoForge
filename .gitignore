@@ -1,14 +1,26 @@
 # Variables de entorno
 .env
 .env.*
+!.env.example
+
+# Credenciales de produccion embebidas en el build compilado (PyArmor las
+# ofusca al empaquetar) -- mismo nivel de secreto que .env, JAMAS subir.
+src/core/_local_secrets.py
 
 venv/
 dist/
 dist_final/
 dist_ofuscado/
 build/
+installer_output/
+*.exe
 *.app
 *.dmg
+
+# Binarios vendorizados (ffmpeg/Chromium) para el instalador -- pesados,
+# regenerables via scripts/fetch_ffmpeg_windows.py / fetch_chromium_windows.py,
+# nunca subir al repo.
+vendor/
 
 # Python
 __pycache__/
@@ -19,6 +31,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
 
 # Backups (NO SUBIR)
 *.bak
@@ -44,6 +57,18 @@ IVR_2.5_Setup.exe
 *.swo
 *~
 .DS_Store
-Thumbs.dbvf.cfg
+Thumbs.db
 vf.cfg
 cookies/*.txt
+**/cookies/*.txt
+
+# Logs (mantener carpeta, ignorar contenido)
+logs/*
+!logs/.gitkeep
+
+# Frontend (Vite + React)
+frontend/node_modules/
+frontend/dist/
+
+# graphify (knowledge graph, regenerable, no subir)
+graphify-out/

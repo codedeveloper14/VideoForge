@@ -1,0 +1,29 @@
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.black]
+line-length = 110
+target-version = ["py311"]
+extend-exclude = "^/old/"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["old"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+# E501 (linea muy larga): black ya controla el largo del CODIGO. Lo que queda tras
+# black son mensajes de log/docstrings en espanol largos que no se pueden envolver
+# sin perder legibilidad -- no vale la pena marcarlos como error en cada corrida.
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+exclude = ["^old/", "^venv/", "^build/", "^dist/"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true

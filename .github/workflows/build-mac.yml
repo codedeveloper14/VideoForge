@@ -1,213 +1,157 @@
 name: Build for macOS
 
+# Solo manual (workflow_dispatch): a diferencia de la version anterior de este
+# archivo, no corre en cada push a main. Motivos: (1) prioridad confirmada del
+# proyecto es terminar el instalador de Windows primero, Mac despues -- no
+# tiene sentido gastar minutos de Actions en cada commit mientras Mac ni se ha
+# probado una vez; (2) este workflow fue reescrito de cero contra el layout
+# actual (src/ + frontend/dist + PyArmor) y todavia NO se corrio ni una vez en
+# un runner real -- ver notas de riesgo abajo antes de dispararlo.
+#
+# Riesgos conocidos, sin verificar (documentados para quien lo corra primero):
+#   - PyArmor: `pip install pyarmor` en el runner instala el software pero no
+#     una licencia -- corre en modo trial (limite de archivos) hasta que se
+#     registra. Se agrego un paso "Register PyArmor license" que usa el
+#     secret PYARMOR_LICENSE (contenido de ~/.pyarmor/license.lic de la
+#     maquina de desarrollo, subido via `gh secret set`, nunca commiteado al
+#     repo publico) y corre `pyarmor reg` antes de obfuscar. Riesgo real sin
+#     confirmar: esta licencia Basic tiene "CI/CD Mode: No", lo que
+#     probablemente significa que esta pensada para un solo dispositivo activo
+#     -- registrarla en un runner efimero podria fallar, gastar intentos de
+#     activacion limitados, o des-registrar la maquina Windows. Si el paso de
+#     registro falla o rompe el registro local, la opcion de respaldo es
+#     compilar Mac localmente en hardware real (mismo patron que Windows) en
+#     vez de por CI. Ver [[project-production-requirements]] (nota
+#     "Obfuscation tool decision") para el detalle completo.
+#   - pywebview + pyobjc (backend nativo Cocoa/WebKit) nunca se probo en Mac
+#     real durante todo este proyecto -- ver [[project-refactor-plan]].
+#   - No hay firma de codigo todavia (Apple Developer Program comprado,
+#     certificado Developer ID Application sin generar) -- ver
+#     [[project-code-signing]]. El .app/.dmg que produce este workflow sale
+#     sin firmar y sin notarizar: Gatekeeper lo va a bloquear en la Mac de
+#     cualquier usuario final hasta que se firme.
+#
+# Build por arquitectura nativa (no universal2): cada job corre en un runner
+# cuyo Python ya es arm64 o x86_64 nativo, asi que PyInstaller no necesita
+# cross-compilar ni depende de que cada dependencia nativa (playwright,
+# curl_cffi, oss2, psutil, pyobjc) tenga wheels universal2 -- ver
+# studioivr-mac.spec para el detalle. Resultado: dos instaladores separados,
+# uno por arquitectura, no un solo binario fat.
+
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x86_64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
+    name: build (${{ matrix.arch }})
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Install all dependencies
-      run: |
-        python -m pip install --upgrade pip wheel setuptools
-        python -m pip install pyinstaller cryptography pymysql requests playwright pillow pywebview flask werkzeug jinja2 itsdangerous click markupsafe bcrypt replicate
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Install Playwright browsers
-      run: |
-        python -m playwright install --with-deps chromium
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          python -m pip install -r requirements.txt
 
-    - name: Convert icon to .icns using Python
-      run: |
-        cat > convert_icon.py << 'EOF'
-        import os
-        from PIL import Image
-        import subprocess
-        import shutil
+      - name: Install Playwright Chromium
+        run: python -m playwright install chromium
 
-        icon_path = 'assets/icon.ico'
-        if not os.path.exists(icon_path):
-            print(f"❌ No se encontró {icon_path}")
-            exit(1)
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
 
-        iconset_dir = 'assets/icon.iconset'
-        os.makedirs(iconset_dir, exist_ok=True)
+      - name: Register PyArmor license
+        id: pyarmor_reg
+        continue-on-error: true
+        # El secret esta en base64 (no texto plano): echo/YAML pueden alterar
+        # saltos de linea o espacios de un archivo de licencia de una sola
+        # linea sin salto -- PyArmor lo rechaza silenciosamente si el
+        # contenido no es byte-a-byte identico. base64 viaja intacto por
+        # cualquier capa (shell/YAML) y se decodifica exacto del otro lado.
+        # Sigue fallando con "invalid activation file": el archivo que
+        # tenemos localmente (~/.pyarmor/license.lic) probablemente es el
+        # estado post-registro de PyArmor, no un archivo de activacion
+        # reutilizable -- pendiente encontrar/re-descargar el original. No
+        # bloquea el resto del pipeline (ver el paso siguiente).
+        env:
+          PYARMOR_LICENSE_B64: ${{ secrets.PYARMOR_LICENSE_B64 }}
+        run: |
+          python3 -c "import base64, os; open('/tmp/license.lic', 'wb').write(base64.b64decode(os.environ['PYARMOR_LICENSE_B64']))"
+          pyarmor reg /tmp/license.lic
+          rm -f /tmp/license.lic
 
-        sizes = [(16, 16), (32, 32), (64, 64), (128, 128), (256, 256), (512, 512)]
+      - name: Obfuscate with PyArmor
+        if: steps.pyarmor_reg.outcome == 'success'
+        run: |
+          pyarmor gen -O build/pyarmor_dist -r main.py src desktop scripts
 
-        try:
-            img = Image.open(icon_path)
-            print(f"✅ Icono cargado: {img.size} {img.mode}")
-            
-            for w, h in sizes:
-                resized = img.resize((w, h), Image.Resampling.LANCZOS)
-                png_path = os.path.join(iconset_dir, f'icon_{w}x{h}.png')
-                resized.save(png_path, 'PNG')
-                print(f"✅ Creado: {png_path}")
+      - name: Fallback -- copiar sin ofuscar (SOLO diagnostico)
+        # Se ejecuta unicamente si el registro de PyArmor de arriba fallo,
+        # para poder seguir probando el resto del pipeline (PyInstaller +
+        # pyobjc/pywebview + create-dmg, nunca corrido en Mac real) sin
+        # quedar bloqueados por la licencia. build/pyarmor_dist necesita
+        # exactamente esta forma (mismo root que pyarmor gen habria escrito)
+        # porque studioivr-mac.spec lee de ahi sin importar el origen.
+        # El .app que sale de esta rama NO esta ofuscado -- no es el build
+        # real para distribuir, solo sirve para validar que la app arranca.
+        if: steps.pyarmor_reg.outcome != 'success'
+        run: |
+          mkdir -p build/pyarmor_dist
+          cp main.py build/pyarmor_dist/
+          cp -r src desktop scripts build/pyarmor_dist/
+          mkdir -p build/pyarmor_dist/pyarmor_runtime_012301
+          echo "PLACEHOLDER -- este build no esta ofuscado, ver el paso 'Register PyArmor license'" > build/pyarmor_dist/pyarmor_runtime_012301/README.txt
 
-            icns_path = 'assets/icon.icns'
-            if shutil.which('iconutil'):
-                cmd = ['iconutil', '-c', 'icns', iconset_dir, '-o', icns_path]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                if result.returncode == 0 and os.path.exists(icns_path):
-                    print(f"✅ Icono convertido a: {icns_path}")
-                else:
-                    print(f"❌ Error al convertir: {result.stderr}")
-                    exit(1)
-            else:
-                print("❌ iconutil no encontrado")
-                exit(1)
-        except Exception as e:
-            print(f"❌ Error: {e}")
-            exit(1)
-        EOF
+      - name: Build .app with PyInstaller
+        run: python -m PyInstaller studioivr-mac.spec --noconfirm
 
-        python convert_icon.py
+      - name: Create .dmg installer
+        run: |
+          brew install create-dmg
+          create-dmg \
+            --volname "Studio IVR" \
+            --window-pos 200 120 \
+            --window-size 800 400 \
+            --icon-size 100 \
+            --icon "Studio IVR.app" 200 190 \
+            --app-drop-link 600 185 \
+            "dist/Studio IVR (${{ matrix.arch }}).dmg" \
+            "dist/Studio IVR.app"
 
-    - name: Create required directories
-      run: |
-        mkdir -p cookies jobs meta_accounts gentube_cookies grok-animator2.0 whisk_downloads "Build and Instructions"
-        touch cookies/placeholder.txt
-        touch jobs/placeholder.txt
-        touch meta_accounts/placeholder.txt
-        touch gentube_cookies/placeholder.txt
-        touch grok-animator2.0/placeholder.txt
-        touch whisk_downloads/placeholder.txt
-        touch "Build and Instructions/placeholder.txt"
+      # El sufijo del nombre delata si esta ofuscado o no -- para que nadie
+      # confunda por error un build de diagnostico con el real distribuible.
+      - name: Upload .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudioIVR-mac-${{ matrix.arch }}-app-${{ steps.pyarmor_reg.outcome == 'success' && 'obfuscated' || 'UNOBFUSCATED-DIAGNOSTIC' }}
+          path: "dist/Studio IVR.app"
 
-    # ELIMINADO: el paso de copia flow_extension (no es necesario)
-
-    - name: Build with PyInstaller (SIN OFUSCACIÓN)
-      run: |
-        python -m PyInstaller \
-          --onefile \
-          --windowed \
-          --name IVR_2.5 \
-          --icon assets/icon.icns \
-          --strip \
-          --hidden-import bcrypt \
-          --hidden-import replicate \
-          --hidden-import webview \
-          --hidden-import webview.platforms \
-          --hidden-import webview.platforms.winforms \
-          --hidden-import webview.platforms.winforms.webview \
-          --hidden-import tkinter \
-          --hidden-import tkinter.ttk \
-          --hidden-import tkinter.messagebox \
-          --hidden-import dotenv \
-          --hidden-import flask \
-          --hidden-import werkzeug \
-          --hidden-import jinja2 \
-          --hidden-import itsdangerous \
-          --hidden-import click \
-          --hidden-import markupsafe \
-          --hidden-import requests \
-          --hidden-import pymysql \
-          --hidden-import cryptography \
-          --hidden-import playwright \
-          --hidden-import PIL \
-          --collect-all webview \
-          --collect-all flask \
-          --collect-all bcrypt \
-          --collect-all replicate \
-          --add-data "cookies:cookies" \
-          --add-data "jobs:jobs" \
-          --add-data "meta_accounts:meta_accounts" \
-          --add-data "gentube_cookies:gentube_cookies" \
-          --add-data "grok-animator2.0:grok-animator2.0" \
-          --add-data "whisk_downloads:whisk_downloads" \
-          --add-data "Build and Instructions:Build and Instructions" \
-          --add-data "flow_extension:flow_extension" \
-          --distpath dist_final \
-          launcher.py
-
-    - name: Create .app bundle
-      run: |
-        APP_NAME="IVR_2.5.app"
-        APP_DIR="$APP_NAME/Contents"
-        
-        mkdir -p "$APP_DIR/MacOS"
-        mkdir -p "$APP_DIR/Resources"
-        
-        if [ -d "dist_final/IVR_2.5" ]; then
-          EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f -perm +111 | head -1)
-          if [ -z "$EXECUTABLE" ]; then
-            EXECUTABLE=$(find dist_final/IVR_2.5 -name "IVR_2.5" -type f | head -1)
-          fi
-        else
-          EXECUTABLE="dist_final/IVR_2.5"
-        fi
-        
-        echo "Ejecutable encontrado: $EXECUTABLE"
-        
-        cp "$EXECUTABLE" "$APP_DIR/MacOS/"
-        chmod +x "$APP_DIR/MacOS/IVR_2.5"
-        cp assets/icon.icns "$APP_DIR/Resources/"
-        
-        cat > "$APP_DIR/Info.plist" << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleName</key>
-            <string>IVR 2.5</string>
-            <key>CFBundleDisplayName</key>
-            <string>IVR 2.5</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.videoforge.ivr25</string>
-            <key>CFBundleVersion</key>
-            <string>2.5.0</string>
-            <key>CFBundleShortVersionString</key>
-            <string>2.5.0</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>CFBundleSignature</key>
-            <string>????</string>
-            <key>CFBundleExecutable</key>
-            <string>IVR_2.5</string>
-            <key>CFBundleIconFile</key>
-            <string>icon.icns</string>
-            <key>NSHighResolutionCapable</key>
-            <true/>
-            <key>LSMinimumSystemVersion</key>
-            <string>10.15</string>
-        </dict>
-        </plist>
-        EOF
-        
-        echo "APPL????" > "$APP_DIR/PkgInfo"
-
-    - name: Create .dmg installer
-      run: |
-        brew install create-dmg
-        create-dmg \
-          --volname "IVR 2.5" \
-          --window-pos 200 120 \
-          --window-size 800 400 \
-          --icon-size 100 \
-          --icon "IVR_2.5.app" 200 190 \
-          --app-drop-link 600 185 \
-          "IVR_2.5.dmg" \
-          "IVR_2.5.app"
-
-    - name: Upload .app artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: IVR-2.5-app
-        path: IVR_2.5.app
-
-    - name: Upload .dmg artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: IVR-2.5-dmg
-        path: IVR_2.5.dmg
+      - name: Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudioIVR-mac-${{ matrix.arch }}-dmg-${{ steps.pyarmor_reg.outcome == 'success' && 'obfuscated' || 'UNOBFUSCATED-DIAGNOSTIC' }}
+          path: "dist/Studio IVR (${{ matrix.arch }}).dmg"

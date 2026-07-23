@@ -1,4 +1,43 @@
-requests>=2.31.0
-playwright>=1.40.0
-playwright-stealth>=1.0.6
 flask>=3.0.0
+apiflask>=2.2.0
+python-dotenv>=1.0.0
+pymysql>=1.1.0
+DBUtils>=3.1.0
+bcrypt>=4.1.0
+stripe>=8.0.0
+requests>=2.31.0
+urllib3>=2.0.0
+websockets>=12.0
+playwright>=1.40.0
+curl_cffi>=0.7.0
+oss2>=2.18.0
+Pillow>=10.0.0
+psutil>=5.9.0
+pywebview>=5.0
+json_repair>=0.61.0
+pyobjc>=10.0; sys_platform == "darwin"  # backend nativo Cocoa/WebKit de pywebview en Mac
+
+# --- Render: backends de transcripcion (whisper_client.py) ---
+# Cada uno solo se importa si el usuario elige ese whisper_backend en /api/render_inteligente.
+# Instala solo los que vayas a usar; los otros 3 pueden faltar sin romper nada mas.
+openai>=1.0.0            # whisper_backend=api (Whisper API de OpenAI)
+replicate>=0.25.0        # whisper_backend=whisperx (WhisperX via Replicate)
+faster-whisper>=1.0.0    # whisper_backend=faster
+openai-whisper>=20231117 # whisper_backend=local (paquete "whisper")
+# whisperx>=3.1.0         # whisper_backend=whisperx_local -- instala manualmente si lo usas:
+                          # trae dependencias pesadas (torch) que conviene fijar segun tu GPU/CPU
+
+# --- Testing ---
+pytest>=8.0.0
+
+# --- Herramientas de codigo (desarrollo, no hacen falta para correr la app) ---
+black>=24.0.0
+ruff>=0.6.0
+mypy>=1.10.0
+pre-commit>=3.7.0
+
+# --- Empaquetado (build-time, no hace falta para correr la app en dev) ---
+# Ofuscacion antes de compilar el instalador. Licencia Basic ya comprada y
+# registrada para esta maquina (producto "StudioIVR") -- ver pyarmor reg.
+pyarmor>=9.2.5
+pyinstaller>=6.21.0

@@ -1,0 +1,3 @@
+# Los scripts de shell corren en macOS/Linux -- si Windows los checkea con
+# CRLF, el shebang se rompe ("bad interpreter") en la maquina de destino.
+*.sh text eol=lf
