@@ -140,8 +140,9 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
   function pollOnce() {
     flowStatus(sinceRef.current)
       .then((d) => {
-        if (typeof d.since === "number") sinceRef.current = d.since;
-        if (Array.isArray(d.log)) setLogLines((prev) => [...prev, ...(d.log as string[])]);
+        const newLines = Array.isArray(d.last_log) ? (d.last_log as string[]) : undefined;
+        if (typeof d.log_total === "number") sinceRef.current = d.log_total;
+        if (newLines) setLogLines((prev) => [...prev, ...newLines]);
         if (typeof d.done === "number" || typeof d.total === "number") {
           const done = d.done ?? 0;
           const total = d.total ?? 0;
@@ -153,8 +154,10 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
           genStatus.update(GEN_ID, {
             pct: total > 0 ? Math.round((done / total) * 100) : null,
             message: d.label || `${done}/${total} imágenes`,
-            lines: Array.isArray(d.log) ? (d.log as string[]) : undefined,
+            lines: newLines,
           });
+        } else if (newLines && newLines.length) {
+          genStatus.update(GEN_ID, { lines: newLines });
         }
         setRunning(!!d.running);
         if (!d.running) {

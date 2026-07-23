@@ -22,8 +22,12 @@ export interface FlowChromiumStatusResult {
 }
 
 export interface FlowStatus {
-  since?: number;
-  log?: string[];
+  // El backend (flow_animation_service.get_status) devuelve "last_log" (la
+  // porcion nueva del log desde el cursor "since" enviado) y "log_total" (el
+  // total acumulado, que hay que reenviar como "since" en el siguiente poll) --
+  // NO existen campos "log" ni "since" en la respuesta.
+  last_log?: string[];
+  log_total?: number;
   done?: number;
   total?: number;
   label?: string;
