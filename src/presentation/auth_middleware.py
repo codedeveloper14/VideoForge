@@ -15,6 +15,17 @@ PUBLIC_ROUTES = {
     # Contenido del centro de ayuda: publico en el original (sin auth), igual aqui.
     "/api/docs",
     "/api/help",
+    # La extension de Chrome llama estas rutas desde la pagina de meta.ai/labs.google,
+    # o desde vibes.ai (el panel Meta anima imagenes del proyecto via vibes.ai) --
+    # sin cookie de sesion de VideoForge, deben quedar publicas.
+    "/api/meta/ext-register",
+    "/api/meta/ext-poll",
+    "/api/meta/ext-result",
+    "/api/meta/ext-learn",
+    "/api/meta/ext-captured",
+    "/api/meta/ext-state",
+    "/api/meta/vibes-poll",
+    "/api/meta/vibes-result",
     # La extension de vibes.ai (vibes_bridge.js) hace polling desde la pagina de
     # vibes.ai, sin cookie de sesion de VideoForge -- debe quedar publica.
     "/api/vibes/poll",

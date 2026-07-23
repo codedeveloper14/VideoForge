@@ -6,11 +6,13 @@ import { HeaderArt } from "../components/HeaderArt";
 import GrokPanel from "./video/GrokPanel";
 import QwenPanel from "./video/QwenPanel";
 import VibesPanel from "./video/VibesPanel";
+import MetaPanel from "./video/MetaPanel";
 
 const TABS = [
   { id: "grok", label: "Grok" },
   { id: "qwen", label: "Qwen" },
   { id: "vibes", label: "Vibes" },
+  { id: "meta", label: "Meta" },
 ];
 
 export default function VideoPage() {
@@ -96,6 +98,7 @@ export default function VideoPage() {
         {tab === "grok" && <GrokPanel project={project} />}
         {tab === "qwen" && <QwenPanel project={project} />}
         {tab === "vibes" && <VibesPanel project={project} />}
+        {tab === "meta" && <MetaPanel project={project} />}
       </div>
     </div>
   );
