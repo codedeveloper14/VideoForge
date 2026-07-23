@@ -20,7 +20,6 @@ from src.presentation.routes.gentube import gentube_bp
 from src.presentation.routes.grok import grok_bp
 from src.presentation.routes.health import health_bp
 from src.presentation.routes.idea2video import idea2video_bp
-from src.presentation.routes.meta import meta_bp
 from src.presentation.routes.plans import plans_bp
 from src.presentation.routes.projects import projects_bp
 from src.presentation.routes.quick_render import quick_render_bp
@@ -83,7 +82,6 @@ def create_app() -> APIFlask:
     app.register_blueprint(qwen_bp)
     app.register_blueprint(render_bp)
     app.register_blueprint(quick_render_bp)
-    app.register_blueprint(meta_bp)
     app.register_blueprint(vibes_bp)
     app.register_blueprint(guion_bp)
     app.register_blueprint(audio_bp)

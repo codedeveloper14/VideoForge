@@ -113,14 +113,22 @@ def start_render(
     shake: bool,
     audio_upload,
     username: str | None,
+    audio_filename: str | None = None,
+    image_filenames: list[str] | None = None,
+    video_filenames: list[str] | None = None,
 ) -> dict:
     """Prepara el proyecto (audio, imagenes/videos ordenados, guion) y lanza el pipeline en
-    un hilo de fondo. Lanza ValueError en validaciones (--> 400 en la ruta)."""
+    un hilo de fondo. Lanza ValueError en validaciones (--> 400 en la ruta).
+
+    audio_filename / image_filenames / video_filenames son la seleccion explicita del
+    usuario (Paso 5 del frontend, panel de assets) -- cuando vienen, filtran lo que el
+    proyecto tiene disponible en vez de que el backend decida por su cuenta. Si vienen
+    en None (callers viejos, tests) se mantiene el comportamiento previo: todo el
+    contenido del proyecto."""
     if not project_name:
         raise ValueError("Proyecto requerido")
 
     proj_dir = project_repository.project_dir(project_name)
-    img_dir = proj_dir / "imagen"
     vid_dir = proj_dir / "video"
     audio_dir = proj_dir / "audio"
     out_dir = proj_dir / "video_final"
@@ -132,26 +140,45 @@ def start_render(
         audio_path = str(audio_dir / f"render_audio{aext}")
         audio_dir.mkdir(parents=True, exist_ok=True)
         audio_upload.save(audio_path)
+    elif audio_filename:
+        candidate = project_repository.resolve_safe_file(project_name, "audio", audio_filename)
+        audio_path = str(candidate) if candidate and candidate.exists() else None
     else:
-        audios = list(audio_dir.glob("*")) if audio_dir.exists() else []
+        # Antes: list(audio_dir.glob("*")) tomaba el primer audio en orden de
+        # filesystem (no deterministico). list_audio_files ya ordena por mtime
+        # descendente en todo el resto de la app (editor, script_service) --
+        # mismo criterio aca cuando el usuario no eligio uno explicitamente.
+        audios = project_repository.list_audio_files(project_name)
         audio_path = str(audios[0]) if audios else None
 
     if not audio_path or not os.path.exists(audio_path):
         raise ValueError("No se encontro audio")
 
-    images = []
-    if img_dir.exists():
-        for f in img_dir.iterdir():
-            if f.is_file() and f.suffix.lower().lstrip(".") in project_repository.IMAGE_EXTS:
-                images.append(f)
-        images.sort(key=scene_sort_key)
+    images = sorted(project_repository.list_images(project_name), key=scene_sort_key)
+    if image_filenames is not None:
+        wanted_img = set(image_filenames)
+        images = [img for img in images if img.name in wanted_img]
     if not images and render_mode == "images":
-        raise ValueError("No hay imagenes en el proyecto")
+        raise ValueError(
+            "No seleccionaste ninguna imagen para el render"
+            if image_filenames is not None
+            else "No hay imagenes en el proyecto"
+        )
 
     videos = sorted(vid_dir.glob("*.mp4"), key=scene_sort_key) if vid_dir.exists() else []
+    if video_filenames is not None:
+        wanted_vid = set(video_filenames)
+        videos = [v for v in videos if v.name in wanted_vid]
+
+    if not videos and render_mode == "videos":
+        raise ValueError(
+            "No seleccionaste ningun video para el render"
+            if video_filenames is not None
+            else "No hay videos en el proyecto"
+        )
 
     if not images and not videos:
-        raise ValueError("El proyecto no tiene imagenes ni videos para renderizar")
+        raise ValueError("El proyecto no tiene imagenes ni videos seleccionados para renderizar")
 
     vid_index = {v.stem: v for v in videos}
 
@@ -286,7 +313,7 @@ def _procesar_render_inteligente(
         # ── Audio duration ──────────────────────────────────────────────
         log("Analizando audio...", 3)
         res = ffmpeg_utils.run_cmd(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", audio_path],
+            [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", audio_path],
             "ffprobe no pudo leer audio",
         )
         try:
@@ -294,7 +321,7 @@ def _procesar_render_inteligente(
             dur = (parsed.get("format") or {}).get("duration")
             if dur is None:
                 r2 = ffmpeg_utils.run_cmd(
-                    ["ffprobe", "-v", "error", "-show_entries", "stream=duration", "-of", "json", audio_path],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "stream=duration", "-of", "json", audio_path],
                     "ffprobe fallback fallo",
                 )
                 dur = next(
@@ -324,7 +351,10 @@ def _procesar_render_inteligente(
         elif guion:
             escenas_texto = [e.strip() for e in guion.split("\n") if e.strip()]
         else:
-            n_items = len(images) if images else len(vid_index)
+            if render_mode == "videos":
+                n_items = len(vid_index)
+            else:
+                n_items = len(images) if images else len(vid_index)
             escenas_texto = [f"Escena {i + 1}" for i in range(n_items)]
 
         if guion and guion.strip():
@@ -349,13 +379,20 @@ def _procesar_render_inteligente(
                 except Exception as exc:
                     raise RuntimeError(f"WhisperX local error: {exc}") from exc
             elif whisper_backend == "whisperx":
+                # A diferencia de las otras ramas (intento unico), esta usa la cascada
+                # de whisper_client -- es el backend default de la ruta HTTP (render.py)
+                # y el mas propenso a fallar por depender de red/Replicate, asi que un
+                # solo 500/timeout no debe tumbar el render entero si faster-whisper o
+                # whisper local pueden hacer el trabajo en su lugar.
                 log("Transcribiendo con WhisperX Replicate (alineacion forzada)...", 10)
-                try:
-                    segmentos, all_words = whisper_client.transcribe_whisperx_replicate(
-                        audio_path, language=None
+                segmentos, all_words, backend_usado = whisper_client.transcribe_with_fallback(audio_path)
+                if backend_usado != "whisperx_replicate":
+                    log(f"  [WARNING] WhisperX Replicate no disponible, uso fallback: {backend_usado}")
+                if not segmentos:
+                    raise RuntimeError(
+                        "No se pudo transcribir el audio (WhisperX Replicate, faster-whisper y "
+                        "whisper local fallaron todos)"
                     )
-                except Exception as exc:
-                    raise RuntimeError(f"WhisperX Replicate error: {exc}") from exc
             else:
                 log(f"Transcribiendo con Whisper ({modelo})...", 10)
                 segmentos = whisper_client.transcribe_local(audio_path, modelo)
@@ -420,7 +457,11 @@ def _procesar_render_inteligente(
         # genero menos clips), reutilizar la ultima imagen - evita videos cortos con -shortest
         # en el mux final.
         scenes = []
-        if not images and render_mode in ("smart", "videos") and vid_index:
+        # "videos": ignora las imagenes por completo, SIEMPRE construye desde los
+        # videos (aunque existan imagenes en el proyecto). "smart" sin imagenes cae
+        # al mismo camino como fallback (ya era el comportamiento previo). "images"
+        # nunca entra aqui: siempre va por la rama de abajo con vid=None.
+        if render_mode == "videos" or (not images and render_mode == "smart" and vid_index):
             vids_sorted = sorted(vid_index.values(), key=lambda p: p.name)
             n_ts, n_vids = len(timestamps), len(vids_sorted)
             n_total = max(n_ts, n_vids)
@@ -470,7 +511,9 @@ def _procesar_render_inteligente(
                     ts = timestamps[i]
                     sidx = ts.get("scene_idx", i)
                     img = img_by_scene.get(sidx) or images[min(sidx, n_img - 1)]
-                    vid = vid_index.get(img.stem) if render_mode in ("smart", "videos") else None
+                    # "images": nunca adjunta video (fuerza type=image). "smart": empareja
+                    # por nombre de archivo. La rama "videos" nunca llega aqui (ver arriba).
+                    vid = vid_index.get(img.stem) if render_mode == "smart" else None
                     vid_path = str(vid) if vid and os.path.exists(str(vid)) else None
                     scenes.append(
                         {
@@ -489,7 +532,9 @@ def _procesar_render_inteligente(
                     mm2 = _SCENE_NUM_RE.match(img.stem)
                     sidx2 = int(mm2.group(1)) - 1 if mm2 else i
                     ts = ts_by_scene.get(sidx2, timestamps[min(i, n_ts - 1)])
-                    vid = vid_index.get(img.stem) if render_mode in ("smart", "videos") else None
+                    # "images": nunca adjunta video (fuerza type=image). "smart": empareja
+                    # por nombre de archivo. La rama "videos" nunca llega aqui (ver arriba).
+                    vid = vid_index.get(img.stem) if render_mode == "smart" else None
                     vid_path = str(vid) if vid and os.path.exists(str(vid)) else None
                     scenes.append(
                         {
@@ -522,7 +567,7 @@ def _procesar_render_inteligente(
         silent = os.path.join(tmp_dir, "silent.mp3")
         ffmpeg_utils.run_cmd(
             [
-                "ffmpeg",
+                ffmpeg_utils.ffmpeg_exe(),
                 "-y",
                 "-f",
                 "lavfi",
@@ -536,13 +581,17 @@ def _procesar_render_inteligente(
             ],
             "No se pudo crear audio silencioso",
         )
-        silent_b64 = base64.b64encode(open(silent, "rb").read() if os.path.exists(silent) else b"").decode()
+        if os.path.exists(silent):
+            with open(silent, "rb") as sf:
+                silent_b64 = base64.b64encode(sf.read()).decode()
+        else:
+            silent_b64 = base64.b64encode(b"").decode()
 
         # ── Compressed audio para mezcla final ───────────────────────────
         asm = os.path.join(tmp_dir, "audio_s.mp3")
         ra = _run_ffmpeg(
             [
-                "ffmpeg",
+                ffmpeg_utils.ffmpeg_exe(),
                 "-y",
                 "-i",
                 audio_path,
@@ -599,7 +648,7 @@ def _procesar_render_inteligente(
 
             r = _run_ffmpeg(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-threads",
                     ff_threads,
@@ -630,7 +679,7 @@ def _procesar_render_inteligente(
             if os.path.exists(out_tmp) and os.path.getsize(out_tmp) > 500:
                 _run_ffmpeg(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-threads",
                         ff_threads,
@@ -672,7 +721,7 @@ def _procesar_render_inteligente(
                 vf_fb = f"{ffmpeg_utils.scale_pad_filter(w_res, h_res, FPS)},setpts=PTS-STARTPTS"
                 _run_ffmpeg(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-threads",
                         ff_threads,
@@ -770,7 +819,7 @@ def _procesar_render_inteligente(
                         if img_path and os.path.exists(img_path):
                             _run_ffmpeg(
                                 [
-                                    "ffmpeg",
+                                    ffmpeg_utils.ffmpeg_exe(),
                                     "-y",
                                     "-threads",
                                     ff_threads,
@@ -813,7 +862,7 @@ def _procesar_render_inteligente(
                         ffmpeg_utils.write_concat_list(cl, batch_clips)
                         ffmpeg_utils.run_cmd(
                             [
-                                "ffmpeg",
+                                ffmpeg_utils.ffmpeg_exe(),
                                 "-y",
                                 "-threads",
                                 ff_threads,
@@ -868,7 +917,7 @@ def _procesar_render_inteligente(
                     raise Exception(f"Modal seg {seg_idx} batch {bi}: clip vacio o invalido")
                 # Normalizar codec Modal --> libx264 ultrafast para compatibilidad con clips locales
                 bp_n = bp.replace(".mp4", "_n.mp4")
-                cmd = ["ffmpeg", "-y", "-threads", ff_threads, "-i", bp]
+                cmd = [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads, "-i", bp]
                 if expected_dur:
                     cmd += ["-t", str(max(0.1, expected_dur))]
                 cmd += [
@@ -904,7 +953,7 @@ def _procesar_render_inteligente(
                 try:
                     pr_v = subprocess.run(
                         [
-                            "ffprobe",
+                            ffmpeg_utils.ffprobe_exe(),
                             "-v",
                             "error",
                             "-select_streams",
@@ -945,7 +994,7 @@ def _procesar_render_inteligente(
             for bi, bp in enumerate(clips):
                 try:
                     pr = subprocess.run(
-                        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", bp],
+                        [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", bp],
                         capture_output=True,
                         text=True,
                         timeout=30,
@@ -967,7 +1016,7 @@ def _procesar_render_inteligente(
             fp += "".join(f"[v{k}]" for k in range(n_c))
             fp += f"concat=n={n_c}:v=1:a=0[vout]"
             ffmpeg_utils.run_cmd(
-                ["ffmpeg", "-y", "-threads", ff_threads]
+                [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads]
                 + fc_inputs
                 + [
                     "-filter_complex",
@@ -995,7 +1044,7 @@ def _procesar_render_inteligente(
             )
             try:
                 pr2 = subprocess.run(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -1034,7 +1083,7 @@ def _procesar_render_inteligente(
                 if img_ok:
                     _run_ffmpeg(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1066,7 +1115,7 @@ def _procesar_render_inteligente(
                 if not img_ok or not (os.path.exists(fb) and os.path.getsize(fb) > 500):
                     _run_ffmpeg(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1104,7 +1153,7 @@ def _procesar_render_inteligente(
             seg_frames_exact = int(round(seg_dur_exact * 24))
             ffmpeg_utils.run_cmd(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-threads",
                     ff_threads,
@@ -1141,7 +1190,7 @@ def _procesar_render_inteligente(
             )
             try:
                 prv = subprocess.run(
-                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
+                    [ffmpeg_utils.ffprobe_exe(), "-v", "error", "-show_entries", "format=duration", "-of", "json", co],
                     capture_output=True,
                     text=True,
                     timeout=30,
@@ -1158,7 +1207,7 @@ def _procesar_render_inteligente(
                     co_corr = co.replace(".mp4", "_corr.mp4")
                     subprocess.run(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-threads",
                             ff_threads,
@@ -1237,7 +1286,7 @@ def _procesar_render_inteligente(
             try:
                 pr = subprocess.run(
                     [
-                        "ffprobe",
+                        ffmpeg_utils.ffprobe_exe(),
                         "-v",
                         "error",
                         "-show_entries",
@@ -1282,7 +1331,7 @@ def _procesar_render_inteligente(
         concat_inputs = "".join(f"[v{i}]" for i in range(n_segs))
         filter_str = f"{filter_parts}{concat_inputs}concat=n={n_segs}:v=1:a=0[vout]"
         ffmpeg_utils.run_cmd(
-            ["ffmpeg", "-y", "-threads", ff_threads]
+            [ffmpeg_utils.ffmpeg_exe(), "-y", "-threads", ff_threads]
             + inputs
             + [
                 "-filter_complex",
@@ -1320,7 +1369,38 @@ def _procesar_render_inteligente(
         try:
             ffmpeg_utils.final_mux_aligned(concat_out, audio_path_mix, video_final, duracion_total, log=log)
         except Exception as mux_e:
-            raise Exception(f"No se pudo mezclar audio final: {mux_e}") from mux_e
+            # Ultimo recurso: mux simple con -shortest (recorta al stream mas corto,
+            # sin el alineado exacto de mas arriba) -- mismo patron que ya usa
+            # enriched_render_service.py. Preferible a tirar el render entero si
+            # final_mux_aligned fallo por algo puntual (encoder GPU y CPU ambos con
+            # problemas, disco lleno a mitad del re-encode, etc.).
+            log(f"  [WARNING] mux alineado fallo ({mux_e}) -- reintentando con -shortest...")
+            res_sh = _run_ffmpeg(
+                [
+                    ffmpeg_utils.ffmpeg_exe(),
+                    "-y",
+                    "-i",
+                    concat_out,
+                    "-i",
+                    audio_path_mix,
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    "-shortest",
+                    "-movflags",
+                    "+faststart",
+                    video_final,
+                ],
+                180,
+            )
+            shortest_ok = res_sh.returncode == 0 or (
+                os.path.exists(video_final) and os.path.getsize(video_final) > 10240
+            )
+            if not shortest_ok:
+                raise Exception(f"No se pudo mezclar audio final (alineado ni -shortest): {mux_e}") from mux_e
 
         if not os.path.exists(video_final):
             raise Exception("FFmpeg no genero el video final")

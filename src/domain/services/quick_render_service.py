@@ -211,7 +211,7 @@ def _procesar_video(
         silent_audio = os.path.join(tmp_dir, "silent.mp3")
         sil = subprocess.run(
             [
-                "ffmpeg",
+                ffmpeg_utils.ffmpeg_exe(),
                 "-y",
                 "-f",
                 "lavfi",
@@ -327,7 +327,7 @@ def _procesar_video(
         if len(part_files) == 1:
             ffmpeg_utils.run_cmd(
                 [
-                    "ffmpeg",
+                    ffmpeg_utils.ffmpeg_exe(),
                     "-y",
                     "-i",
                     part_files[0],
@@ -359,7 +359,7 @@ def _procesar_video(
             concat_inputs = "".join(f"[v{i}]" for i in range(n_parts))
             filter_str = f"{filter_parts}{concat_inputs}concat=n={n_parts}:v=1:a=0[vout]"
             ffmpeg_utils.run_cmd(
-                ["ffmpeg", "-y"]
+                [ffmpeg_utils.ffmpeg_exe(), "-y"]
                 + inputs
                 + [
                     "-filter_complex",

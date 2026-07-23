@@ -1956,9 +1956,16 @@ def _run_batch_inner(
     )
 
 
-def abrir_carpeta() -> dict:
-    with lock:
-        target = (state.get("output_dir") or "").strip()
+def abrir_carpeta(out_dir: str | None = None) -> dict:
+    """out_dir explicito (la carpeta imagen/ del proyecto ACTIVO en pantalla) es
+    siempre preferido -- state["output_dir"] solo se actualiza cuando efectivamente
+    corre un lote, asi que cambiar de proyecto sin generar todavia en el nuevo
+    abria la carpeta del ULTIMO proyecto donde se genero, no la del que se ve
+    ahora mismo (ver mismo fix en gentube_animation_service._resolve_dir)."""
+    target = (out_dir or "").strip()
+    if not target:
+        with lock:
+            target = (state.get("output_dir") or "").strip()
     if not target or not os.path.isdir(target):
         raise ValueError("Sin carpeta de salida (ejecuta primero un lote).")
     open_folder(target)

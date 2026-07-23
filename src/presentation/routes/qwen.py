@@ -1,7 +1,8 @@
 from apiflask import APIBlueprint
-from flask import jsonify, request, send_file
+from flask import current_app, jsonify, request, send_file
 
 from src.domain.services import qwen_animation_service
+from src.infrastructure.ai_providers import qwen_bridge
 from src.presentation.schemas.qwen import (
     QwenAbrirCarpetaInSchema,
     QwenAccountInSchema,
@@ -13,6 +14,47 @@ from src.presentation.schemas.qwen import (
 )
 
 qwen_bp = APIBlueprint("qwen", __name__, url_prefix="/api/qwen")
+
+
+def _qwen_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Access-Control-Request-Private-Network"
+    )
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
+
+
+# ─────────────────────────────────────────────────────────────────
+# Bridge de la extension para chat.qwen.ai (qwen_bridge.js hace polling normal
+# via el mismo puerto Flask que sirve el resto de la app -- ver qwen_bridge.py).
+# Cada cuenta corre en su propio proceso de Chromium, asi que `account` es
+# siempre el nombre real (account_1, account_2, ...), no un valor fijo.
+# ─────────────────────────────────────────────────────────────────
+
+
+@qwen_bp.route("/poll", methods=["GET", "OPTIONS"])
+def poll():
+    if request.method == "OPTIONS":
+        return _qwen_cors(current_app.make_response("")), 204
+    account = request.args.get("account", "")
+    max_raw = request.args.get("max", "1")
+    try:
+        max_take = max(1, int(max_raw))
+    except (ValueError, TypeError):
+        max_take = 1
+    reqs = qwen_bridge.poll(account, max_take)
+    return _qwen_cors(jsonify({"requests": reqs}))
+
+
+@qwen_bp.route("/result", methods=["POST", "OPTIONS"])
+def result():
+    if request.method == "OPTIONS":
+        return _qwen_cors(current_app.make_response("")), 204
+    data = request.get_json(silent=True) or {}
+    qwen_bridge.post_result(data.get("requestId", ""), data)
+    return _qwen_cors(jsonify({"ok": True}))
 
 
 @qwen_bp.get("/sesiones")

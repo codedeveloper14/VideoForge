@@ -3,6 +3,7 @@ import os
 import sys
 from pathlib import Path
 
+from src.utils.paths import get_bundled_chromium_exe
 from src.utils.platform_utils import is_frozen
 
 
@@ -34,13 +35,22 @@ def get_extension_dir() -> Path:
 def find_chromium_exe() -> str | None:
     """Busca Chromium/Chrome priorizando Playwright (unico que acepta
     --load-extension sin restricciones). Cross-platform: Windows y macOS."""
+    # 0. Chromium bundleado con la app (instalador, scripts/fetch_chromium_windows.py).
+    # SIEMPRE primero: es la unica opcion garantizada en la maquina de un cliente
+    # final -- ni la cache de Playwright (paso 1, solo existe en una maquina de
+    # dev que corrio "playwright install") ni el Chrome del sistema (pasos 3-4,
+    # puede no aceptar --load-extension en versiones recientes) son confiables ahi.
+    bundled = get_bundled_chromium_exe()
+    if bundled:
+        return str(bundled)
+
     local_appdata = os.environ.get("LOCALAPPDATA", "") or str(Path.home() / "AppData" / "Local")
     home = str(Path.home())
     appdata = os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming"))
     program_dir = os.path.join(appdata, "VideoForge")
     exe_dir = str(_app_base_dir())
 
-    # 1. Playwright Chromium (Windows)
+    # 1. Playwright Chromium (Windows) -- fallback de desarrollo, no de produccion.
     for pat in [
         os.path.join(local_appdata, "ms-playwright", "chromium-*", "chrome-win", "chrome.exe"),
         os.path.join(local_appdata, "ms-playwright", "chromium-*", "chrome-win64", "chrome.exe"),

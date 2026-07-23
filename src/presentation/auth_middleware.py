@@ -15,18 +15,14 @@ PUBLIC_ROUTES = {
     # Contenido del centro de ayuda: publico en el original (sin auth), igual aqui.
     "/api/docs",
     "/api/help",
-    # La extension de Chrome llama estas rutas desde la pagina de meta.ai/labs.google,
-    # sin cookie de sesion de VideoForge -- deben quedar publicas.
-    "/api/meta/ext-register",
-    "/api/meta/ext-poll",
-    "/api/meta/ext-result",
-    "/api/meta/ext-learn",
-    "/api/meta/ext-captured",
-    "/api/meta/ext-state",
     # La extension de vibes.ai (vibes_bridge.js) hace polling desde la pagina de
-    # vibes.ai, sin cookie de sesion de VideoForge -- misma razon que ext-* arriba.
-    "/api/meta/vibes-poll",
-    "/api/meta/vibes-result",
+    # vibes.ai, sin cookie de sesion de VideoForge -- debe quedar publica.
+    "/api/vibes/poll",
+    "/api/vibes/result",
+    # Mismo motivo: qwen_bridge.js pollea desde chat.qwen.ai (proceso de Chromium
+    # dedicado por cuenta, sin cookie de sesion de VideoForge).
+    "/api/qwen/poll",
+    "/api/qwen/result",
     # La extension de Flow envia la cookie desde su propio popup, misma razon
     # que las rutas ext-* de Meta arriba: no hay cookie de sesion de VideoForge.
     "/api/flow/save-cookie",

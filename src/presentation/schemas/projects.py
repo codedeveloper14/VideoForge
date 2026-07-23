@@ -29,6 +29,11 @@ class ImagenFileQuerySchema(Schema):
     file = String(required=True)
 
 
+class VideoFileQuerySchema(Schema):
+    project = String(required=True)
+    file = String(required=True)
+
+
 class VideoFinalQuerySchema(Schema):
     project = String(required=True)
     file = String(required=True)

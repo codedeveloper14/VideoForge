@@ -1,11 +1,17 @@
 import re
 from pathlib import Path
 
+from werkzeug.utils import secure_filename
+
 from src.infrastructure.storage import project_repository
 from src.infrastructure.storage.project_repository import sanitize_name
 from src.utils.platform_utils import open_folder
 
 _SCENE_NUM_RE = re.compile(r"^(?:img|flow)_(\d+)$", re.IGNORECASE)
+
+# El render (render_service.py) solo lee "*.mp4" del directorio video/ -- aceptar
+# otro formato aca dejaria el archivo subido invisible para el pipeline real.
+_UPLOAD_VIDEO_EXTS = {"mp4"}
 
 
 def scene_sort_key(path: Path):
@@ -81,6 +87,37 @@ def get_project_content(project_name: str) -> dict:
             "img_dir_exists": img_dir.exists(),
         },
     }
+
+
+def _ext_of(filename: str) -> str:
+    return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+
+def upload_project_image(project_name: str, filename: str, data: bytes) -> str:
+    """Sube manualmente una imagen especifica a jobs/<project>/imagen -- usada por
+    la galeria del Paso 5 para asignar/reemplazar un asset puntual (en vez de
+    depender solo de lo que ya haya en el proyecto)."""
+    name = sanitize_name(project_name)
+    if not name:
+        raise ValueError("Proyecto invalido")
+    safe = secure_filename(filename or "")
+    if not safe or _ext_of(safe) not in project_repository.IMAGE_EXTS:
+        raise ValueError("Formato de imagen no soportado")
+    project_repository.write_image_file(name, safe, data)
+    return safe
+
+
+def upload_project_video(project_name: str, filename: str, data: bytes) -> str:
+    """Sube manualmente un video especifico a jobs/<project>/video -- solo .mp4,
+    que es lo unico que render_service.py lee del directorio."""
+    name = sanitize_name(project_name)
+    if not name:
+        raise ValueError("Proyecto invalido")
+    safe = secure_filename(filename or "")
+    if not safe or _ext_of(safe) not in _UPLOAD_VIDEO_EXTS:
+        raise ValueError("Formato de video no soportado (solo .mp4)")
+    project_repository.write_video_file(name, safe, data)
+    return safe
 
 
 def delete_project(raw_name: str) -> tuple[bool, str]:

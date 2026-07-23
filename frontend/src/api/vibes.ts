@@ -14,14 +14,9 @@ export interface VibesIniciarParams {
   project_name: string;
   prompt: string;
   slots?: number;
-  aspect_ratio?: string;
-  resolution?: string;
-  prompt_model?: string;
-  image_model?: string;
-  video_model?: string;
-  batch_variation?: boolean;
   timeout?: number;
   reference_image?: string;
+  images?: File[];
 }
 
 export interface VibesIniciarResult {
@@ -66,8 +61,22 @@ export function vibesLaunchChrome() {
   return api.post<VibesLaunchChromeResult>("/vibes/launch_chrome").then((r) => r.data);
 }
 
-export function vibesIniciar(params: VibesIniciarParams) {
-  return api.post<VibesIniciarResult>("/vibes/iniciar", params).then((r) => r.data);
+export function vibesIniciar({
+  project_name,
+  prompt,
+  slots = 1,
+  timeout = 300,
+  reference_image,
+  images = [],
+}: VibesIniciarParams) {
+  const fd = new FormData();
+  fd.append("project_name", project_name);
+  fd.append("prompt", prompt);
+  fd.append("slots", String(slots));
+  fd.append("timeout", String(timeout));
+  if (reference_image) fd.append("reference_image", reference_image);
+  images.forEach((file, i) => fd.append(`imagen_${i}`, file, file.name));
+  return api.post<VibesIniciarResult>("/vibes/iniciar", fd).then((r) => r.data);
 }
 
 export function vibesDetener(project = "") {

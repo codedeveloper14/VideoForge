@@ -12,6 +12,7 @@ import { getQuickRenderDownloadUrl, startQuickRender } from "../api/quickRender"
 import JobsPanel from "./render/JobsPanel";
 import Step1Files from "./render/Step1Files";
 import type { ImageEntry, RenderModeValue } from "./render/Step1Files";
+import type { AssetSelection } from "./render/AssetGallery";
 import Step2Effects from "./render/Step2Effects";
 import Step3Render from "./render/Step3Render";
 import type { RenderJobState } from "./render/Step3Render";
@@ -40,7 +41,9 @@ export default function RenderPage() {
   const [renderMode, setRenderMode] = useState<RenderModeValue>("smart");
   const [useProjectAudio, setUseProjectAudio] = useState(true);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioFilename, setAudioFilename] = useState("");
   const [images, setImages] = useState<ImageEntry[]>([]);
+  const [assetSelection, setAssetSelection] = useState<AssetSelection>({ images: [], videos: [] });
   const [useProjectScript, setUseProjectScript] = useState(true);
   const [guion, setGuion] = useState("");
   const [step1Error, setStep1Error] = useState("");
@@ -54,6 +57,7 @@ export default function RenderPage() {
   const [modelo, setModelo] = useState("base");
   const [whisperBackend, setWhisperBackend] = useState("whisperx");
   const [submitting, setSubmitting] = useState(false);
+  const [step2Error, setStep2Error] = useState("");
 
   // Step 3 state
   const [job, setJob] = useState<RenderJobState | null>(null);
@@ -62,7 +66,10 @@ export default function RenderPage() {
   const genStatus = useGenerationStatus();
   const genIdRef = useRef("");
 
-  const usesProjectFlow = renderMode !== "images";
+  // Debe coincidir con Step1Files.tsx: "images" tambien usa el flujo de proyecto
+  // (audio/guion/imagenes del proyecto) cuando hay uno activo, y solo cae al
+  // quick-render manual si no hay proyecto seleccionado en absoluto.
+  const usesProjectFlow = renderMode !== "images" || !!project;
 
   useEffect(() => {
     listProjects()
@@ -134,11 +141,25 @@ export default function RenderPage() {
   }
 
   function goBackToStep1() {
+    setStep2Error("");
     setStep(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleGenerate() {
+    setStep2Error("");
+    if (usesProjectFlow) {
+      const hasImages = assetSelection.images.length > 0;
+      const hasVideos = assetSelection.videos.length > 0;
+      const missingSelection =
+        (renderMode === "images" && !hasImages) ||
+        (renderMode === "videos" && !hasVideos) ||
+        (renderMode === "smart" && !hasImages && !hasVideos);
+      if (missingSelection) {
+        setStep2Error(t("projectRenderPanel.galleryNoneSelectedWarning"));
+        return;
+      }
+    }
     setSubmitting(true);
     setStep1Error("");
     genIdRef.current = "render:" + (project || "quick");
@@ -157,6 +178,9 @@ export default function RenderPage() {
           movimiento,
           shake,
           audioFile: useProjectAudio ? null : audioFile,
+          audioFilename: useProjectAudio ? audioFilename : null,
+          imageFilenames: assetSelection.images,
+          videoFilenames: assetSelection.videos,
         });
         setDownloadUrl(getRenderDownloadUrl(data.job_id));
         setJob({ id: data.job_id, estado: "procesando", progreso: 0, mensaje: t("renderTool.startingJob") });
@@ -185,9 +209,8 @@ export default function RenderPage() {
       }
     } catch (err) {
       const error = err as Error & { limit_reached?: boolean };
-      setStep1Error(error.message || t("renderTool.renderStartError"));
+      setStep2Error(error.message || t("renderTool.renderStartError"));
       genStatus.finish(genIdRef.current, false, error.message || t("renderTool.renderStartError"));
-      setStep(2);
     } finally {
       setSubmitting(false);
     }
@@ -198,7 +221,10 @@ export default function RenderPage() {
     setJob(null);
     setDownloadUrl("");
     setAudioFile(null);
+    setAudioFilename("");
     setImages([]);
+    setAssetSelection({ images: [], videos: [] });
+    setStep2Error("");
     setGuion("");
     setUseProjectAudio(true);
     setUseProjectScript(true);
@@ -235,9 +261,11 @@ export default function RenderPage() {
     {
       label: audioFile
         ? `🎵 ${audioFile.name.split(".").pop()?.toUpperCase()}`
-        : useProjectAudio
-          ? t("renderTool.pillAudioProject")
-          : t("renderTool.pillAudioUnknown"),
+        : useProjectAudio && audioFilename
+          ? `🎵 ${audioFilename}`
+          : useProjectAudio
+            ? t("renderTool.pillAudioProject")
+            : t("renderTool.pillAudioUnknown"),
     },
     { label: t("renderTool.pillScenes", { count: sceneCount }) },
     { label: t("renderTool.pillResolution", { res: resolucion.replace("x", "×") }) },
@@ -277,8 +305,11 @@ export default function RenderPage() {
               onUseProjectAudioChange={setUseProjectAudio}
               audioFile={audioFile}
               onAudioFileChange={setAudioFile}
+              audioFilename={audioFilename}
+              onAudioFilenameChange={setAudioFilename}
               images={images}
               onImagesChange={setImages}
+              onAssetSelectionChange={setAssetSelection}
               useProjectScript={useProjectScript}
               onUseProjectScriptChange={setUseProjectScript}
               guion={guion}
@@ -307,6 +338,7 @@ export default function RenderPage() {
               onBack={goBackToStep1}
               onSubmit={handleGenerate}
               submitting={submitting}
+              error={step2Error}
             />
           )}
 

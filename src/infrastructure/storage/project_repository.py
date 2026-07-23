@@ -79,12 +79,37 @@ def list_images(project: str) -> list[Path]:
     img_dir = project_dir(project) / "imagen"
     if not img_dir.exists():
         return []
-    return [f for f in img_dir.iterdir() if f.is_file() and f.suffix.lower().lstrip(".") in IMAGE_EXTS]
+    files = [f for f in img_dir.iterdir() if f.is_file() and f.suffix.lower().lstrip(".") in IMAGE_EXTS]
+    # Deduplicar por nombre de escena (stem): si quedan 00001_src.jpg Y 00001_src.png
+    # a la vez (restos de una regeneracion en otro formato), cuentan como UNA sola
+    # escena -- sin esto se duplica en el render (misma escena dos veces) y en
+    # get_project_content() (misma escena aparece 2 veces con el mismo indice,
+    # ambas emparejadas al mismo video -- colision de key + conteos inflados).
+    by_stem: dict[str, Path] = {}
+    for f in sorted(files, key=lambda p: p.name.lower()):
+        by_stem.setdefault(f.stem, f)
+    return list(by_stem.values())
 
 
 def list_videos(project: str) -> list[Path]:
     vid_dir = project_dir(project) / "video"
     return list(vid_dir.glob("*.mp4")) if vid_dir.exists() else []
+
+
+def write_image_file(project: str, filename: str, data: bytes) -> Path:
+    img_dir = project_dir(project) / "imagen"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    path = img_dir / filename
+    path.write_bytes(data)
+    return path
+
+
+def write_video_file(project: str, filename: str, data: bytes) -> Path:
+    vid_dir = project_dir(project) / "video"
+    vid_dir.mkdir(parents=True, exist_ok=True)
+    path = vid_dir / filename
+    path.write_bytes(data)
+    return path
 
 
 def list_final_videos(project: str) -> list[str]:

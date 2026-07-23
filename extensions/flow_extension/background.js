@@ -220,6 +220,147 @@ function registerBearer(hash, bearer, email) {
   }).catch(function(){});
 }
 
+// ── Vibes: bridge propio en el puerto 8080 (mismo Flask que sirve el resto de la
+// app, ver src/infrastructure/ai_providers/vibes_bridge.py), separado del bridge
+// compartido de Flow (5556/5557). El poll/post real tiene que salir DESDE ESTE
+// service worker, no desde un content script (ni MAIN ni ISOLATED) -- confirmado
+// en vivo (2026-07-20): Chrome bloquea con "Permission was denied for this
+// request to access the `loopback` address space" (Local Network Access) un
+// fetch() a 127.0.0.1 hecho por CUALQUIER content script de una pestaña publica,
+// sin importar el "world" ni los host_permissions declarados. Solo el contexto
+// propio de la extension (este background) queda exento -- por eso Flow, que
+// siempre pollea desde aca (pollBridge() arriba), nunca tuvo este problema.
+var VIBES_BRIDGE_BASE = "http://127.0.0.1:8080/api/vibes";
+var _vibesTabId = null;
+var _vibesPollTimer = null;
+
+function vibesPoll() {
+  if (!_vibesTabId) return;
+  fetch(VIBES_BRIDGE_BASE + "/poll?account=default&max=10")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var reqs = (data && data.requests) || [];
+      if (!reqs.length || !_vibesTabId) return;
+      reqs.forEach(function (job) {
+        chrome.tabs.sendMessage(_vibesTabId, { type: "VIBES_JOB", job: job }, function () {
+          void chrome.runtime.lastError; // pestaña cerrada entre el poll y el dispatch -- se ignora
+        });
+      });
+    })
+    .catch(function () {});
+}
+
+function vibesSendResult(payload) {
+  fetch(VIBES_BRIDGE_BASE + "/result", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload), keepalive: true
+  }).catch(function(){});
+}
+
+function _ensureVibesPollTimer() {
+  if (_vibesPollTimer) return;
+  _vibesPollTimer = setInterval(vibesPoll, 1200);
+}
+function _stopVibesPollTimer() {
+  if (!_vibesPollTimer) return;
+  clearInterval(_vibesPollTimer);
+  _vibesPollTimer = null;
+}
+
+// ── Qwen: mismo patron que Vibes arriba (bridge propio en el puerto 8080,
+// poll/post real desde este service worker por la misma restriccion de Local
+// Network Access) pero con una diferencia clave: cada cuenta Qwen corre en su
+// PROPIO proceso de Chromium (perfil + extension propios), asi que no hace
+// falta un mapa cuenta->tab como en Flow -- este service worker en particular
+// solo va a ver UNA pestaña de chat.qwen.ai en toda su vida (la de su propio
+// perfil), y ya sabe de antemano cual cuenta es (se la paso yo mismo al
+// lanzar Chromium via ?imperio_qwen_account=<nombre>).
+var QWEN_TAB_RE = /^https:\/\/([\w-]+\.)?qwen\.ai\//;
+var QWEN_BRIDGE_BASE = "http://127.0.0.1:8080/api/qwen";
+var _qwenAccountName = null;
+var _qwenTabId = null;
+var _qwenPollTimer = null;
+
+function qwenPoll() {
+  if (!_qwenTabId || !_qwenAccountName) return;
+  fetch(QWEN_BRIDGE_BASE + "/poll?account=" + encodeURIComponent(_qwenAccountName) + "&max=10")
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var reqs = (data && data.requests) || [];
+      if (!reqs.length || !_qwenTabId) return;
+      reqs.forEach(function (job) {
+        chrome.tabs.sendMessage(_qwenTabId, { type: "QWEN_JOB", job: job }, function () {
+          void chrome.runtime.lastError; // pestaña cerrada entre el poll y el dispatch -- se ignora
+        });
+      });
+    })
+    .catch(function () {});
+}
+
+function qwenSendResult(payload) {
+  fetch(QWEN_BRIDGE_BASE + "/result", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload), keepalive: true
+  }).catch(function(){});
+}
+
+function _ensureQwenPollTimer() {
+  if (_qwenPollTimer) return;
+  _qwenPollTimer = setInterval(qwenPoll, 1200);
+}
+function _stopQwenPollTimer() {
+  if (!_qwenPollTimer) return;
+  clearInterval(_qwenPollTimer);
+  _qwenPollTimer = null;
+}
+
+// ── Qwen: adjuntar imagen via CDP (chrome.debugger) -- ningun content script
+// puede asignar input.files por JS, en ningun contexto ni navegador (bloqueo
+// de seguridad del browser, no de permisos de la extension). El unico camino
+// real es que el propio protocolo de depuracion de Chrome se lo asigne, igual
+// que hacen Playwright/Puppeteer por debajo. Deja la barra amarilla de
+// "depurando este navegador" visible unos segundos mientras corre.
+function qwenAttachFile(tabId, selector, filePaths) {
+  return new Promise(function (resolve, reject) {
+    chrome.debugger.attach({ tabId: tabId }, "1.3", function () {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      function detachAndReject(err) {
+        chrome.debugger.detach({ tabId: tabId }, function () { void chrome.runtime.lastError; });
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+      chrome.debugger.sendCommand({ tabId: tabId }, "DOM.getDocument", {}, function (doc) {
+        if (chrome.runtime.lastError || !doc || !doc.root) {
+          detachAndReject(chrome.runtime.lastError || new Error("DOM.getDocument sin resultado"));
+          return;
+        }
+        chrome.debugger.sendCommand(
+          { tabId: tabId }, "DOM.querySelector",
+          { nodeId: doc.root.nodeId, selector: selector },
+          function (node) {
+            if (chrome.runtime.lastError || !node || !node.nodeId) {
+              detachAndReject(chrome.runtime.lastError || new Error("selector no encontrado: " + selector));
+              return;
+            }
+            chrome.debugger.sendCommand(
+              { tabId: tabId }, "DOM.setFileInputFiles",
+              { files: filePaths, nodeId: node.nodeId },
+              function () {
+                var err = chrome.runtime.lastError;
+                chrome.debugger.detach({ tabId: tabId }, function () { void chrome.runtime.lastError; });
+                if (err) reject(new Error(err.message));
+                else resolve(true);
+              }
+            );
+          }
+        );
+      });
+    });
+  });
+}
+
 chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   if (!msg || !msg.type) return;
 
@@ -300,6 +441,57 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
       .catch(function() { sendResponse({ ok: false }); });
     return true;
   }
+
+  if (msg.type === "VIBES_REGISTER_TAB") {
+    var vTabId = sender.tab && sender.tab.id;
+    var vTabUrl = sender.tab && sender.tab.url;
+    if (vTabId && VIBES_TAB_RE.test(vTabUrl || "")) {
+      _vibesTabId = vTabId;
+      _ensureVibesPollTimer();
+      sendResponse({ ok: true });
+    } else {
+      sendResponse({ ok: false, error: "origin_mismatch" });
+    }
+    return true;
+  }
+
+  if (msg.type === "VIBES_RESULT") {
+    vibesSendResult(msg.payload);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "REGISTER_QWEN_ACCOUNT") {
+    var qTabId = sender.tab && sender.tab.id;
+    var qTabUrl = sender.tab && sender.tab.url;
+    if (qTabId && msg.account && QWEN_TAB_RE.test(qTabUrl || "")) {
+      _qwenAccountName = msg.account;
+      _qwenTabId = qTabId;
+      _ensureQwenPollTimer();
+      sendResponse({ ok: true });
+    } else {
+      sendResponse({ ok: false, error: "origin_mismatch" });
+    }
+    return true;
+  }
+
+  if (msg.type === "QWEN_RESULT") {
+    qwenSendResult(msg.payload);
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "QWEN_ATTACH_FILE") {
+    var qaTabId = sender.tab && sender.tab.id;
+    if (!qaTabId) {
+      sendResponse({ ok: false, error: "no_tab" });
+      return true;
+    }
+    qwenAttachFile(qaTabId, msg.selector || "#filesUpload", msg.filePaths || [])
+      .then(function () { sendResponse({ ok: true }); })
+      .catch(function (err) { sendResponse({ ok: false, error: String((err && err.message) || err) }); });
+    return true; // respuesta asincrona
+  }
 });
 
 chrome.runtime.onConnect.addListener(function(port) {
@@ -312,6 +504,8 @@ chrome.tabs.onRemoved.addListener(function(tabId) {
   if (hash) { delete _accountToTab[hash]; delete _activeRequests[hash]; }
   delete _tabToAccount[tabId];
   delete _recentlyCreatedTabs[tabId];
+  if (_vibesTabId === tabId) { _vibesTabId = null; _stopVibesPollTimer(); }
+  if (_qwenTabId === tabId) { _qwenTabId = null; _qwenAccountName = null; _stopQwenPollTimer(); }
 });
 
 // ── Anti-throttling: Chrome congela los timers (setTimeout/setInterval) de
@@ -439,10 +633,92 @@ function _scheduleRotate() {
 }
 _scheduleRotate();
 
+// ── GenTube: deteccion de sesion via chrome.cookies -- SIN content script, a
+// diferencia de Flow/Qwen/Vibes. Las cookies de sesion de Clerk (__session/
+// __session_yakpvnhU) son httpOnly -- document.cookie de un content script no
+// las puede leer, chrome.cookies.getAll desde este service worker si. El
+// account_hash NO se calcula aca: se manda el cookie header crudo tal cual y el
+// backend (gentube_bridge.py) decide la identidad decodificando el JWT del lado
+// Python (reusa gentube_service.probe_session, ya probado) -- evita duplicar
+// ese parseo en JS y evita que un JWT rotante (Clerk lo renueva cada ~1 min)
+// vuelva inestable el hash si se calculara aca.
+var GENTUBE_BRIDGE_BASE = "http://127.0.0.1:8080/api/gentube";
+
+function gentubeCookieCheck() {
+  chrome.cookies.getAll({ url: "https://www.gentube.app/" }, function (cookies) {
+    if (!cookies || !cookies.length) return;
+    var hasSession = cookies.some(function (c) {
+      return (c.name === "__session" || c.name === "__session_yakpvnhU") && c.value;
+    });
+    if (!hasSession) return;
+    var cookieHeader = cookies.map(function (c) { return c.name + "=" + c.value; }).join("; ");
+    fetch(GENTUBE_BRIDGE_BASE + "/bridge-register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookie: cookieHeader })
+    }).catch(function () {});
+  });
+}
+
+// ── Grok: deteccion de sesion via chrome.cookies -- SOLO detecta/captura sesion
+// (la generacion sigue siendo API HTTP directa desde Python, ver grok_service.py).
+// Misma cascada de consultas que popup.js usa para "Copiar cookies de Grok"
+// (chrome.cookies.getAll por url/domain, con fallback a partitionKey si no
+// aparece cf_clearance -- cookies particionadas/CHIPS) -- NO simplificar esa
+// cascada, ya esta confirmada en vivo contra grok.com. El account_hash tampoco
+// se calcula aca: se manda la lista cruda de cookies y el backend
+// (grok_session_bridge.py) deriva la identidad del valor de `sso`.
+var GROK_BRIDGE_BASE = "http://127.0.0.1:8080/api/grok";
+
+function grokCookieCheck() {
+  var merged = [];
+  var seen = {};
+  function addCookies(cookies) {
+    (cookies || []).forEach(function (c) {
+      if (!seen[c.name]) { seen[c.name] = true; merged.push(c); }
+    });
+  }
+  function finalize() {
+    if (!seen["sso"]) return;
+    fetch(GROK_BRIDGE_BASE + "/bridge-register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cookies: merged })
+    }).catch(function () {});
+  }
+  function tryPartitioned() {
+    try {
+      chrome.cookies.getAll({ url: "https://grok.com", partitionKey: { topLevelSite: "https://grok.com" } }, function (cp1) {
+        addCookies(cp1);
+        try {
+          chrome.cookies.getAll({ url: "https://grok.com", partitionKey: {} }, function (cp2) {
+            addCookies(cp2);
+            finalize();
+          });
+        } catch (e) { finalize(); }
+      });
+    } catch (e) { finalize(); }
+  }
+  chrome.cookies.getAll({ url: "https://grok.com" }, function (c1) {
+    addCookies(c1);
+    chrome.cookies.getAll({ domain: "grok.com" }, function (c2) {
+      addCookies(c2);
+      chrome.cookies.getAll({ domain: ".grok.com" }, function (c3) {
+        addCookies(c3);
+        if (!seen["cf_clearance"]) tryPartitioned();
+        else finalize();
+      });
+    });
+  });
+}
+
 try {
   chrome.alarms.create("hb", { periodInMinutes: 0.5 });
   chrome.alarms.onAlarm.addListener(function(a) {
-    if (a.name === "hb") { Object.keys(_accountToTab).forEach(registerHttp); wsConnect(); }
+    if (a.name === "hb") {
+      Object.keys(_accountToTab).forEach(registerHttp);
+      wsConnect();
+      gentubeCookieCheck();
+      grokCookieCheck();
+    }
   });
 } catch(e) {}
 

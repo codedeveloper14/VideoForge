@@ -1,10 +1,12 @@
-"""Cola en memoria para la generacion de video en vibes.ai, consultada por polling
-HTTP normal a traves del MISMO puerto Flask que sirve el resto de la app (igual que
-meta_bridge.js hace con /api/meta/ext-poll) -- nada de servidores WebSocket o HTTP
-aparte. Un intento anterior con un servidor WS/HTTP dedicado en puertos propios
-(5560/5561) resulto poco confiable (handshakes que se cuelgan, puertos zombie de
-corridas previas) -- el patron de Meta, reusando el Flask ya activo, es el que de
-verdad funciona en este entorno.
+"""Cola en memoria para create_chat/submit_completion en chat.qwen.ai, consultada por
+polling HTTP normal a traves del MISMO puerto Flask que sirve el resto de la app --
+mismo patron que vibes_bridge.py (nada de servidores WebSocket o HTTP aparte).
+
+A diferencia de Vibes (una sola sesion, account="default" fijo), cada cuenta Qwen
+corre en su PROPIO proceso de Chromium (perfil propio, extension propia) -- por
+eso `account` acá es siempre el nombre real de la cuenta (account_1, account_2, ...)
+en vez de un valor fijo, y varias cuentas pueden estar conectadas en simultaneo sin
+que hagan falta mapas cuenta->tab (eso ya lo resuelve tener un proceso por cuenta).
 
 Delega en AccountPresenceBridge (ver account_presence_bridge.py) -- este modulo solo
 expone wrappers con el mismo nombre/firma que antes, para no tocar ningun caller."""
@@ -13,7 +15,7 @@ from src.infrastructure.ai_providers.account_presence_bridge import AccountPrese
 
 _SEEN_TTL = 30.0
 
-_presence = AccountPresenceBridge(seen_ttl=_SEEN_TTL, queue_account_field="account", queue_account_default="default")
+_presence = AccountPresenceBridge(seen_ttl=_SEEN_TTL)
 
 
 def connected_accounts() -> list[str]:

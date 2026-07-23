@@ -1,18 +1,57 @@
 from apiflask import APIBlueprint
-from flask import jsonify, send_file
+from flask import current_app, jsonify, request, send_file
 
 from src.domain.services import vibes_animation_service
+from src.infrastructure.ai_providers import vibes_bridge
 from src.presentation.schemas.vibes import (
     VibesAbrirCarpetaInSchema,
     VibesAccountInSchema,
     VibesDetenerInSchema,
-    VibesIniciarInSchema,
     VibesLogQuerySchema,
     VibesVideoQuerySchema,
     VibesVideosQuerySchema,
 )
 
 vibes_bp = APIBlueprint("vibes", __name__, url_prefix="/api/vibes")
+
+
+def _vibes_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Access-Control-Request-Private-Network"
+    )
+    response.headers["Access-Control-Allow-Private-Network"] = "true"
+    return response
+
+
+# ─────────────────────────────────────────────────────────────────
+# Bridge de la extension para vibes.ai (vibes_bridge.js hace polling normal
+# via el mismo puerto Flask que sirve el resto de la app -- ver vibes_bridge.py)
+# ─────────────────────────────────────────────────────────────────
+
+
+@vibes_bp.route("/poll", methods=["GET", "OPTIONS"])
+def poll():
+    if request.method == "OPTIONS":
+        return _vibes_cors(current_app.make_response("")), 204
+    account = request.args.get("account", "default")
+    max_raw = request.args.get("max", "1")
+    try:
+        max_take = max(1, int(max_raw))
+    except (ValueError, TypeError):
+        max_take = 1
+    reqs = vibes_bridge.poll(account, max_take)
+    return _vibes_cors(jsonify({"requests": reqs}))
+
+
+@vibes_bp.route("/result", methods=["POST", "OPTIONS"])
+def result():
+    if request.method == "OPTIONS":
+        return _vibes_cors(current_app.make_response("")), 204
+    data = request.get_json(silent=True) or {}
+    vibes_bridge.post_result(data.get("requestId", ""), data)
+    return _vibes_cors(jsonify({"ok": True}))
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -57,24 +96,30 @@ def launch_chrome():
 
 
 @vibes_bp.post("/iniciar")
-@vibes_bp.input(VibesIniciarInSchema)
-def iniciar(json_data):
-    video_params = {
-        "aspect_ratio": json_data["aspect_ratio"],
-        "resolution": json_data["resolution"],
-        "prompt_model": json_data["prompt_model"],
-        "image_model": json_data["image_model"],
-        "video_model": json_data["video_model"],
-        "batch_variation": json_data["batch_variation"],
-    }
+def iniciar():
+    """Multipart form: project_name, prompt, slots, timeout, reference_image (b64,
+    solo si NO se suben imagenes) + archivos imagen_0, imagen_1, ... (opcionales --
+    una por job, "slots" videos c/u; sin imagenes cae al modo prompt+variaciones)."""
+    project_name = request.form.get("project_name", "").strip()
+    prompt = request.form.get("prompt", "")
+    slots = int(request.form.get("slots", 1))
+    timeout_sec = int(request.form.get("timeout", 300))
+    reference_image = request.form.get("reference_image") or None
+
+    img_keys = sorted(
+        (k for k in request.files if k.startswith("imagen_")),
+        key=lambda x: int(x.split("_")[1]),
+    )
+    images = [(request.files[k].filename, request.files[k]) for k in img_keys] or None
+
     try:
         result = vibes_animation_service.start_batch(
-            json_data["project_name"],
-            json_data["prompt"],
-            json_data["slots"],
-            video_params,
-            json_data["timeout"],
-            ref_image_b64=json_data.get("reference_image") or None,
+            project_name,
+            prompt,
+            slots,
+            timeout_sec,
+            images=images,
+            ref_image_b64=reference_image if not images else None,
         )
         return jsonify(result)
     except ValueError as exc:

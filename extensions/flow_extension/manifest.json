@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "VideoForge - Cookie Helper",
-  "version": "5.13",
+  "version": "5.14",
   "description": "Copia o exporta las cookies de Google Flow con un clic para usar en Imperio Studio",
   "permissions": [
     "cookies",
     "activeTab",
     "storage",
     "alarms",
-    "tabs"
+    "tabs",
+    "debugger"
   ],
   "host_permissions": [
     "https://labs.google/*",
@@ -22,9 +23,10 @@
     "https://www.dubvoice.ai/*",
     "https://*.dubvoice.ai/*",
     "https://*.supabase.co/*",
-    "https://www.meta.ai/*",
     "https://vibes.ai/*",
     "https://www.vibes.ai/*",
+    "https://www.gentube.app/*",
+    "https://gentube.app/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*",
@@ -79,7 +81,7 @@
       "js": [
         "qwen_bridge.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": [
@@ -124,25 +126,14 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.meta.ai/*"],
-      "js": ["meta_token_gen.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": ["https://www.meta.ai/*"],
-      "js": ["meta_bridge.js"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://vibes.ai/*"],
+      "matches": ["https://vibes.ai/*", "https://www.vibes.ai/*"],
       "js": ["vibes_bridge.js"],
       "run_at": "document_idle",
       "world": "MAIN"
     },
     {
-      "matches": ["https://www.vibes.ai/*"],
-      "js": ["vibes_content.js"],
+      "matches": ["https://vibes.ai/*", "https://www.vibes.ai/*"],
+      "js": ["vibes_relay.js"],
       "run_at": "document_idle"
     }
   ],

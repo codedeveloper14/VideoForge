@@ -1,10 +1,37 @@
 import json
 import os
+import platform
+import shutil
 import subprocess
+from functools import lru_cache
 
+from src.utils.paths import get_bundled_ffmpeg_dir
 from src.utils.platform_utils import no_window_kwargs
 
 _h264_encode_cache: list[str] | None = None
+_EXE_SUFFIX = ".exe" if platform.system() == "Windows" else ""
+
+
+@lru_cache(maxsize=1)
+def ffmpeg_exe() -> str:
+    """Ruta al ffmpeg a usar: el bundleado con la app si existe (instalador,
+    scripts/fetch_ffmpeg_windows.py), sino el del PATH del sistema (dev sin correr
+    el fetch script todavia, o plataformas sin bundle -- Mac por ahora). Nunca
+    depender solo del PATH en un build compilado: el cliente final no tiene
+    ffmpeg instalado por defecto."""
+    bundled = get_bundled_ffmpeg_dir() / f"ffmpeg{_EXE_SUFFIX}"
+    if bundled.is_file():
+        return str(bundled)
+    return shutil.which("ffmpeg") or "ffmpeg"
+
+
+@lru_cache(maxsize=1)
+def ffprobe_exe() -> str:
+    """Ver ffmpeg_exe() -- misma logica de resolucion para ffprobe."""
+    bundled = get_bundled_ffmpeg_dir() / f"ffprobe{_EXE_SUFFIX}"
+    if bundled.is_file():
+        return str(bundled)
+    return shutil.which("ffprobe") or "ffprobe"
 
 # Timeout por defecto para pasos "pesados" (concat/filter_complex sobre varios
 # segmentos, mux final) -- 300s cubre renders largos sin dejar un ffmpeg
@@ -45,7 +72,7 @@ def ffprobe_duration(path: str) -> float:
             return 0.0
         r = subprocess.run(
             [
-                "ffprobe",
+                ffprobe_exe(),
                 "-v",
                 "error",
                 "-show_entries",
@@ -206,7 +233,7 @@ def final_mux_aligned(
     if abs(v_dur - dt) <= eps:
         _lg(f"Mux final: video~audio ({v_dur:.2f}s~{dt:.2f}s), copiando video sin re-encode")
         cmd = [
-            "ffmpeg",
+            ffmpeg_exe(),
             "-y",
             "-i",
             concat_out,
@@ -253,7 +280,7 @@ def final_mux_aligned(
     vf = ",".join(v_parts)
     fc = f"[0:v]{vf}[vout];[1:a]{af}[aout]"
     _lg("Mux final: re-encode de video para alinear duracion (libx264 ultrafast por defecto)")
-    base_cmd = ["ffmpeg", "-y", "-i", concat_out, "-i", audio_path_mix, "-filter_complex", fc] + [
+    base_cmd = [ffmpeg_exe(), "-y", "-i", concat_out, "-i", audio_path_mix, "-filter_complex", fc] + [
         "-map",
         "[vout]",
         "-map",

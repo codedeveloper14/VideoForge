@@ -1,18 +1,25 @@
 import json
+import os
 import tempfile
 import threading
 import zipfile
 from io import BytesIO
 from pathlib import Path
 
+from src.domain.services.account_slot_assigner import SlotAssigner
 from src.domain.services.project_service import sanitize_name
-from src.infrastructure.ai_providers import grok_process, grok_service
+from src.infrastructure.ai_providers import grok_process, grok_service, grok_session_bridge
 from src.infrastructure.storage import project_repository
 from src.utils.logger import get_logger
 from src.utils.paths import get_grok_accounts_dir, get_grok_downloads_dir
 from src.utils.platform_utils import open_folder
 
 logger = get_logger(__name__)
+
+# 10 carpetas pre-creadas por ensure_accounts_setup (account_1..account_10, ver
+# grok_service.py) -- mismo limite que usa el slot assigner de la deteccion
+# automatica de sesion.
+_NUM_ACCOUNTS = 10
 
 # Estado indexado por proyecto (sanitize_name) -- antes era un unico dict a
 # nivel de modulo compartido por TODOS los proyectos: lanzar un batch para un
@@ -74,6 +81,123 @@ def list_sessions() -> list[dict]:
     return grok_service.list_account_sessions(accounts_dir)
 
 
+# ── Deteccion automatica de sesion via la extension (bridge de Chrome) ───────────
+# grok_session_bridge.py detecta la cookie `sso` via background.js (chrome.cookies,
+# ver el comentario de ese modulo) y avisa aca en cuanto hay una sesion valida.
+# El listener escribe cookies_auto.json en el MISMO formato que ya produce
+# grok_service.login_account_managed() -- list_account_sessions()/GrokAccountClient
+# la detectan sin ningun cambio adicional, como si el usuario hubiera hecho login
+# manual. La generacion (API HTTP directa) no se toca.
+_slot_assigner: SlotAssigner | None = None
+
+
+def _get_slot_assigner() -> SlotAssigner:
+    global _slot_assigner
+    if _slot_assigner is None:
+        _slot_assigner = SlotAssigner(
+            sidecar_dir=get_grok_accounts_dir(),
+            prefix="grok_account",
+            num_slots=_NUM_ACCOUNTS,
+            valid_hash_prefix="gr:",
+        )
+    return _slot_assigner
+
+
+def _sso_from_cookie_list(cookies: list) -> str:
+    for c in cookies:
+        if isinstance(c, dict) and c.get("name") == "sso":
+            return c.get("value") or ""
+    return ""
+
+
+def _find_slot_for_existing_sso(accounts_dir: Path, sso: str) -> int | None:
+    """Reconcilia con carpetas de cuenta que ya tenian cookies_auto.json ANTES de
+    que existiera este bridge (sin sidecar hash->slot, p. ej. un login manual
+    previo) -- si alguna YA tiene la MISMA cookie `sso` (misma sesion real), hay
+    que reusar ese slot en vez de crear uno nuevo. Sin este chequeo, la primera
+    vez que el bridge detecta una cuenta ya logueada antes, el slot con la cookie
+    vieja aparece "ocupado" por otra cuenta y se duplica la misma sesion en dos
+    carpetas distintas (mismo bug que se corrigio en GenTube)."""
+    if not sso:
+        return None
+    for i in range(_NUM_ACCOUNTS):
+        ck_file = accounts_dir / f"account_{i + 1}" / "cookies_auto.json"
+        if not ck_file.exists():
+            continue
+        try:
+            existing_cookies = json.loads(ck_file.read_text())
+        except Exception:
+            continue
+        if _sso_from_cookie_list(existing_cookies) == sso:
+            return i
+    return None
+
+
+# Serializa TODO el cuerpo de _on_bridge_session -- ver el comentario identico en
+# gentube_animation_service.py (bug confirmado en produccion 2026-07-23): sin este
+# lock, dos llamadas casi simultaneas pueden leer cookies_auto.json a mitad de
+# la escritura de la otra, fallar la reconciliacion por sso, y crear una carpeta
+# de cuenta duplicada para la misma sesion real.
+_bridge_session_lock = threading.Lock()
+
+
+def _write_json_atomic(path: Path, data) -> None:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _on_bridge_session(account_hash: str, meta: dict) -> None:
+    cookies = meta.get("cookies") or []
+    if not cookies:
+        return
+    with _bridge_session_lock:
+        accounts_dir = get_grok_accounts_dir()
+        grok_service.ensure_accounts_setup(accounts_dir)
+
+        def _slot_taken(i: int) -> bool:
+            return (accounts_dir / f"account_{i + 1}" / "cookies_auto.json").exists()
+
+        idx = _find_slot_for_existing_sso(accounts_dir, _sso_from_cookie_list(cookies))
+        if idx is not None:
+            # Reconciliado con una carpeta que ya existia en disco -- registrar el
+            # atajo en memoria para que la PROXIMA deteccion de este mismo hash no
+            # vuelva a escanear el disco entero.
+            _get_slot_assigner().bind(account_hash, idx)
+        else:
+            idx = _get_slot_assigner().assign_slot(account_hash, slot_taken_on_disk=_slot_taken)
+        if idx is None:
+            logger.info(
+                "[grok] Sin slots libres (limite %d) - sesion detectada via extension descartada", _NUM_ACCOUNTS
+            )
+            return
+
+        folder = accounts_dir / f"account_{idx + 1}"
+        folder.mkdir(parents=True, exist_ok=True)
+        cookie_list = [
+            {
+                "name": c.get("name"),
+                "value": c.get("value"),
+                "domain": ".grok.com",
+                "path": "/",
+                "httpOnly": bool(c.get("httpOnly", False)),
+                "secure": bool(c.get("secure", True)),
+            }
+            for c in cookies
+            if isinstance(c, dict) and c.get("name") and c.get("value")
+        ]
+        if not cookie_list:
+            return
+        already_active = (folder / "cookies_auto.json").exists()
+        _write_json_atomic(folder / "cookies_auto.json", cookie_list)
+        _get_slot_assigner().write_sidecar(idx, account_hash, {})
+        if not already_active:
+            logger.info("[grok] Sesion detectada automaticamente via extension -> %s", folder.name)
+
+
+grok_session_bridge.add_session_listener(_on_bridge_session)
+
+
 def start_account_login(account_name: str) -> None:
     """Lanza el login (Playwright, ventana visible) en un hilo de fondo."""
     accounts_dir = get_grok_accounts_dir()
@@ -92,6 +216,30 @@ def start_account_login(account_name: str) -> None:
 def delete_session(account_name: str) -> None:
     accounts_dir = get_grok_accounts_dir()
     grok_service.delete_account_session(accounts_dir, account_name)
+
+
+# Fallback automatico (ver unificacion de deteccion de sesion, Flow de referencia):
+# si al arrancar un lote no hay NINGUNA cuenta con sesion utilizable, abrimos Chrome
+# automaticamente para la primera cuenta en vez de exigir que el usuario vaya a
+# Sesiones y apriete "Login" a mano. Cooldown por cuenta para no reabrir una ventana
+# en cada intento fallido consecutivo.
+_auto_login_last_attempt: dict[str, float] = {}
+_AUTO_LOGIN_COOLDOWN = 60.0
+
+
+def _trigger_auto_login_if_needed(accounts_dir) -> None:
+    import time
+
+    sessions = grok_service.list_account_sessions(accounts_dir)
+    if any(s.get("active") for s in sessions):
+        return
+    target = sessions[0]["name"] if sessions else "account_1"
+    now = time.time()
+    if now - _auto_login_last_attempt.get(target, 0) < _AUTO_LOGIN_COOLDOWN:
+        return
+    _auto_login_last_attempt[target] = now
+    logger.info("[grok] Sin sesion disponible - abriendo Chrome automaticamente para %s", target)
+    start_account_login(target)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -124,6 +272,10 @@ def start_batch(
     proj_dir = project_repository.create_project(name)
     accounts_dir = get_grok_accounts_dir()
     grok_service.ensure_accounts_setup(accounts_dir)
+    try:
+        _trigger_auto_login_if_needed(accounts_dir)
+    except Exception:
+        logger.exception("[grok] fallback de auto-login fallo")
 
     if not images:
         raise ValueError("No se recibieron imagenes")

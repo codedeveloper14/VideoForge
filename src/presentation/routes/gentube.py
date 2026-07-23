@@ -2,12 +2,27 @@ from apiflask import APIBlueprint
 from flask import jsonify, request, send_file
 
 from src.domain.services import gentube_animation_service
+from src.infrastructure.ai_providers import gentube_bridge
 from src.presentation.schemas.gentube import GentubeRunPromptsInSchema
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 gentube_bp = APIBlueprint("gentube", __name__, url_prefix="/api/gentube")
+
+
+# ─────────────────────────────────────────────────────────────────
+# Bridge de deteccion de sesion (background.js hace chrome.cookies.getAll en
+# gentube.app y postea aca -- ver gentube_bridge.py y el comentario del alarm
+# "hb" en extensions/flow_extension/background.js).
+# ─────────────────────────────────────────────────────────────────
+
+
+@gentube_bp.post("/bridge-register")
+def bridge_register():
+    data = request.get_json(silent=True) or {}
+    probe = gentube_bridge.set_session_from_cookie(data.get("cookie", ""))
+    return jsonify({"ok": bool(probe.get("ok"))})
 
 
 @gentube_bp.get("/status")
@@ -64,12 +79,12 @@ def reset():
 
 @gentube_bp.get("/images")
 def images():
-    return jsonify(gentube_animation_service.list_images())
+    return jsonify(gentube_animation_service.list_images(request.args.get("dir")))
 
 
 @gentube_bp.get("/image/<path:name>")
 def image(name):
-    path = gentube_animation_service.get_image_path(name)
+    path = gentube_animation_service.get_image_path(name, request.args.get("dir"))
     if not path:
         return jsonify({"error": "not found"}), 404
     return send_file(path)
@@ -77,5 +92,6 @@ def image(name):
 
 @gentube_bp.post("/clear-images")
 def clear_images():
-    gentube_animation_service.clear_images()
+    data = request.get_json(silent=True) or {}
+    gentube_animation_service.clear_images(data.get("output_dir"))
     return jsonify({"ok": True})

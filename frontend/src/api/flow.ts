@@ -179,6 +179,8 @@ export function flowMtime(dir: string, file: string) {
   return api.get<{ mtime: number }>("/flow/mtime", { params: { dir, file } }).then((r) => r.data);
 }
 
-export function flowAbrirCarpeta() {
-  return api.post<{ ok: boolean }>("/flow/abrir_carpeta").then((r) => r.data);
+export function flowAbrirCarpeta(output_dir?: string) {
+  return api
+    .post<{ ok: boolean }>("/flow/abrir_carpeta", output_dir ? { output_dir } : {})
+    .then((r) => r.data);
 }

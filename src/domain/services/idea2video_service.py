@@ -563,7 +563,7 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
 
                 r1 = subprocess.run(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-f",
                         "concat",
@@ -598,7 +598,7 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                 if audio:
                     r2 = subprocess.run(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-i",
                             tmp_vid,
@@ -644,7 +644,7 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
 
                 r1 = subprocess.run(
                     [
-                        "ffmpeg",
+                        ffmpeg_utils.ffmpeg_exe(),
                         "-y",
                         "-f",
                         "concat",
@@ -681,7 +681,7 @@ def _worker(job_id: str, script: str, voice_id: str) -> None:
                     upd("ensamblar", "active", "Mezclando video con audio...")
                     r2 = subprocess.run(
                         [
-                            "ffmpeg",
+                            ffmpeg_utils.ffmpeg_exe(),
                             "-y",
                             "-i",
                             tmp_vid,

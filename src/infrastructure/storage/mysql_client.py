@@ -12,6 +12,12 @@ logger = get_logger(__name__)
 # de cerrarlas de verdad, asi que los repositorios no necesitan cambiar nada.
 _pool = None
 
+# Mensaje amigable para CUALQUIER fallo de conexion (timeout, host inalcanzable,
+# pool agotado) -- nunca el texto crudo del driver (p. ej. pymysql renderiza
+# "(2003, "Can't connect to MySQL server on '...' (timed out)")"), que sin este
+# wrapping se colaba tal cual hasta pantallas como Login ("⚠ (2003, ...)").
+_DB_LOADING_MSG = "Cargando la base de datos, esperá unos segundos e intentá de nuevo."
+
 
 def _build_pool(host: str):
     import pymysql
@@ -69,8 +75,21 @@ def _get_pool():
         except Exception:
             pass
 
-    raise DatabaseError(f"Error conectando a la base de datos: {last_err}")
+    logger.error("Error conectando a la base de datos: %s", last_err)
+    raise DatabaseError(_DB_LOADING_MSG) from last_err
 
 
 def get_connection():
-    return _get_pool().connection()
+    """Conexion del pool -- si el pool ya existe pero la conexion en si falla recien
+    ahora (blip de red al MySQL remoto, las conexiones cacheadas quedaron muertas),
+    DBUtils/pymysql propagan el error CRUDO del driver sin pasar por el wrapping de
+    _get_pool() de arriba. Se envuelve tambien aca para que ningun llamador (auth,
+    docs, usage, stripe) vea nunca ese texto crudo -- el detalle real queda en el
+    log, no en pantalla."""
+    try:
+        return _get_pool().connection()
+    except DatabaseError:
+        raise
+    except Exception as exc:
+        logger.error("Error obteniendo conexion del pool: %s", exc)
+        raise DatabaseError(_DB_LOADING_MSG) from exc

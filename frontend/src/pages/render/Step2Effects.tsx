@@ -33,6 +33,7 @@ interface Step2EffectsProps {
   onBack: () => void;
   onSubmit: () => void;
   submitting: boolean;
+  error?: string;
 }
 
 export default function Step2Effects({
@@ -53,6 +54,7 @@ export default function Step2Effects({
   onBack,
   onSubmit,
   submitting,
+  error,
 }: Step2EffectsProps) {
   const { t } = useTranslation();
   const motionOptions = MOTIONS.map((m) => ({ value: m.value, label: t(m.labelKey), sub: t(m.subKey), icon: m.icon }));
@@ -153,6 +155,8 @@ export default function Step2Effects({
           </div>
         </Card>
       </div>
+
+      {error && <p className="mt-4 text-sm text-[var(--vf-danger)]">{error}</p>}
 
       <div className="mt-6 flex gap-3">
         <button

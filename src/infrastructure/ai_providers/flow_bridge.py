@@ -10,6 +10,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from src.infrastructure.ai_providers.account_presence_bridge import AccountPresenceBridge
+
 BRIDGE_PORT = 5556
 WS_PORT = 5557
 
@@ -19,17 +21,14 @@ _HTTP_SEEN_TTL = 60.0
 _started = {"bridge": False, "ws": False}
 _bind_ok = {"bridge": False, "ws": False}
 
-_bridge_queue: list[dict] = []
-_bridge_q_lock = threading.Lock()
-_bridge_results: dict[str, dict] = {}
-_bridge_r_lock = threading.Lock()
-_bridge_r_events: dict[str, threading.Event] = {}
+# Cola de jobs pendientes + "visto hace poco" (parte HTTP del bridge). La parte WS
+# (_ws_clients) y la cache de bearer (_bearer_cache) se quedan aparte, tal como
+# estaban, porque flow_animation_service.py y FlowPanel.tsx dependen del contrato
+# exacto de get_connected_accounts()/get_live_accounts() (union ws+http+bearer).
+_presence = AccountPresenceBridge(seen_ttl=_HTTP_SEEN_TTL, queue_account_field="account_hash")
 
 _ws_clients: dict[str, object] = {}
 _ws_clients_lock = threading.Lock()
-
-_http_seen: dict[str, float] = {}
-_http_seen_lock = threading.Lock()
 
 # La extension envia su bearer fresco al registrarse: {account_hash: {"bearer","ts","email"}}
 _bearer_cache: dict[str, dict] = {}
@@ -95,11 +94,7 @@ def get_connected_accounts() -> list[str]:
     with _ws_clients_lock:
         ws_accounts = set(_ws_clients.keys())
     now = time.time()
-    with _http_seen_lock:
-        stale = [a for a, t in _http_seen.items() if now - t > _HTTP_SEEN_TTL]
-        for a in stale:
-            del _http_seen[a]
-        http_accounts = set(_http_seen.keys())
+    http_accounts = set(_presence.connected_accounts())
     # Cuentas con bearer reciente en cache (<=10 min) tambien cuentan como conectadas,
     # aunque el service worker haya muerto y ya no se rastreen por WS/HTTP.
     with _bearer_cache_lock:
@@ -125,36 +120,25 @@ def ws_push(account_hash: str, request_data: dict) -> bool:
 
 
 def ws_drain_queue(account_hash: str) -> None:
-    with _bridge_q_lock:
-        remaining, to_send = [], []
-        for r in _bridge_queue:
-            if r.get("account_hash", "") == account_hash and len(to_send) < 10:
-                to_send.append(r)
-            else:
-                remaining.append(r)
-        _bridge_queue[:] = remaining
+    to_send = _presence.take(account_hash, max_take=10)
     for req in to_send:
         ws_push(account_hash, req)
 
 
 def enqueue_request(request_data: dict) -> None:
-    with _bridge_q_lock:
-        _bridge_queue.append(request_data)
+    _presence.enqueue_request(request_data)
 
 
 def remove_from_queue(request_id: str) -> None:
-    with _bridge_q_lock:
-        _bridge_queue[:] = [r for r in _bridge_queue if r.get("requestId") != request_id]
+    _presence.remove_from_queue(request_id)
 
 
 def clear_queue_for_account(account_hash: str) -> None:
-    with _bridge_q_lock:
-        _bridge_queue[:] = [r for r in _bridge_queue if r.get("account_hash") != account_hash]
+    _presence.clear_queue_for_account(account_hash)
 
 
 def clear_queue() -> None:
-    with _bridge_q_lock:
-        _bridge_queue.clear()
+    _presence.clear_queue()
 
 
 def get_ws_clients() -> dict:
@@ -180,17 +164,11 @@ def remove_ws_client(account_hash: str) -> None:
 
 
 def get_http_seen_accounts() -> set[str]:
-    now = time.time()
-    with _http_seen_lock:
-        stale = [a for a, t in _http_seen.items() if now - t > _HTTP_SEEN_TTL]
-        for a in stale:
-            del _http_seen[a]
-        return set(_http_seen.keys())
+    return set(_presence.connected_accounts())
 
 
 def remove_http_seen(account_hash: str) -> None:
-    with _http_seen_lock:
-        _http_seen.pop(account_hash, None)
+    _presence.forget(account_hash)
 
 
 def get_bearer_cache_hashes() -> set[str]:
@@ -201,23 +179,17 @@ def get_bearer_cache_hashes() -> set[str]:
 
 
 def register_result_waiter(request_id: str) -> threading.Event:
-    event = threading.Event()
-    with _bridge_r_lock:
-        _bridge_r_events[request_id] = event
-    return event
+    return _presence.register_result_waiter(request_id)
 
 
 def try_pop_result(request_id: str) -> dict | None:
     """No bloqueante: devuelve el resultado si ya llego, sin tocar el waiter (el
     llamador sigue esperando en su propio Event hasta el timeout)."""
-    with _bridge_r_lock:
-        return _bridge_results.pop(request_id, None)
+    return _presence.try_pop_result(request_id)
 
 
 def cleanup_waiter(request_id: str) -> None:
-    with _bridge_r_lock:
-        _bridge_r_events.pop(request_id, None)
-        _bridge_results.pop(request_id, None)
+    _presence.cleanup_waiter(request_id)
 
 
 def get_live_accounts() -> list[dict]:
@@ -253,8 +225,7 @@ def get_live_accounts() -> list[dict]:
 
 
 def status() -> dict:
-    with _bridge_q_lock:
-        pending = len(_bridge_queue)
+    pending = _presence.queue_length()
     with _ws_clients_lock:
         ws_clients = list(_ws_clients.keys())
     return {
@@ -305,11 +276,7 @@ def start_ws_server(log) -> None:
                 elif t == "result":
                     rid = msg.get("requestId", "")
                     if rid:
-                        with _bridge_r_lock:
-                            _bridge_results[rid] = msg
-                            ev = _bridge_r_events.get(rid)
-                        if ev:
-                            ev.set()
+                        _presence.post_result(rid, msg)
                         log(f"[Flow] WS: resultado recibido {rid[:12]}... status={msg.get('status', '?')}")
                 elif t == "token_ready":
                     pass
@@ -383,8 +350,7 @@ def start_bridge(log) -> None:
             account = _normalize_account_hash(qs.get("account", [""])[0])
 
             if account:
-                with _http_seen_lock:
-                    _http_seen[account] = time.time()
+                _presence.register(account)
 
             if parsed.path == "/health":
                 self._json_resp(200, {"ok": True})
@@ -397,15 +363,7 @@ def start_bridge(log) -> None:
                 return
 
             if parsed.path in ("/flow-generate-poll", "/flow-bridge-status"):
-                reqs = []
-                with _bridge_q_lock:
-                    remaining = []
-                    for r in _bridge_queue:
-                        if len(reqs) < 10 and (not account or r.get("account_hash", "") == account):
-                            reqs.append(r)
-                        else:
-                            remaining.append(r)
-                    _bridge_queue[:] = remaining
+                reqs = _presence.take(account, max_take=10)
 
                 if parsed.path == "/flow-bridge-status":
                     self._json_resp(200, status())
@@ -421,11 +379,7 @@ def start_bridge(log) -> None:
                     body = self._read_body()
                     rid = body.get("requestId", "")
                     if rid:
-                        with _bridge_r_lock:
-                            _bridge_results[rid] = body
-                            ev = _bridge_r_events.get(rid)
-                        if ev:
-                            ev.set()
+                        _presence.post_result(rid, body)
                         log(
                             f"[Flow] Bridge: resultado recibido {rid[:12]}... status={body.get('status', '?')}"
                         )
