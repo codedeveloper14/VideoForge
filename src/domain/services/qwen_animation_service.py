@@ -615,7 +615,11 @@ def build_videos_zip(project_name: str) -> tuple[BytesIO, str] | None:
         for v in videos:
             zf.write(str(v), v.name)
     buf.seek(0)
-    proj_label = sanitize_name(project_name) if project_name else Path(_state["project_dir"]).name
+    proj_label = (
+        sanitize_name(project_name)
+        if project_name
+        else Path(_batches.get(_last_project, {}).get("project_dir", "")).name
+    )
     return buf, f"{proj_label}_videos_qwen.zip"
 
 
