@@ -247,7 +247,7 @@ export default function FlowPanel({ project, outputDir, resolvingDir }: FlowPane
       setError(t("flowPanel.selectActiveProject"));
       return;
     }
-    genStatus.start(GEN_ID, "Imágenes · Flow", "Iniciando...");
+    genStatus.start(GEN_ID, "Imágenes · Flow", "Iniciando...", handleStop);
     try {
       sinceRef.current = 0;
       setLogLines([]);

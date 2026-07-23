@@ -369,7 +369,7 @@ export default function ProviderPanel({
       appendLog(t("providerPanel.uploadingImagesToProject", { count: images.length, project }));
     }
 
-    genStatus.start(genIdRef.current, `Video · ${providerLabel}`, "Iniciando...");
+    genStatus.start(genIdRef.current, `Video · ${providerLabel}`, "Iniciando...", handleStart);
 
     try {
       const d = await api.iniciar({
