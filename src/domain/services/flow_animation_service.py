@@ -483,11 +483,22 @@ def auto_open_browsers(force: bool = False) -> None:
         active = list(_active_slots)
     opened = 0
     for idx in active:
-        if not flow_service.load_cookie(idx):
+        ck = flow_service.load_cookie(idx)
+        if not ck:
             continue
         if not force:
             bridge_sess = _load_bridge_session(idx)
-            if bridge_sess and bridge_sess.get("account_hash") in connected_all:
+            already_connected = bool(bridge_sess and bridge_sess.get("account_hash") in connected_all)
+            # El sidecar de _on_bridge_session puede no existir todavia (ej. primera
+            # vez que esta cuenta conecta por extension en esta maquina) aunque la
+            # cuenta de ESTA cookie ya este conectada al bridge -- mismo hash que
+            # calcula _load_account() mas abajo, para no depender solo del sidecar.
+            if not already_connected:
+                sess = flow_service.get_session(ck)
+                email = sess.get("email", "")
+                if email and flow_service.account_hash(email) in connected_all:
+                    already_connected = True
+            if already_connected:
                 continue
         with _chromium_lock:
             existing = _chromium_procs.get(idx)
