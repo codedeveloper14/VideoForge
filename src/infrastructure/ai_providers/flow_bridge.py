@@ -42,6 +42,22 @@ _bearer_cache_lock = threading.Lock()
 _session_listeners: list = []
 
 
+def _normalize_account_hash(h: str) -> str:
+    """La extension namespacea el account_hash con el prefijo "flow:" (fix c77d9e2)
+    para no confundirlo con el de vibes.ai ("vibes:...") en el bridge compartido,
+    pero una copia de la extension todavia no actualizada (ver flow_content.js)
+    puede seguir mandando el hash crudo sin prefijo. Normalizamos aca, en el unico
+    punto de entrada al bridge (WS/HTTP), para que el resto del backend --que
+    siempre compara contra flow_service.account_hash(), el cual SI agrega el
+    prefijo-- nunca vea dos formatos distintos para la misma cuenta (eso hacia
+    que se listara como "conectada" y "sin Chrome" a la vez, y que auto_open_browsers
+    abriera Chromium igual pese a que la cuenta ya estaba conectada)."""
+    h = (h or "").strip()
+    if h and not h.startswith("flow:"):
+        return "flow:" + h
+    return h
+
+
 def add_session_listener(fn) -> None:
     _session_listeners.append(fn)
 
@@ -273,7 +289,7 @@ def start_ws_server(log) -> None:
                     continue
                 t = msg.get("type", "")
                 if t == "register":
-                    account_hash = msg.get("account_hash", "")
+                    account_hash = _normalize_account_hash(msg.get("account_hash", ""))
                     if account_hash:
                         with _ws_clients_lock:
                             _ws_clients[account_hash] = ws
@@ -364,7 +380,7 @@ def start_bridge(log) -> None:
         def do_GET(self):
             parsed = urlparse(self.path)
             qs = parse_qs(parsed.query)
-            account = qs.get("account", [""])[0]
+            account = _normalize_account_hash(qs.get("account", [""])[0])
 
             if account:
                 with _http_seen_lock:
@@ -419,7 +435,7 @@ def start_bridge(log) -> None:
             elif self.path == "/flow-register-bearer":
                 try:
                     body = self._read_body()
-                    account = body.get("account", "")
+                    account = _normalize_account_hash(body.get("account", ""))
                     bearer = body.get("bearer", "")
                     email = body.get("email", "")
                     if account and bearer:
