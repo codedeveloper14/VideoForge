@@ -355,6 +355,7 @@ export default function ProviderPanel({
         pollFailRef.current = 0;
         if (d.lines && d.lines.length) {
           setLogLines((prev) => [...prev, ...(d.lines as string[])]);
+          genStatus.update(genIdRef.current, { lines: d.lines as string[] });
         }
         logOffsetRef.current = d.next_offset ?? logOffsetRef.current;
         if (d.finished) {
@@ -423,7 +424,7 @@ export default function ProviderPanel({
       appendLog(t("providerPanel.uploadingImagesToProject", { count: images.length, project }));
     }
 
-    genStatus.start(genIdRef.current, `Video · ${providerLabel}`, "Iniciando...");
+    genStatus.start(genIdRef.current, `Video · ${providerLabel}`, "Iniciando...", handleStart);
 
     try {
       const d = await api.iniciar({
