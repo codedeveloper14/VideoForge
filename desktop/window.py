@@ -183,6 +183,22 @@ def _force_downloads_to_system_folder() -> None:
 
 
 def _screen_size() -> tuple[int, int]:
+    if sys.platform == "darwin":
+        # tkinter (Tcl/Tk) puede crashear el proceso ENTERO en macOS recientes: Tk
+        # intenta llamar -[NSApplication macOSVersion], un selector privado que ya
+        # no existe en versiones nuevas de macOS, y eso lanza una NSException nativa
+        # de Objective-C -- no una excepcion de Python, asi que el try/except de
+        # abajo no la frena (confirmado en vivo: "libc++abi: terminating due to
+        # uncaught exception", proceso abortado). Se usa AppKit directo via pyobjc
+        # en su lugar, que ya es dependencia obligatoria en darwin (ver
+        # requirements.txt) y no toca Tcl/Tk para nada.
+        try:
+            from AppKit import NSScreen
+
+            frame = NSScreen.mainScreen().frame()
+            return int(frame.size.width), int(frame.size.height)
+        except Exception:
+            return 1920, 1080
     try:
         import tkinter as tk
 
